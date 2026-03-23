@@ -8,25 +8,23 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({ push: vi.fn(), replace: mockReplace })),
 }));
 
-vi.mock("../src/lib/supabase-browser", () => {
-  const mockOnAuthStateChange = vi.fn();
-  const mockGetSession = vi.fn();
-  return {
-    getSupabaseBrowserClient: vi.fn(() => ({
-      auth: {
-        onAuthStateChange: mockOnAuthStateChange,
-        getSession: mockGetSession,
-        signOut: vi.fn(),
-      },
-    })),
-    __mockOnAuthStateChange: mockOnAuthStateChange,
-    __mockGetSession: mockGetSession,
-  };
-});
+const { mockOnAuthStateChange, mockGetSession } = vi.hoisted(() => ({
+  mockOnAuthStateChange: vi.fn(),
+  mockGetSession: vi.fn(),
+}));
+
+vi.mock("../src/lib/supabase-browser", () => ({
+  getSupabaseBrowserClient: vi.fn(() => ({
+    auth: {
+      onAuthStateChange: mockOnAuthStateChange,
+      getSession: mockGetSession,
+      signOut: vi.fn(),
+    },
+  })),
+}));
 
 import CallbackPage from "../src/app/auth/callback/page";
 import { AuthProvider } from "../src/lib/auth-context";
-import { __mockOnAuthStateChange, __mockGetSession } from "../src/lib/supabase-browser";
 
 describe("Auth callback page", () => {
   beforeEach(() => {
@@ -42,11 +40,11 @@ describe("Auth callback page", () => {
       access_token: "tok",
       user: { id: "u1", email: "a@b.com" },
     };
-    (__mockGetSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       data: { session },
       error: null,
     });
-    (__mockOnAuthStateChange as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
 
@@ -62,10 +60,10 @@ describe("Auth callback page", () => {
   });
 
   it("shows a loading spinner while processing", () => {
-    (__mockGetSession as ReturnType<typeof vi.fn>).mockReturnValue(
+    mockGetSession.mockReturnValue(
       new Promise(() => {}), // never resolves
     );
-    (__mockOnAuthStateChange as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
 

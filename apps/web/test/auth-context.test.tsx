@@ -3,30 +3,23 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
-// Mock supabase-browser before importing auth-context
-vi.mock("../src/lib/supabase-browser", () => {
-  const mockOnAuthStateChange = vi.fn();
-  const mockGetSession = vi.fn();
-  const mockSignOut = vi.fn();
-  return {
-    getSupabaseBrowserClient: vi.fn(() => ({
-      auth: {
-        onAuthStateChange: mockOnAuthStateChange,
-        getSession: mockGetSession,
-        signOut: mockSignOut,
-      },
-    })),
-    __mockOnAuthStateChange: mockOnAuthStateChange,
-    __mockGetSession: mockGetSession,
-    __mockSignOut: mockSignOut,
-  };
-});
+const { mockOnAuthStateChange, mockGetSession, mockSignOut } = vi.hoisted(() => ({
+  mockOnAuthStateChange: vi.fn(),
+  mockGetSession: vi.fn(),
+  mockSignOut: vi.fn(),
+}));
+
+vi.mock("../src/lib/supabase-browser", () => ({
+  getSupabaseBrowserClient: vi.fn(() => ({
+    auth: {
+      onAuthStateChange: mockOnAuthStateChange,
+      getSession: mockGetSession,
+      signOut: mockSignOut,
+    },
+  })),
+}));
 
 import { AuthProvider, useAuth } from "../src/lib/auth-context";
-import {
-  __mockOnAuthStateChange,
-  __mockGetSession,
-} from "../src/lib/supabase-browser";
 
 function TestConsumer() {
   const { user, loading } = useAuth();
@@ -45,11 +38,11 @@ describe("AuthProvider", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (__mockGetSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       data: { session: null },
       error: null,
     });
-    (__mockOnAuthStateChange as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockOnAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
   });
@@ -72,7 +65,7 @@ describe("AuthProvider", () => {
       access_token: "token_123",
       user: { id: "user_1", email: "test@test.com" },
     };
-    (__mockGetSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       data: { session: mockSession },
       error: null,
     });
