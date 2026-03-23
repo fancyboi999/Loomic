@@ -96,6 +96,7 @@ function CanvasPageContent() {
         />
       </div>
       <ChatSidebar
+        accessToken={accessToken}
         canvasId={canvasData.id}
         open={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}

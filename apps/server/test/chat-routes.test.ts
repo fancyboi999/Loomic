@@ -53,7 +53,7 @@ describe("chat routes", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as { sessions: ChatSessionSummary[] };
     expect(body.sessions).toHaveLength(1);
-    expect(body.sessions[0].id).toBe("session-1");
+    expect(body.sessions[0]!.id).toBe("session-1");
   });
 
   it("POST /api/canvases/:canvasId/sessions creates a session", async () => {
@@ -98,7 +98,7 @@ describe("chat routes", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as { messages: ChatMessage[] };
     expect(body.messages).toHaveLength(1);
-    expect(body.messages[0].content).toBe("Hello");
+    expect(body.messages[0]!.content).toBe("Hello");
   });
 
   it("POST /api/sessions/:sessionId/messages saves a message", async () => {

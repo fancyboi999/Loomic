@@ -9,6 +9,11 @@ import type {
   ProfileUpdateResponse,
   WorkspaceSettingsResponse,
   ModelListResponse,
+  SessionListResponse,
+  SessionCreateResponse,
+  MessageListResponse,
+  MessageCreateResponse,
+  ChatMessageCreateRequest,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -181,4 +186,94 @@ export async function fetchModels(): Promise<ModelListResponse> {
     throw new Error(`Failed to fetch models: ${response.status}`);
   }
   return (await response.json()) as ModelListResponse;
+}
+
+// --- Chat Session API ---
+
+export async function fetchSessions(
+  accessToken: string,
+  canvasId: string,
+): Promise<SessionListResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/canvases/${canvasId}/sessions`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SessionListResponse;
+}
+
+export async function createSession(
+  accessToken: string,
+  canvasId: string,
+  title?: string,
+): Promise<SessionCreateResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/canvases/${canvasId}/sessions`,
+    {
+      method: "POST",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify(title ? { title } : {}),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SessionCreateResponse;
+}
+
+export async function updateSessionTitle(
+  accessToken: string,
+  sessionId: string,
+  title: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/sessions/${sessionId}`,
+    {
+      method: "PATCH",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify({ title }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function deleteSession(
+  accessToken: string,
+  sessionId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/sessions/${sessionId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function fetchMessages(
+  accessToken: string,
+  sessionId: string,
+): Promise<MessageListResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/sessions/${sessionId}/messages`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as MessageListResponse;
+}
+
+export async function saveMessage(
+  accessToken: string,
+  sessionId: string,
+  data: ChatMessageCreateRequest,
+): Promise<MessageCreateResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/sessions/${sessionId}/messages`,
+    {
+      method: "POST",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as MessageCreateResponse;
 }
