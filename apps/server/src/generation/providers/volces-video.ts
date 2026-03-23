@@ -20,7 +20,8 @@ export class VolcesVideoProvider implements VideoProvider {
   }
 
   async generate(params: VideoGenerateParams): Promise<GeneratedVideo> {
-    const resolution = RESOLUTION_MAP[params.resolution ?? "720p"] ?? RESOLUTION_MAP["720p"];
+    const resKey = params.resolution ?? "720p";
+    const resolution = RESOLUTION_MAP[resKey] ?? { width: 1280, height: 720 };
     const duration = params.duration ?? 5;
 
     const body = {

@@ -30,7 +30,7 @@ export async function runImageGenerate(
       prompt: input.prompt,
       model: input.model,
       aspectRatio: input.aspectRatio,
-      inputImages: input.inputImages,
+      ...(input.inputImages ? { inputImages: input.inputImages } : {}),
     });
 
     return {
