@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import {
+  canvasContentSchema,
+  canvasDetailSchema,
   projectSummarySchema,
   runIdSchema,
   viewerProfileSchema,
@@ -48,6 +50,8 @@ export const unauthenticatedErrorResponseSchema = z.object({
 export const applicationErrorCodeSchema = z.enum([
   "application_error",
   "bootstrap_failed",
+  "canvas_not_found",
+  "canvas_save_failed",
   "project_query_failed",
   "project_create_failed",
   "project_slug_taken",
@@ -58,6 +62,18 @@ export const applicationErrorResponseSchema = z.object({
     code: applicationErrorCodeSchema,
     message: z.string().min(1),
   }),
+});
+
+export const canvasGetResponseSchema = z.object({
+  canvas: canvasDetailSchema,
+});
+
+export const canvasSaveRequestSchema = z.object({
+  content: canvasContentSchema,
+});
+
+export const canvasSaveResponseSchema = z.object({
+  ok: z.literal(true),
 });
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
@@ -73,3 +89,6 @@ export type ApplicationErrorCode = z.infer<typeof applicationErrorCodeSchema>;
 export type ApplicationErrorResponse = z.infer<
   typeof applicationErrorResponseSchema
 >;
+export type CanvasGetResponse = z.infer<typeof canvasGetResponseSchema>;
+export type CanvasSaveRequest = z.infer<typeof canvasSaveRequestSchema>;
+export type CanvasSaveResponse = z.infer<typeof canvasSaveResponseSchema>;

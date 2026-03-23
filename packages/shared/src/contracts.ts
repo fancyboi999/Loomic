@@ -73,6 +73,18 @@ export const projectSummarySchema = z.object({
   updatedAt: timestampSchema,
 });
 
+export const canvasContentSchema = z.object({
+  elements: z.array(z.record(z.unknown())).default([]),
+  appState: z.record(z.unknown()).default({}),
+});
+
+export const canvasDetailSchema = z.object({
+  id: canvasIdSchema,
+  name: z.string().min(1),
+  projectId: projectIdSchema,
+  content: canvasContentSchema,
+});
+
 export type RunCreateRequest = z.infer<typeof runCreateRequestSchema>;
 export type RunCreateResponse = z.infer<typeof runCreateResponseSchema>;
 export type ViewerProfile = z.infer<typeof viewerProfileSchema>;
@@ -80,3 +92,5 @@ export type WorkspaceSummary = z.infer<typeof workspaceSummarySchema>;
 export type WorkspaceMembership = z.infer<typeof workspaceMembershipSchema>;
 export type CanvasSummary = z.infer<typeof canvasSummarySchema>;
 export type ProjectSummary = z.infer<typeof projectSummarySchema>;
+export type CanvasContent = z.infer<typeof canvasContentSchema>;
+export type CanvasDetail = z.infer<typeof canvasDetailSchema>;

@@ -65,6 +65,7 @@ export type Database = {
       }
       canvases: {
         Row: {
+          content: Json
           created_at: string
           created_by: string | null
           id: string
@@ -74,6 +75,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          content?: Json
           created_at?: string
           created_by?: string | null
           id?: string
@@ -83,6 +85,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          content?: Json
           created_at?: string
           created_by?: string | null
           id?: string
