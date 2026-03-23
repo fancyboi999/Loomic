@@ -33,7 +33,7 @@ export async function runVideoGenerate(
       resolution: input.resolution,
       duration: input.duration as 5 | 10,
       aspectRatio: input.aspectRatio,
-      inputImages: input.inputImages,
+      ...(input.inputImages ? { inputImages: input.inputImages } : {}),
     });
 
     return {

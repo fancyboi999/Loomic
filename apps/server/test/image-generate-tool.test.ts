@@ -44,6 +44,7 @@ describe("generate_image tool", () => {
       prompt: "test",
       provider: "openai",
       model: "m",
+      aspectRatio: "1:1",
     });
 
     expect(result.summary).toContain("failed");

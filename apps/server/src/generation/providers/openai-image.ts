@@ -13,17 +13,17 @@ export class OpenAIImageProvider implements ImageProvider {
 
   async generate(params: ImageGenerateParams): Promise<GeneratedImage> {
     const { width, height } = aspectRatioToDimensions(params.aspectRatio ?? "1:1");
-    const size = `${width}x${height}` as `${number}x${number}`;
+    const size = `${width}x${height}`;
 
     try {
       const response = await this.client.images.generate({
         model: params.model,
         prompt: params.prompt,
-        size,
+        size: size as "1024x1024",
         n: 1,
       });
 
-      const url = response.data[0]?.url;
+      const url = response.data?.[0]?.url;
       if (!url) {
         throw new GenerationError("openai", "no_output", "OpenAI returned no image URL");
       }
