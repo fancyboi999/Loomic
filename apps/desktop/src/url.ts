@@ -28,7 +28,8 @@ export function resolveDesktopContentSource(
 ): DesktopContentSource {
   const env = options.env ?? process.env;
   const mode =
-    options.mode ?? (env.NODE_ENV === "production" ? "production" : "development");
+    options.mode ??
+    (env.NODE_ENV === "production" ? "production" : "development");
 
   if (mode === "development") {
     const entrypoint = normalizeWebUrl(env.WEB_URL) ?? DEFAULT_WEB_DEV_URL;

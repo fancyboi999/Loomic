@@ -14,7 +14,7 @@
     "vitest": "^3.0.7"
   },
   "scripts": {
-    "build": "pnpm --dir ../web build && NODE_OPTIONS='--import tsx' node -e \"import { access } from 'node:fs/promises'; import { resolveDesktopContentSource } from './src/url.ts'; const source = resolveDesktopContentSource({ mode: 'production' }); if (source.kind !== 'file') throw new Error('Expected a file-based desktop renderer entrypoint in production.'); await access(source.filePath);\" && node ../../scripts/validate-foundation-app.mjs build",
+    "build": "NODE_OPTIONS='--import tsx' node -e \"import { access } from 'node:fs/promises'; import { resolveDesktopContentSource } from './src/url.ts'; const source = resolveDesktopContentSource({ mode: 'production' }); if (source.kind !== 'file') throw new Error('Expected a file-based desktop renderer entrypoint in production.'); await access(source.filePath);\" && node ../../scripts/validate-foundation-app.mjs build",
     "dev": "NODE_OPTIONS='--import tsx' electron ./src/main.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -1,7 +1,4 @@
-import {
-  createDesktopRuntime,
-  type DesktopRuntime,
-} from "./runtime.js";
+import { type DesktopRuntime, createDesktopRuntime } from "./runtime.js";
 
 export const DESKTOP_BRIDGE_KEY = "loomicDesktop";
 

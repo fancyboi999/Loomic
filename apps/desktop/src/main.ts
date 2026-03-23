@@ -1,6 +1,6 @@
-import { app, BrowserWindow } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { BrowserWindow, app } from "electron";
 
 import { resolveDesktopContentSource } from "./url.js";
 
