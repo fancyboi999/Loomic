@@ -15,6 +15,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "pnpm run typecheck",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
