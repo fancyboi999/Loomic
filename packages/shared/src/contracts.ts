@@ -85,6 +85,23 @@ export const canvasDetailSchema = z.object({
   content: canvasContentSchema,
 });
 
+export const profileUpdateRequestSchema = z.object({
+  displayName: z.string().trim().min(1).max(100),
+});
+
+export const workspaceSettingsSchema = z.object({
+  defaultModel: z.string().min(1),
+});
+
+export const modelInfoSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  provider: z.string().min(1),
+});
+
+export type ProfileUpdateRequest = z.infer<typeof profileUpdateRequestSchema>;
+export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;
+export type ModelInfo = z.infer<typeof modelInfoSchema>;
 export type RunCreateRequest = z.infer<typeof runCreateRequestSchema>;
 export type RunCreateResponse = z.infer<typeof runCreateResponseSchema>;
 export type ViewerProfile = z.infer<typeof viewerProfileSchema>;
