@@ -1,4 +1,5 @@
 import {
+  type Json,
   type ViewerResponse,
   viewerResponseSchema,
 } from "@loomic/shared";
@@ -27,31 +28,31 @@ export function createViewerService(options: {
   return {
     async ensureViewer(user) {
       const admin = options.getAdminClient();
-      const profileSeed = buildProfileSeed(user);
 
-      const { error: upsertProfileError } = await admin.from("profiles").upsert(
-        {
-          avatar_url: profileSeed.avatarUrl,
-          display_name: profileSeed.displayName,
-          email: user.email,
-          id: user.id,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      const { error: rpcError } = await admin.rpc("bootstrap_viewer", {
+        p_user_id: user.id,
+        p_email: user.email,
+        p_user_meta: user.userMetadata as Json,
+      });
 
-      if (upsertProfileError) {
+      if (rpcError) {
         throw new BootstrapError();
       }
 
-      const workspace = await ensurePersonalWorkspace(admin, user, profileSeed);
-      await ensureWorkspaceMembership(admin, workspace.id, user.id);
+      const workspace = await loadPersonalWorkspace(admin, user.id);
+
+      if (!workspace) {
+        throw new BootstrapError();
+      }
 
       const [profile, membership] = await Promise.all([
-        loadProfile(admin, user, profileSeed),
+        loadProfile(admin, user.id),
         loadMembership(admin, workspace.id, user.id),
       ]);
+
+      if (!profile || !membership) {
+        throw new BootstrapError();
+      }
 
       return viewerResponseSchema.parse({
         membership,
@@ -60,51 +61,6 @@ export function createViewerService(options: {
       });
     },
   };
-}
-
-async function ensurePersonalWorkspace(
-  admin: AdminSupabaseClient,
-  user: AuthenticatedUser,
-  profileSeed: {
-    avatarUrl: string | null;
-    displayName: string;
-  },
-) {
-  const existingWorkspace = await loadPersonalWorkspace(admin, user.id);
-  if (existingWorkspace) {
-    return existingWorkspace;
-  }
-
-  const workspaceName = `${profileSeed.displayName} Workspace`;
-  const { data, error } = await admin
-    .from("workspaces")
-    .insert({
-      name: workspaceName,
-      owner_user_id: user.id,
-      type: "personal",
-    })
-    .select("id, name, type, owner_user_id")
-    .single();
-
-  if (error && !isUniqueViolation(error)) {
-    throw new BootstrapError();
-  }
-
-  if (data) {
-    return {
-      id: data.id,
-      name: data.name,
-      ownerUserId: data.owner_user_id,
-      type: data.type,
-    } as const;
-  }
-
-  const workspace = await loadPersonalWorkspace(admin, user.id);
-  if (!workspace) {
-    throw new BootstrapError();
-  }
-
-  return workspace;
 }
 
 async function loadPersonalWorkspace(
@@ -120,11 +76,7 @@ async function loadPersonalWorkspace(
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    throw new BootstrapError();
-  }
-
-  if (!data) {
+  if (error || !data) {
     return null;
   }
 
@@ -136,49 +88,21 @@ async function loadPersonalWorkspace(
   } as const;
 }
 
-async function ensureWorkspaceMembership(
-  admin: AdminSupabaseClient,
-  workspaceId: string,
-  userId: string,
-) {
-  const { error } = await admin.from("workspace_members").upsert(
-    {
-      role: "owner",
-      user_id: userId,
-      workspace_id: workspaceId,
-    },
-    {
-      onConflict: "workspace_id,user_id",
-    },
-  );
-
-  if (error) {
-    throw new BootstrapError();
-  }
-}
-
-async function loadProfile(
-  admin: AdminSupabaseClient,
-  user: AuthenticatedUser,
-  profileSeed: {
-    avatarUrl: string | null;
-    displayName: string;
-  },
-) {
+async function loadProfile(admin: AdminSupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
     .select("id, email, display_name, avatar_url")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
-  if (error) {
-    throw new BootstrapError();
+  if (error || !data) {
+    return null;
   }
 
   return {
-    avatarUrl: data.avatar_url ?? profileSeed.avatarUrl,
-    displayName: data.display_name ?? profileSeed.displayName,
-    email: data.email ?? user.email,
+    avatarUrl: data.avatar_url ?? null,
+    displayName: data.display_name ?? "Personal",
+    email: data.email ?? "",
     id: data.id,
   } as const;
 }
@@ -195,8 +119,8 @@ async function loadMembership(
     .eq("user_id", userId)
     .single();
 
-  if (error) {
-    throw new BootstrapError();
+  if (error || !data) {
+    return null;
   }
 
   return {
@@ -204,37 +128,4 @@ async function loadMembership(
     userId: data.user_id,
     workspaceId: data.workspace_id,
   } as const;
-}
-
-function buildProfileSeed(user: AuthenticatedUser) {
-  const displayName = normalizeOptionalString(
-    user.userMetadata.display_name,
-    user.userMetadata.full_name,
-    user.userMetadata.name,
-    user.email.split("@")[0],
-  );
-
-  return {
-    avatarUrl: normalizeOptionalString(user.userMetadata.avatar_url) ?? null,
-    displayName: displayName ?? "Personal",
-  };
-}
-
-function normalizeOptionalString(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value !== "string") {
-      continue;
-    }
-
-    const normalized = value.trim();
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  return null;
-}
-
-function isUniqueViolation(error: { code?: string }) {
-  return error.code === "23505";
 }
