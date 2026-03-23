@@ -8,9 +8,9 @@
     "@loomic/ui": "workspace:*"
   },
   "scripts": {
-    "build": "pnpm run typecheck",
+    "build": "node ../../scripts/validate-foundation-app.mjs build",
     "dev": "node -e \"console.log('placeholder dev for @loomic/web')\"",
     "test": "pnpm run typecheck",
-    "typecheck": "node --input-type=module -e \"import { readFile } from 'node:fs/promises'; import ts from 'typescript'; const formatHost = { getCurrentDirectory: () => process.cwd(), getCanonicalFileName: (fileName) => fileName, getNewLine: () => ts.sys.newLine }; const manifest = JSON.parse(await readFile('package.json', 'utf8')); if (!manifest.private || manifest.type !== 'module' || typeof manifest.name !== 'string' || !manifest.name.startsWith('@loomic/')) { throw new Error('Task 1 app manifests must stay private, ESM, and scoped under @loomic/.'); } const configResult = ts.readConfigFile('tsconfig.json', ts.sys.readFile); if (configResult.error) { throw new Error(ts.formatDiagnosticsWithColorAndContext([configResult.error], formatHost)); } const parsed = ts.parseJsonConfigFileContent(configResult.config, ts.sys, process.cwd()); const diagnostics = parsed.errors.filter((error) => error.code !== 18003); if (diagnostics.length > 0) { throw new Error(ts.formatDiagnosticsWithColorAndContext(diagnostics, formatHost)); } if (parsed.options.noEmit !== true) { throw new Error('Task 1 app tsconfig files must set noEmit=true.'); }\""
+    "typecheck": "node ../../scripts/validate-foundation-app.mjs typecheck"
   }
 }
