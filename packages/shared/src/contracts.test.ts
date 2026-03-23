@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ZodType } from "zod";
 
 import {
   errorCodeValues,
@@ -8,6 +9,7 @@ import {
   runCreateResponseSchema,
   streamEventSchema,
 } from "./index.js";
+import * as sharedExports from "./index.js";
 
 describe("@loomic/shared contracts", () => {
   it("shares the health response schema for server and web", () => {
@@ -46,6 +48,110 @@ describe("@loomic/shared contracts", () => {
     });
 
     expect(parsed.status).toBe("canceling");
+  });
+
+  it("shares the viewer bootstrap contract for GET /api/viewer", () => {
+    const viewerResponseSchema = getExportedSchema("viewerResponseSchema");
+
+    const parsed = viewerResponseSchema.parse({
+      profile: {
+        id: "user_123",
+        email: "maker@loomic.test",
+        displayName: "Loomic Maker",
+        avatarUrl: "https://example.com/avatar.png",
+      },
+      workspace: {
+        id: "workspace_123",
+        name: "Loomic Maker",
+        type: "personal",
+        ownerUserId: "user_123",
+      },
+      membership: {
+        workspaceId: "workspace_123",
+        userId: "user_123",
+        role: "owner",
+      },
+    });
+
+    expect(parsed.profile.id).toBe("user_123");
+    expect(parsed.workspace.ownerUserId).toBe("user_123");
+    expect(parsed.membership.workspaceId).toBe("workspace_123");
+  });
+
+  it("shares project list and create contracts for GET/POST /api/projects", () => {
+    const projectListResponseSchema = getExportedSchema(
+      "projectListResponseSchema",
+    );
+    const projectCreateRequestSchema = getExportedSchema(
+      "projectCreateRequestSchema",
+    );
+    const projectCreateResponseSchema = getExportedSchema(
+      "projectCreateResponseSchema",
+    );
+
+    const createRequest = projectCreateRequestSchema.parse({
+      name: "Brand System",
+      description: "Primary workspace project",
+    });
+
+    const parsedList = projectListResponseSchema.parse({
+      projects: [
+        {
+          id: "project_123",
+          name: createRequest.name,
+          slug: "brand-system",
+          description: createRequest.description,
+          workspace: {
+            id: "workspace_123",
+            name: "Loomic Maker",
+            type: "personal",
+            ownerUserId: "user_123",
+          },
+          primaryCanvas: {
+            id: "canvas_123",
+            name: "Main Canvas",
+            isPrimary: true,
+          },
+          createdAt: "2026-03-23T12:00:00.000Z",
+          updatedAt: "2026-03-23T12:00:00.000Z",
+        },
+      ],
+    });
+    const createdProject = projectCreateResponseSchema.parse({
+      project: parsedList.projects[0],
+    });
+
+    expect(parsedList.projects[0].id).toBe("project_123");
+    expect(parsedList.projects[0].workspace.ownerUserId).toBe("user_123");
+    expect(parsedList.projects[0].primaryCanvas.id).toBe("canvas_123");
+    expect(createdProject.project.primaryCanvas.isPrimary).toBe(true);
+  });
+
+  it("shares stable unauthenticated and application error payloads", () => {
+    const unauthenticatedErrorResponseSchema = getExportedSchema(
+      "unauthenticatedErrorResponseSchema",
+    );
+    const applicationErrorResponseSchema = getExportedSchema(
+      "applicationErrorResponseSchema",
+    );
+
+    const unauthenticated = unauthenticatedErrorResponseSchema.parse({
+      error: {
+        code: "unauthorized",
+        message: "Authentication is required.",
+      },
+    });
+    const applicationError = applicationErrorResponseSchema.parse({
+      error: {
+        code: "project_create_failed",
+        message: "Unable to create project.",
+      },
+    });
+
+    expect(unauthenticated.error.code).toBe("unauthorized");
+    expect(JSON.parse(JSON.stringify(applicationError))).toEqual(
+      applicationError,
+    );
   });
 
   it("includes the required minimum stream event union", () => {
@@ -195,3 +301,20 @@ describe("@loomic/shared contracts", () => {
     );
   });
 });
+
+function getExportedSchema(name: string): ZodType {
+  const candidate = (sharedExports as Record<string, unknown>)[name];
+
+  expect(candidate, `${name} export is missing`).toBeDefined();
+
+  if (
+    !candidate ||
+    typeof candidate !== "object" ||
+    !("parse" in candidate) ||
+    typeof candidate.parse !== "function"
+  ) {
+    throw new Error(`${name} is not a Zod schema export.`);
+  }
+
+  return candidate as ZodType;
+}

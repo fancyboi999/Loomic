@@ -7,6 +7,7 @@
     "@loomic/shared": "workspace:*",
     "@langchain/core": "^1.1.35",
     "@langchain/openai": "^1.3.0",
+    "@supabase/supabase-js": "^2.57.0",
     "deepagents": "^1.8.4",
     "fastify": "^5.2.1",
     "langchain": "^1.2.36",
@@ -20,6 +21,7 @@
   },
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
+    "predev": "pnpm --filter @loomic/shared build",
     "dev": "node --import tsx ./src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

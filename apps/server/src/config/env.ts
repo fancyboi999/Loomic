@@ -14,6 +14,10 @@ export type ServerEnv = {
   openAIApiBase?: string;
   openAIApiKey?: string;
   port: number;
+  supabaseAnonKey?: string;
+  supabaseProjectId?: string;
+  supabaseServiceRoleKey?: string;
+  supabaseUrl?: string;
   version: string;
   webOrigin: string;
 };
@@ -29,6 +33,17 @@ export function loadServerEnv(
     overrides.openAIApiBase ?? normalizeOptionalString(source.OPENAI_API_BASE);
   const openAIApiKey =
     overrides.openAIApiKey ?? normalizeOptionalString(source.OPENAI_API_KEY);
+  const supabaseUrl =
+    overrides.supabaseUrl ?? normalizeOptionalString(source.SUPABASE_URL);
+  const supabaseAnonKey =
+    overrides.supabaseAnonKey ??
+    normalizeOptionalString(source.SUPABASE_ANON_KEY);
+  const supabaseServiceRoleKey =
+    overrides.supabaseServiceRoleKey ??
+    normalizeOptionalString(source.SUPABASE_SERVICE_ROLE_KEY);
+  const supabaseProjectId =
+    overrides.supabaseProjectId ??
+    normalizeOptionalString(source.SUPABASE_PROJECT_ID);
 
   return {
     agentBackendMode:
@@ -45,6 +60,10 @@ export function loadServerEnv(
     ...(agentFilesRoot ? { agentFilesRoot } : {}),
     ...(openAIApiBase ? { openAIApiBase } : {}),
     ...(openAIApiKey ? { openAIApiKey } : {}),
+    ...(supabaseUrl ? { supabaseUrl } : {}),
+    ...(supabaseAnonKey ? { supabaseAnonKey } : {}),
+    ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
+    ...(supabaseProjectId ? { supabaseProjectId } : {}),
   };
 }
 
