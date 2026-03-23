@@ -1,4 +1,4 @@
-import type { CanvasContent, CanvasDetail } from "@loomic/shared";
+import type { CanvasContent, CanvasDetail, Json } from "@loomic/shared";
 
 import type { AuthenticatedUser, UserSupabaseClient } from "../../supabase/user.js";
 
@@ -54,7 +54,7 @@ export function createCanvasService(options: {
       const client = options.createUserClient(user.accessToken);
       const { error } = await client
         .from("canvases")
-        .update({ content: content as unknown as Record<string, unknown> })
+        .update({ content: content as unknown as Json })
         .eq("id", canvasId);
 
       if (error) {
