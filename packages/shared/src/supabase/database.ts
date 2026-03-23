@@ -204,6 +204,35 @@ export type Database = {
           },
         ]
       }
+      workspace_settings: {
+        Row: {
+          workspace_id: string
+          default_model: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          workspace_id: string
+          default_model?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          workspace_id?: string
+          default_model?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           created_at: string
