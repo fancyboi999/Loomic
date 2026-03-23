@@ -8,17 +8,30 @@ import { streamEvents } from "../lib/stream-events";
 
 const initialPrompt = "Help me outline a short product launch storyboard.";
 
+type WorkbenchStatus = "idle" | "running" | "completed" | "canceled" | "failed";
+
+type ToolActivity = {
+  outputSummary: string | null;
+  status: "running" | "completed";
+  toolCallId: string;
+  toolName: string;
+};
+
 export function ChatWorkbench() {
   const [prompt, setPrompt] = useState(initialPrompt);
+  const [assistantResponse, setAssistantResponse] = useState("");
   const [events, setEvents] = useState<StreamEvent[]>([]);
-  const [status, setStatus] = useState<"idle" | "running" | "failed">("idle");
+  const [status, setStatus] = useState<WorkbenchStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [toolActivities, setToolActivities] = useState<ToolActivity[]>([]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setAssistantResponse("");
     setEvents([]);
     setErrorMessage(null);
     setStatus("running");
+    setToolActivities([]);
 
     try {
       const run = await createRun({
@@ -27,14 +40,62 @@ export function ChatWorkbench() {
         prompt,
       });
 
+      let terminalStatus: WorkbenchStatus | null = null;
+
       for await (const streamEvent of streamEvents(run.runId)) {
         setEvents((current) => [...current, streamEvent]);
-        if (streamEvent.type === "run.failed") {
-          setStatus("failed");
+
+        switch (streamEvent.type) {
+          case "message.delta":
+            setAssistantResponse((current) => current + streamEvent.delta);
+            break;
+          case "run.canceled":
+            terminalStatus = "canceled";
+            setStatus("canceled");
+            break;
+          case "run.completed":
+            terminalStatus = "completed";
+            setStatus("completed");
+            break;
+          case "run.failed":
+            terminalStatus = "failed";
+            setErrorMessage(streamEvent.error.message);
+            setStatus("failed");
+            break;
+          case "tool.completed":
+            setToolActivities((current) =>
+              current.map((activity) =>
+                activity.toolCallId === streamEvent.toolCallId
+                  ? {
+                      ...activity,
+                      outputSummary: streamEvent.outputSummary ?? null,
+                      status: "completed",
+                    }
+                  : activity,
+              ),
+            );
+            break;
+          case "tool.started":
+            setToolActivities((current) => [
+              ...current.filter(
+                (activity) => activity.toolCallId !== streamEvent.toolCallId,
+              ),
+              {
+                outputSummary: null,
+                status: "running",
+                toolCallId: streamEvent.toolCallId,
+                toolName: streamEvent.toolName,
+              },
+            ]);
+            break;
+          default:
+            break;
         }
       }
 
-      setStatus("idle");
+      if (!terminalStatus) {
+        setStatus("completed");
+      }
     } catch (error) {
       setStatus("failed");
       setErrorMessage(
@@ -46,10 +107,11 @@ export function ChatWorkbench() {
   return (
     <section className="chat-workbench">
       <div className="hero">
-        <p className="eyebrow">Loomic Phase D</p>
-        <h1>Minimal Chat Workbench</h1>
+        <p className="eyebrow">Loomic Phase A</p>
+        <h1>Runtime Chat Workbench</h1>
         <p className="description">
-          Directly calls the Loomic server and renders streamed SSE events.
+          Directly calls the Loomic server, renders incremental assistant
+          output, and surfaces tool lifecycle events from the real runtime.
         </p>
       </div>
 
@@ -71,26 +133,80 @@ export function ChatWorkbench() {
         </button>
       </form>
 
-      <div aria-live="polite" className="stream-status">
-        <strong>Status:</strong> {status}
+      <output
+        aria-live="polite"
+        className={`stream-status stream-status--${status}`}
+      >
+        <strong>Status:</strong> {formatStatus(status)}
+      </output>
+
+      {errorMessage ? (
+        <p className="error" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <div className="panels">
+        <section aria-label="assistant response" className="panel">
+          <h2>Assistant Response</h2>
+          <div className="assistant-card">
+            {assistantResponse ? (
+              <p>{assistantResponse}</p>
+            ) : (
+              <p className="placeholder">
+                {status === "running"
+                  ? "Waiting for the first delta..."
+                  : "No assistant response yet."}
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section aria-label="tool activity" className="panel">
+          <h2>Tool Activity</h2>
+          <ul className="tool-list">
+            {toolActivities.length === 0 ? (
+              <li className="tool-card placeholder">No tool activity yet.</li>
+            ) : (
+              toolActivities.map((activity) => (
+                <li className="tool-card" key={activity.toolCallId}>
+                  <div className="tool-header">
+                    <strong>{activity.toolName}</strong>
+                    <span
+                      className={`tool-badge tool-badge--${activity.status}`}
+                    >
+                      {activity.status}
+                    </span>
+                  </div>
+                  <p className="tool-id">call id: {activity.toolCallId}</p>
+                  {activity.outputSummary ? (
+                    <p className="tool-summary">{activity.outputSummary}</p>
+                  ) : (
+                    <p className="placeholder">Waiting for tool output...</p>
+                  )}
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
       </div>
 
-      {errorMessage ? <p className="error">{errorMessage}</p> : null}
-
-      <section aria-label="streamed event log" className="event-log">
-        <h2>Streamed Event Log</h2>
-        <ul>
+      <section aria-label="stream timeline" className="event-log">
+        <h2>Stream Timeline</h2>
+        <ol>
           {events.length === 0 ? (
-            <li>No events yet.</li>
+            <li className="placeholder">No events yet.</li>
           ) : (
             events.map((streamEvent, index) => (
               <li key={`${streamEvent.type}-${index}`}>
-                <code>{streamEvent.type}</code>
-                <pre>{JSON.stringify(streamEvent, null, 2)}</pre>
+                <div className="timeline-row">
+                  <code>{streamEvent.type}</code>
+                  <span>{describeEvent(streamEvent)}</span>
+                </div>
               </li>
             ))
           )}
-        </ul>
+        </ol>
       </section>
 
       <style>{`
@@ -128,6 +244,7 @@ export function ChatWorkbench() {
         }
 
         .composer,
+        .panel,
         .event-log {
           border: 1px solid #d7e2ee;
           border-radius: 24px;
@@ -176,6 +293,27 @@ export function ChatWorkbench() {
         .stream-status {
           margin: 18px 0;
           color: #44576d;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 999px;
+          background: #eef4fa;
+        }
+
+        .stream-status--completed {
+          color: #1d5a43;
+          background: #e6f6ef;
+        }
+
+        .stream-status--canceled {
+          color: #7a5a14;
+          background: #fff5da;
+        }
+
+        .stream-status--failed {
+          color: #8f2e2e;
+          background: #fde8e8;
         }
 
         .error {
@@ -183,12 +321,43 @@ export function ChatWorkbench() {
           font-weight: 700;
         }
 
-        .event-log {
-          margin-top: 24px;
+        .panels {
+          display: grid;
+          gap: 24px;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          margin-top: 6px;
+        }
+
+        .panel {
           padding: 24px;
         }
 
-        .event-log ul {
+        .panel h2,
+        .event-log {
+          margin-top: 24px;
+        }
+
+        .panel h2,
+        .event-log h2 {
+          margin-top: 0;
+        }
+
+        .assistant-card,
+        .tool-card,
+        .event-log li {
+          border-radius: 18px;
+          padding: 24px;
+          background: #eff5fb;
+        }
+
+        .assistant-card p,
+        .tool-card p {
+          margin: 0;
+          line-height: 1.6;
+        }
+
+        .tool-list,
+        .event-log ol {
           display: grid;
           gap: 12px;
           padding: 0;
@@ -196,20 +365,99 @@ export function ChatWorkbench() {
           list-style: none;
         }
 
-        .event-log li {
-          border-radius: 18px;
-          padding: 16px;
-          background: #eff5fb;
+        .tool-header,
+        .timeline-row {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          justify-content: space-between;
         }
 
-        .event-log pre {
-          margin: 10px 0 0;
-          overflow: auto;
-          white-space: pre-wrap;
-          word-break: break-word;
-          color: #27425f;
+        .tool-badge {
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          background: #dce8f5;
+          color: #365777;
+        }
+
+        .tool-badge--completed {
+          background: #dcf5e8;
+          color: #1f694d;
+        }
+
+        .tool-id {
+          margin-top: 10px;
+          color: #5b7087;
+          font-size: 0.88rem;
+        }
+
+        .tool-summary {
+          margin-top: 12px;
+        }
+
+        .placeholder {
+          color: #5b7087;
+        }
+
+        .event-log {
+          padding: 24px;
+        }
+
+        .event-log code {
+          color: #1d486a;
+        }
+
+        .event-log span {
+          color: #304c68;
+          text-align: right;
+        }
+
+        @media (max-width: 640px) {
+          .timeline-row,
+          .tool-header {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .event-log span {
+            text-align: left;
+          }
         }
       `}</style>
     </section>
   );
+}
+
+function formatStatus(status: WorkbenchStatus) {
+  switch (status) {
+    case "completed":
+      return "completed";
+    case "canceled":
+      return "canceled";
+    case "failed":
+      return "failed";
+    case "running":
+      return "running";
+    default:
+      return "idle";
+  }
+}
+
+function describeEvent(event: StreamEvent) {
+  switch (event.type) {
+    case "message.delta":
+      return event.delta;
+    case "run.failed":
+      return event.error.message;
+    case "tool.completed":
+      return event.outputSummary ?? `${event.toolName} finished.`;
+    case "tool.started":
+      return `${event.toolName} started.`;
+    default:
+      return `run ${event.runId}`;
+  }
 }

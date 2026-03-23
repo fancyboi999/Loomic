@@ -18,7 +18,11 @@ export async function* streamEvents(
   source.onmessage = (event) => {
     const parsed = JSON.parse(event.data) as StreamEvent;
     queue.push(parsed);
-    if (parsed.type === "run.completed" || parsed.type === "run.failed") {
+    if (
+      parsed.type === "run.canceled" ||
+      parsed.type === "run.completed" ||
+      parsed.type === "run.failed"
+    ) {
       closed = true;
       source.close();
     }
@@ -37,7 +41,7 @@ export async function* streamEvents(
   source.addEventListener("open", onOpen);
 
   try {
-    while (!closed || queue.length > 0) {
+    while (true) {
       if (queue.length > 0) {
         yield queue.shift() as StreamEvent;
         continue;
@@ -45,6 +49,10 @@ export async function* streamEvents(
 
       if (rejectedError) {
         throw rejectedError;
+      }
+
+      if (closed) {
+        return;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 10));

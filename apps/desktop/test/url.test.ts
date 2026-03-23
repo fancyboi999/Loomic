@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -65,6 +66,7 @@ describe("@loomic/desktop shell url resolution", () => {
     }
 
     expect(source.filePath).toBe(expectedIndexPath);
+    expect(source.entrypoint).toBe(pathToFileURL(expectedIndexPath).toString());
     expect(source.entrypoint).toMatch(/apps\/web\/out\/index\.html$/);
   });
 });

@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -84,7 +90,13 @@ describe("ChatWorkbench", () => {
       screen.getByRole("button", { name: /start run/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: /streamed event log/i }),
+      screen.getByRole("region", { name: /assistant response/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /tool activity/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /stream timeline/i }),
     ).toBeInTheDocument();
   });
 
@@ -126,6 +138,21 @@ describe("ChatWorkbench", () => {
       timestamp: "2026-03-23T12:00:00.000Z",
     });
     stream.emitMessage({
+      type: "tool.started",
+      runId: "run_123",
+      toolCallId: "tool_call_123",
+      toolName: "project_search",
+      timestamp: "2026-03-23T12:00:00.500Z",
+    });
+    stream.emitMessage({
+      type: "tool.completed",
+      runId: "run_123",
+      toolCallId: "tool_call_123",
+      toolName: "project_search",
+      outputSummary: "Found 1 workspace match.",
+      timestamp: "2026-03-23T12:00:00.800Z",
+    });
+    stream.emitMessage({
       type: "message.delta",
       runId: "run_123",
       messageId: "message_123",
@@ -138,12 +165,73 @@ describe("ChatWorkbench", () => {
       timestamp: "2026-03-23T12:00:02.000Z",
     });
 
+    const toolActivity = screen.getByRole("region", { name: /tool activity/i });
     expect(
-      await screen.findByText(/^run.started$/i, { selector: "code" }),
+      await within(toolActivity).findByText(/^project_search$/i),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText(/^message.delta$/i, { selector: "code" }),
+      await within(toolActivity).findByText(/^completed$/i),
     ).toBeInTheDocument();
-    expect(await screen.findByText(/Hello from Loomic/i)).toBeInTheDocument();
+    expect(
+      await within(toolActivity).findByText(/Found 1 workspace match./i),
+    ).toBeInTheDocument();
+    const assistantResponse = screen.getByRole("region", {
+      name: /assistant response/i,
+    });
+    expect(
+      await within(assistantResponse).findByText(/Hello from Loomic/i),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(/completed/i),
+    );
+  });
+
+  it("treats run cancellation differently from transport failure", async () => {
+    render(<HomePage />);
+
+    await userEvent.click(screen.getByRole("button", { name: /start run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+
+    const stream = MockEventSource.instances[0];
+    if (!stream) {
+      throw new Error("Expected a mock stream instance.");
+    }
+
+    stream.emitMessage({
+      type: "run.started",
+      runId: "run_123",
+      sessionId: "session_demo",
+      conversationId: "conversation_demo",
+      timestamp: "2026-03-23T12:00:00.000Z",
+    });
+    stream.emitMessage({
+      type: "run.canceled",
+      runId: "run_123",
+      timestamp: "2026-03-23T12:00:02.000Z",
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(/canceled/i),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows a failed state when the SSE transport errors", async () => {
+    render(<HomePage />);
+
+    await userEvent.click(screen.getByRole("button", { name: /start run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+
+    const stream = MockEventSource.instances[0];
+    if (!stream) {
+      throw new Error("Expected a mock stream instance.");
+    }
+
+    stream.onerror?.();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /failed to stream run events/i,
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(/failed/i);
   });
 });
