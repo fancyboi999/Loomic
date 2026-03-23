@@ -3,16 +3,35 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
 import { createAgentRunService } from "./agent/runtime.js";
+import {
+  createViewerService,
+  type ViewerService,
+} from "./features/bootstrap/ensure-user-foundation.js";
+import {
+  createProjectService,
+  type ProjectService,
+} from "./features/projects/project-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerHealthRoutes } from "./http/health.js";
+import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSseRoutes } from "./http/sse.js";
+import { registerViewerRoutes } from "./http/viewer.js";
+import { createAdminSupabaseClient } from "./supabase/admin.js";
+import {
+  createSupabaseRequestAuthenticator,
+  createUserSupabaseClientFactory,
+  type RequestAuthenticator,
+} from "./supabase/user.js";
 
 export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
   agentModel?: BaseLanguageModel | string;
+  auth?: RequestAuthenticator;
   env?: Partial<ServerEnv>;
   mockEventDelayMs?: number;
+  projectService?: ProjectService;
+  viewerService?: ViewerService;
 };
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -28,6 +47,19 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       : { eventDelayMs: options.mockEventDelayMs }),
     env,
   });
+  const auth = options.auth ?? createSupabaseRequestAuthenticator(env);
+  const createUserClient = createUserSupabaseClientFactory(env);
+  let adminClient:
+    | ReturnType<typeof createAdminSupabaseClient>
+    | undefined;
+  const getAdminClient = () => {
+    adminClient ??= createAdminSupabaseClient(env);
+    return adminClient;
+  };
+  const viewerService =
+    options.viewerService ?? createViewerService({ getAdminClient });
+  const projectService =
+    options.projectService ?? createProjectService({ createUserClient });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -61,6 +93,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerHealthRoutes(app, env);
   void registerRunRoutes(app, agentRuns);
   void registerSseRoutes(app, agentRuns, env);
+  void registerViewerRoutes(app, {
+    auth,
+    viewerService,
+  });
+  void registerProjectRoutes(app, {
+    auth,
+    projectService,
+  });
 
   return app;
 }
