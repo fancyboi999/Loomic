@@ -16,11 +16,16 @@ import {
   type ProjectService,
 } from "./features/projects/project-service.js";
 import {
+  createChatService,
+  type ChatService,
+} from "./features/chat/chat-service.js";
+import {
   createSettingsService,
   type SettingsService,
 } from "./features/settings/settings-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
+import { registerChatRoutes } from "./http/chat.js";
 import { registerHealthRoutes } from "./http/health.js";
 import { registerModelRoutes } from "./http/models.js";
 import { registerProjectRoutes } from "./http/projects.js";
@@ -40,6 +45,7 @@ export type BuildAppOptions = {
   agentModel?: BaseLanguageModel | string;
   auth?: RequestAuthenticator;
   canvasService?: CanvasService;
+  chatService?: ChatService;
   env?: Partial<ServerEnv>;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
@@ -76,6 +82,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     createProjectService({ createUserClient, viewerService });
   const canvasService =
     options.canvasService ?? createCanvasService({ createUserClient });
+  const chatService =
+    options.chatService ?? createChatService({ createUserClient });
   const settingsService =
     options.settingsService ?? createSettingsService({ createUserClient });
 
@@ -94,7 +102,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }
 
     if (corsResult.isBrowserRequest) {
-      reply.header("access-control-allow-methods", "GET,POST,PUT,PATCH,OPTIONS");
+      reply.header("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
       reply.header(
         "access-control-allow-headers",
         resolveAllowedHeaders(
@@ -134,6 +142,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerModelRoutes(app);
+  void registerChatRoutes(app, {
+    auth,
+    chatService,
+  });
 
   return app;
 }
