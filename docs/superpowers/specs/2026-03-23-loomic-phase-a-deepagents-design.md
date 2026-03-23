@@ -4,7 +4,7 @@
 
 **Goal:** Replace Loomic's mock run path with a real JavaScript agent runtime built on the latest `deepagents` architecture, while keeping the current Web/Desktop contract stable and avoiding premature expansion into media generation workflows.
 
-**Architecture:** `apps/server` will host a single `deepagents` supervisor-style runtime created with the latest JavaScript API. The initial production-like path will use one main agent, one lightweight real tool, SSE streaming, and a backend abstraction designed for future persistence. Subagents remain available but optional; they are introduced only when isolation or specialization is necessary. Web and Desktop continue to consume the existing Loomic SSE contract through the standalone server.
+**Architecture:** `apps/server` will host a single `deepagents` supervisor-style runtime created with the latest JavaScript API. The initial production-like path will use one main agent, SSE streaming, one observable tool lifecycle, and a backend abstraction designed for future persistence. Subagents remain available but optional; they are introduced only when isolation or specialization is necessary. Web and Desktop continue to consume the existing Loomic SSE contract through the standalone server.
 
 **Tech Stack:** `TypeScript`, `Node.js`, `Fastify`, `deepagents`, `LangChain 1.x`, `LangGraph` runtime/state, `SSE`, `zod`, `vitest`, `Next.js`, `Electron`, `CompositeBackend`, `StateBackend`, `FilesystemBackend` for dev only.
 
@@ -36,7 +36,7 @@ Official docs are the authority for this phase:
 
 - Do not port Jaaz's legacy multi-agent graph shape unless Loomic proves it needs that complexity.
 - Keep one stable server-facing SSE contract for Web and Desktop.
-- Start with one real agent and one real tool, not a full media pipeline.
+- Start with one real agent and one observable tool lifecycle, not a full media pipeline.
 - Treat filesystem access as a backend policy decision, not a default entitlement.
 - Separate development ergonomics from production safety.
 
@@ -81,8 +81,8 @@ Deep Agents expose filesystem tools through pluggable backends. Loomic should us
 
 Allowed choices:
 
-- `FilesystemBackend` for local project access in controlled development
-- `LocalShellBackend` only for tightly controlled local development when shell execution is intentionally enabled
+- `FilesystemBackend` for local project access in controlled development, with `virtualMode: true`
+- `LocalShellBackend` only for tightly controlled local development when shell execution is intentionally enabled behind an explicit local-only flag and a dedicated working root
 
 This is acceptable because the operator is the developer and the environment is trusted.
 
@@ -93,19 +93,15 @@ Default posture:
 - do not use host filesystem backends as the primary web-facing backend
 - do not expose unrestricted host shell execution to the production agent runtime
 
-Preferred starting shape:
+Phase A production choice is deliberately narrow:
 
 - `CompositeBackend`
-- ephemeral workspace paths backed by state
-- durable paths reserved for later persistent storage
+- `/workspace/` -> `StateBackend`
+- `/memories/` -> `StateBackend`
 
-Example conceptual route split:
+In other words, Phase A production remains state-backed only. The route split exists now so Loomic can later move `/memories/` or other prefixes onto a durable backend without rewriting the runtime boundary, but no durable backend is required in this phase.
 
-- `/workspace/` -> ephemeral backend
-- `/memories/` -> persistent backend
-- `/projects/` -> future persistent backend if needed
-
-This keeps the first agent runtime safe and extensible while preserving the ability to add long-term persistence later.
+This keeps the first agent runtime safe and extensible without pretending that Supabase-backed or store-backed persistence already exists.
 
 ## Supabase Positioning
 
@@ -124,6 +120,7 @@ In other words:
 
 - Supabase is a planned persistence target
 - it is not the first implementation dependency for the real agent runtime
+- Phase A production memory remains state-backed only
 
 ## Server Design
 
@@ -148,12 +145,19 @@ The current mock run store should be preserved only as fallback or test utility 
 
 The server should preserve Loomic's client-facing SSE model. Internally, deepagents may stream richer data, but the server is responsible for mapping that stream onto the shared contract.
 
+Phase A must not assume one raw deepagents stream mode is sufficient. The runtime adapter should consume the deepagents streaming modes needed to reconstruct a stable client contract, specifically the equivalents of:
+
+- token/message output
+- step or tool progress updates
+- runtime terminal state
+
 The first real mapping should preserve these event families:
 
 - `run.started`
 - `message.delta`
 - `tool.started`
 - `tool.completed`
+- `run.canceled`
 - `run.completed`
 - `run.failed`
 
@@ -163,8 +167,20 @@ The mapping rules should be simple:
 
 - text deltas from the agent become `message.delta`
 - tool lifecycle updates become `tool.started` and `tool.completed`
+- user-initiated cancellation becomes `run.canceled`
 - runtime failures become `run.failed`
 - normal completion becomes `run.completed`
+
+Correlation rules must also be explicit:
+
+- `messageId` must be stable for all deltas belonging to the same assistant response
+- `toolCallId` must remain stable for all lifecycle events belonging to the same tool execution
+- the adapter, not the client, is responsible for deriving or preserving these identifiers from deepagents runtime output
+
+Subagent behavior for Phase A is also constrained:
+
+- subagents may exist internally, but client streaming remains normalized to the same Loomic event families
+- the client does not need a separate subagent event model in this phase
 
 ## First Real Tool
 
@@ -172,9 +188,9 @@ The first real tool should not be image or video generation.
 
 Recommended categories:
 
-- a local project or workspace search tool
-- a notes or memory read tool
-- a safe filesystem-backed retrieval tool
+- a local project or workspace search path
+- a notes or memory read path
+- a safe filesystem-backed retrieval path
 
 Why:
 
@@ -183,7 +199,12 @@ Why:
 - clearer signal that the agent is really choosing and using tools
 - avoids introducing external media-provider complexity too early
 
-The first tool's job is to validate the architecture, not impress with capability breadth.
+The first observable tool invocation may come from either:
+
+- one Loomic-defined read-only tool such as `project_search`, or
+- one deliberate filesystem-backed retrieval action exposed through the configured backend
+
+Either way, Phase A must make the tool lifecycle observable and testable. The goal is to validate the architecture, not impress with capability breadth.
 
 ## Validation
 
@@ -191,9 +212,10 @@ Phase A is complete only when all of the following are true:
 
 - `POST /api/agent/runs` starts a real deep agent run
 - the agent streams text deltas back to the client
-- at least one real tool can be selected and invoked
+- at least one real tool or deliberate backend-powered retrieval action can be selected and invoked
 - tool progress appears through the existing Loomic SSE contract
 - cancellation still works for an active run
+- cancellation emits a distinct terminal event and does not look like a transport failure
 - Web and Desktop continue to work without a contract rewrite
 
 ## Risks

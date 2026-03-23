@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace Loomic's mock server run path with a real JavaScript Deep Agents runtime that streams text and one real tool lifecycle through the existing SSE contract, while keeping Web and Desktop clients stable.
+**Goal:** Replace Loomic's mock server run path with a real JavaScript Deep Agents runtime that streams text and one observable tool lifecycle through the existing SSE contract, while keeping Web and Desktop clients stable.
 
-**Architecture:** `apps/server` remains the only runtime boundary. A single `createDeepAgent` supervisor-style runtime will replace the mock store for Phase A, with one safe tool and a backend policy that differs between development and production. The server will adapt deep agent streaming onto the existing Loomic SSE contract so `apps/web` and `apps/desktop` do not need a contract rewrite.
+**Architecture:** `apps/server` remains the only runtime boundary. A single `createDeepAgent` supervisor-style runtime will replace the mock store for Phase A, with one observable tool lifecycle and a backend policy that differs between development and production. The server will adapt deep agent streaming onto the existing Loomic SSE contract so `apps/web` and `apps/desktop` do not need a contract rewrite.
 
 **Tech Stack:** `TypeScript`, `Node.js`, `Fastify`, `deepagents`, `LangChain 1.x`, `SSE`, `zod`, `vitest`, `Next.js`, `Electron`, `CompositeBackend`, `StateBackend`, `FilesystemBackend`.
 
@@ -23,7 +23,8 @@
 
 Add tests that assert:
 - the server env loader exposes explicit Phase A model/backend settings
-- shared stream events still validate `run.started`, `message.delta`, `tool.started`, `tool.completed`, `run.completed`, and `run.failed`
+- shared stream events still validate `run.started`, `message.delta`, `tool.started`, `tool.completed`, `run.canceled`, `run.completed`, and `run.failed`
+- shared events still require stable `messageId` and `toolCallId` correlation fields where applicable
 - no client-facing event rename is required for Phase A
 
 - [ ] **Step 2: Run the targeted tests and confirm the Phase A config surface is missing**
@@ -48,6 +49,7 @@ Extend `src/config/env.ts` with Phase A settings such as:
 Keep defaults safe:
 - default backend mode should not expose unrestricted host shell execution
 - explicit local filesystem access must require an intentional dev-oriented setting
+- Phase A production defaults must keep both `/workspace` and `/memories` state-backed
 
 - [ ] **Step 4: Re-run env and shared tests**
 
@@ -64,7 +66,7 @@ git add /Users/nowcoder/Desktop/auto-code-work/Loomic/.worktrees/loomic-foundati
 git commit -m "chore: define phase-a deep-agent runtime contracts"
 ```
 
-### Task 2: Add backend factories and one safe real tool
+### Task 2: Add backend factories and one safe observable tool path
 
 **Files:**
 - Create: `/Users/nowcoder/Desktop/auto-code-work/Loomic/.worktrees/loomic-foundation/apps/server/src/agent/backends/index.ts`
@@ -79,8 +81,8 @@ git commit -m "chore: define phase-a deep-agent runtime contracts"
 
 Cover:
 - development backend can resolve a controlled filesystem backend when explicitly enabled
-- production backend resolves to a constrained non-host-shell shape
-- the first real tool can search a known workspace sample and return a summarized result
+- production backend resolves to a constrained state-backed shape for both `/workspace` and `/memories`
+- the first observable tool path can search a known workspace sample and return a summarized result
 
 - [ ] **Step 2: Run the new tests and confirm the backend/tool layer is absent**
 
@@ -95,8 +97,8 @@ Expected: FAIL because no backend factories or real tools exist yet.
 Implement:
 - a backend factory entrypoint that chooses dev or production behavior from env
 - dev mode using `FilesystemBackend` only when the root path is explicitly configured
-- production mode using a constrained `CompositeBackend` / `StateBackend` style setup with durable routes reserved but not yet bound to Supabase
-- a first tool such as `project_search` that uses the backend-visible workspace surface rather than ad hoc host shell access
+- production mode using a constrained `CompositeBackend` / `StateBackend` setup where both `/workspace` and `/memories` remain state-backed in Phase A
+- a first observable tool path such as `project_search` that uses the backend-visible workspace surface rather than ad hoc host shell access
 
 Keep the tool narrow:
 - read-only
@@ -133,7 +135,9 @@ Add tests that prove:
 - `POST /api/agent/runs` now starts a real runtime-backed run instead of a mock store entry
 - the runtime streams text deltas as `message.delta`
 - the first real tool surfaces `tool.started` and `tool.completed`
+- the runtime emits stable `messageId` and `toolCallId` values across related events
 - cancellation still ends the active run cleanly
+- cancellation emits `run.canceled`
 - `run.failed` is emitted when the runtime raises
 
 - [ ] **Step 2: Run the runtime tests and confirm the mock implementation still blocks them**
@@ -149,13 +153,14 @@ Expected: FAIL because the server still uses `createMockRunStore`.
 Implement:
 - a `createDeepAgent` factory that uses the configured model, backend, and tool list
 - a runtime service that tracks active runs and abort controllers
-- a stream adapter that maps deep agent streaming updates onto the existing Loomic events
+- a stream adapter that combines the deep agent streaming modes needed for stable Loomic events and maps them onto the existing Loomic events
 
 Preserve the public contract:
 - `run.started`
 - `message.delta`
 - `tool.started`
 - `tool.completed`
+- `run.canceled`
 - `run.completed`
 - `run.failed`
 
@@ -177,6 +182,7 @@ Expected:
 - health returns `ok: true`
 - run creation returns `202`
 - SSE stream shows real text/tool events instead of the previous mock-only message
+- cancellation returns a distinct terminal event instead of looking like a dropped stream
 
 - [ ] **Step 5: Commit**
 
@@ -198,6 +204,7 @@ git commit -m "feat: add phase-a deep-agent runtime"
 Update tests to prove:
 - the web workbench still renders incremental text deltas
 - tool lifecycle events from the real runtime appear without any client-side contract rewrite
+- cancellation state is distinguishable from transport failure
 - desktop production path validation still targets `apps/web/out/index.html`
 
 - [ ] **Step 2: Run the client tests and confirm any mismatches**
@@ -265,7 +272,7 @@ Expected:
 Write down:
 - what passed automatically
 - what was validated against a real model endpoint
-- any remaining limitations, especially that Supabase persistence is not part of this phase yet
+- any remaining limitations, especially that Supabase persistence is not part of this phase yet and `/memories` remains state-backed in production for Phase A
 
 - [ ] **Step 4: Re-run final repo-wide verification**
 
