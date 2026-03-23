@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
+import { ChatSidebar } from "../../components/chat-sidebar";
 import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
 
 function CanvasPageContent() {
@@ -23,6 +24,7 @@ function CanvasPageContent() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
+  const [chatOpen, setChatOpen] = useState(true);
 
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
@@ -85,11 +87,20 @@ function CanvasPageContent() {
   if (!canvasData || !accessToken) return null;
 
   return (
-    <CanvasEditor
-      canvasId={canvasData.id}
-      accessToken={accessToken}
-      initialContent={canvasData.content}
-    />
+    <div className="flex h-screen w-screen">
+      <div className="flex-1 relative">
+        <CanvasEditor
+          canvasId={canvasData.id}
+          accessToken={accessToken}
+          initialContent={canvasData.content}
+        />
+      </div>
+      <ChatSidebar
+        canvasId={canvasData.id}
+        open={chatOpen}
+        onToggle={() => setChatOpen(!chatOpen)}
+      />
+    </div>
   );
 }
 
