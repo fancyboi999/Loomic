@@ -154,6 +154,60 @@ describe("@loomic/shared contracts", () => {
     );
   });
 
+  it("rejects an empty project name in project create requests", () => {
+    const projectCreateRequestSchema = getExportedSchema(
+      "projectCreateRequestSchema",
+    );
+
+    expect(() =>
+      projectCreateRequestSchema.parse({
+        name: "",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a project response without primary canvas metadata", () => {
+    const projectListResponseSchema = getExportedSchema(
+      "projectListResponseSchema",
+    );
+
+    expect(() =>
+      projectListResponseSchema.parse({
+        projects: [
+          {
+            id: "project_123",
+            name: "Brand System",
+            slug: "brand-system",
+            description: "Primary workspace project",
+            workspace: {
+              id: "workspace_123",
+              name: "Loomic Maker",
+              type: "personal",
+              ownerUserId: "user_123",
+            },
+            createdAt: "2026-03-23T12:00:00.000Z",
+            updatedAt: "2026-03-23T12:00:00.000Z",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects invalid application error codes", () => {
+    const applicationErrorResponseSchema = getExportedSchema(
+      "applicationErrorResponseSchema",
+    );
+
+    expect(() =>
+      applicationErrorResponseSchema.parse({
+        error: {
+          code: "database_exploded",
+          message: "Unexpected failure.",
+        },
+      }),
+    ).toThrow();
+  });
+
   it("includes the required minimum stream event union", () => {
     const eventTypes = [
       "run.started",
