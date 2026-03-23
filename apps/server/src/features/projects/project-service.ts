@@ -3,7 +3,14 @@ import type {
   ProjectSummary,
 } from "@loomic/shared";
 
-import type { AuthenticatedUser, UserSupabaseClient } from "../../supabase/user.js";
+import {
+  BootstrapError,
+  type ViewerService,
+} from "../bootstrap/ensure-user-foundation.js";
+import type {
+  AuthenticatedUser,
+  UserSupabaseClient,
+} from "../../supabase/user.js";
 
 const PROJECT_QUERY_FAILED_MESSAGE = "Unable to load projects.";
 const PROJECT_CREATE_FAILED_MESSAGE = "Unable to create project.";
@@ -26,7 +33,10 @@ export class ProjectServiceError extends Error {
     | "project_slug_taken";
 
   constructor(
-    code: "project_create_failed" | "project_query_failed" | "project_slug_taken",
+    code:
+      | "project_create_failed"
+      | "project_query_failed"
+      | "project_slug_taken",
     message: string,
     statusCode: number,
   ) {
@@ -38,9 +48,12 @@ export class ProjectServiceError extends Error {
 
 export function createProjectService(options: {
   createUserClient: (accessToken: string) => UserSupabaseClient;
+  viewerService: ViewerService;
 }): ProjectService {
   return {
     async createProject(user, input) {
+      await ensureFoundation(options.viewerService, user, "project_create_failed");
+
       const client = options.createUserClient(user.accessToken);
       const workspace = await resolvePersonalWorkspace(
         client,
@@ -50,35 +63,39 @@ export function createProjectService(options: {
       const normalizedName = input.name.trim();
       const slug = slugify(normalizedName);
 
-      const { data: createdProject, error: createProjectError } = await client
-        .from("projects")
-        .insert({
-          created_by: user.id,
-          description: normalizeDescription(input.description),
-          name: normalizedName,
-          slug,
-          workspace_id: workspace.id,
-        })
-        .select("id, name, slug, description, created_at, updated_at, workspace_id")
-        .single();
+      const { data, error } = await client.rpc(
+        "create_project_with_canvas",
+        {
+          p_workspace_id: workspace.id,
+          p_name: normalizedName,
+          p_slug: slug,
+          p_description: normalizeDescription(input.description),
+          p_canvas_name: "Main Canvas",
+        },
+      );
 
-      if (createProjectError) {
-        throw mapProjectCreateError(createProjectError);
+      if (error) {
+        throw mapProjectCreateError(error);
       }
 
-      const { data: primaryCanvas, error: createCanvasError } = await client
-        .from("canvases")
-        .insert({
-          created_by: user.id,
-          is_primary: true,
-          name: "Main Canvas",
-          project_id: createdProject.id,
-        })
-        .select("id, name, is_primary")
-        .single();
+      const result = data as {
+        project: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+          workspace_id: string;
+        };
+        canvas: {
+          id: string;
+          name: string;
+          is_primary: boolean;
+        };
+      } | null;
 
-      if (createCanvasError) {
-        await client.from("projects").delete().eq("id", createdProject.id);
+      if (!result?.project?.id || !result?.canvas?.id) {
         throw new ProjectServiceError(
           "project_create_failed",
           PROJECT_CREATE_FAILED_MESSAGE,
@@ -87,12 +104,14 @@ export function createProjectService(options: {
       }
 
       return mapProjectSummary({
-        canvas: primaryCanvas,
-        project: createdProject,
+        canvas: result.canvas,
+        project: result.project,
         workspace,
       });
     },
     async listProjects(user) {
+      await ensureFoundation(options.viewerService, user, "project_query_failed");
+
       const client = options.createUserClient(user.accessToken);
       const workspace = await resolvePersonalWorkspace(
         client,
@@ -101,7 +120,9 @@ export function createProjectService(options: {
       );
       const { data: projects, error: projectQueryError } = await client
         .from("projects")
-        .select("id, name, slug, description, created_at, updated_at, workspace_id")
+        .select(
+          "id, name, slug, description, created_at, updated_at, workspace_id",
+        )
         .eq("workspace_id", workspace.id)
         .is("archived_at", null)
         .order("created_at", { ascending: true });
@@ -158,6 +179,27 @@ export function createProjectService(options: {
       });
     },
   };
+}
+
+async function ensureFoundation(
+  viewerService: ViewerService,
+  user: AuthenticatedUser,
+  errorCode: "project_create_failed" | "project_query_failed",
+) {
+  try {
+    await viewerService.ensureViewer(user);
+  } catch (error) {
+    if (error instanceof BootstrapError) {
+      throw new ProjectServiceError(
+        errorCode,
+        errorCode === "project_create_failed"
+          ? PROJECT_CREATE_FAILED_MESSAGE
+          : PROJECT_QUERY_FAILED_MESSAGE,
+        500,
+      );
+    }
+    throw error;
+  }
 }
 
 async function resolvePersonalWorkspace(

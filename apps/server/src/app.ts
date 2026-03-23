@@ -59,7 +59,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const viewerService =
     options.viewerService ?? createViewerService({ getAdminClient });
   const projectService =
-    options.projectService ?? createProjectService({ createUserClient });
+    options.projectService ??
+    createProjectService({ createUserClient, viewerService });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
