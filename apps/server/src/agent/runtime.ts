@@ -26,6 +26,7 @@ type RuntimeRunStatus =
 type RuntimeRunRecord = RunCreateRequest & {
   consumed: boolean;
   controller: AbortController;
+  modelOverride?: string;
   runId: string;
   status: RuntimeRunStatus;
 };
@@ -66,13 +67,17 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       };
     },
 
-    createRun(input: RunCreateRequest): RunCreateResponse {
+    createRun(
+      input: RunCreateRequest,
+      runOptions?: { model?: string },
+    ): RunCreateResponse {
       const runId = runIdFactory();
 
       runs.set(runId, {
         ...input,
         consumed: false,
         controller: new AbortController(),
+        ...(runOptions?.model ? { modelOverride: runOptions.model } : {}),
         runId,
         status: "accepted",
       });
@@ -104,9 +109,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
       let agent: LoomicAgent;
       try {
+        const resolvedModel = run.modelOverride
+          ? `openai:${run.modelOverride}`
+          : options.model;
         agent = (options.agentFactory ?? defaultAgentFactory)({
           env: options.env,
-          ...(options.model ? { model: options.model } : {}),
+          ...(resolvedModel ? { model: resolvedModel } : {}),
         });
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);

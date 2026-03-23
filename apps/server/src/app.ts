@@ -109,7 +109,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   void registerHealthRoutes(app, env);
-  void registerRunRoutes(app, agentRuns);
+  void registerRunRoutes(app, agentRuns, {
+    auth,
+    settingsService,
+    viewerService,
+  });
   void registerSseRoutes(app, agentRuns, env);
   void registerViewerRoutes(app, {
     auth,

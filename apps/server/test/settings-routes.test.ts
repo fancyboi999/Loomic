@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { WorkspaceSettings } from "@loomic/shared";
 import {
   workspaceSettingsResponseSchema,
 } from "@loomic/shared";
 
 import { buildApp } from "../src/app.js";
-import type { AuthenticatedUser } from "../src/supabase/user.js";
 
 const appsUnderTest = new Set<Awaited<ReturnType<typeof buildApp>>>();
 
@@ -48,7 +48,7 @@ describe("settings routes", () => {
         async getWorkspaceSettings() {
           return { defaultModel: "gpt-4.1-mini" };
         },
-        async updateWorkspaceSettings(_u: AuthenticatedUser, _w: string, s) {
+        async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;
         },
       },
@@ -76,7 +76,7 @@ describe("settings routes", () => {
         async getWorkspaceSettings() {
           return { defaultModel: "gpt-4.1-mini" };
         },
-        async updateWorkspaceSettings(_u: AuthenticatedUser, workspaceId: string, s) {
+        async updateWorkspaceSettings(_u: unknown, workspaceId: string, s: WorkspaceSettings) {
           updateCalls.push({ workspaceId, defaultModel: s.defaultModel });
           return s;
         },
@@ -135,7 +135,7 @@ describe("settings routes", () => {
         async getWorkspaceSettings() {
           return { defaultModel: "gpt-4.1-mini" };
         },
-        async updateWorkspaceSettings(_u: AuthenticatedUser, _w: string, s) {
+        async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;
         },
       },
@@ -162,7 +162,7 @@ describe("settings routes", () => {
         async getWorkspaceSettings() {
           return { defaultModel: "gpt-4.1-mini" };
         },
-        async updateWorkspaceSettings(_u: AuthenticatedUser, _w: string, s) {
+        async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;
         },
       },
