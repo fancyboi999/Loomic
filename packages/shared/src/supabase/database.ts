@@ -12,6 +12,76 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          id: string
+          session_id: string
+          role: string
+          content: string
+          tool_activities: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          role: string
+          content?: string
+          tool_activities?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          role?: string
+          content?: string
+          tool_activities?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          id: string
+          canvas_id: string
+          title: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          canvas_id: string
+          title?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          canvas_id?: string
+          title?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_canvas_id_fkey"
+            columns: ["canvas_id"]
+            isOneToOne: false
+            referencedRelation: "canvases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_objects: {
         Row: {
           bucket: string

@@ -99,6 +99,39 @@ export const modelInfoSchema = z.object({
   provider: z.string().min(1),
 });
 
+export const chatSessionIdSchema = identifierSchema;
+
+export const chatToolActivitySchema = z.object({
+  toolCallId: z.string().min(1),
+  toolName: z.string().min(1),
+  status: z.enum(["running", "completed"]),
+  outputSummary: z.string().optional(),
+});
+
+export const chatSessionSummarySchema = z.object({
+  id: chatSessionIdSchema,
+  title: z.string(),
+  updatedAt: timestampSchema,
+});
+
+export const chatMessageSchema = z.object({
+  id: identifierSchema,
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  toolActivities: z.array(chatToolActivitySchema).nullable().optional(),
+  createdAt: timestampSchema,
+});
+
+export const chatMessageCreateRequestSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  toolActivities: z.array(chatToolActivitySchema).nullable().optional(),
+});
+
+export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type ChatMessageCreateRequest = z.infer<typeof chatMessageCreateRequestSchema>;
+export type ChatToolActivity = z.infer<typeof chatToolActivitySchema>;
 export type ProfileUpdateRequest = z.infer<typeof profileUpdateRequestSchema>;
 export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;
 export type ModelInfo = z.infer<typeof modelInfoSchema>;

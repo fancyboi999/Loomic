@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   canvasContentSchema,
   canvasDetailSchema,
+  chatMessageSchema,
+  chatSessionSummarySchema,
   modelInfoSchema,
   projectSummarySchema,
   runIdSchema,
@@ -54,10 +56,12 @@ export const applicationErrorCodeSchema = z.enum([
   "bootstrap_failed",
   "canvas_not_found",
   "canvas_save_failed",
+  "chat_error",
   "profile_update_failed",
   "project_query_failed",
   "project_create_failed",
   "project_slug_taken",
+  "session_not_found",
   "settings_not_found",
   "settings_update_failed",
 ]);
@@ -108,6 +112,26 @@ export const modelListResponseSchema = z.object({
   models: z.array(modelInfoSchema),
 });
 
+export const sessionListResponseSchema = z.object({
+  sessions: z.array(chatSessionSummarySchema),
+});
+
+export const sessionCreateResponseSchema = z.object({
+  session: chatSessionSummarySchema,
+});
+
+export const messageListResponseSchema = z.object({
+  messages: z.array(chatMessageSchema),
+});
+
+export const messageCreateResponseSchema = z.object({
+  message: chatMessageSchema,
+});
+
+export type SessionListResponse = z.infer<typeof sessionListResponseSchema>;
+export type SessionCreateResponse = z.infer<typeof sessionCreateResponseSchema>;
+export type MessageListResponse = z.infer<typeof messageListResponseSchema>;
+export type MessageCreateResponse = z.infer<typeof messageCreateResponseSchema>;
 export type CanvasGetResponse = z.infer<typeof canvasGetResponseSchema>;
 export type CanvasSaveRequest = z.infer<typeof canvasSaveRequestSchema>;
 export type CanvasSaveResponse = z.infer<typeof canvasSaveResponseSchema>;
