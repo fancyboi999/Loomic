@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.js
 
@@ -10,14 +11,18 @@
 
 # next.js
 /.next/
+**/.next/
 /out/
 
 # production
 /build
+**/dist
+**/.turbo
 
 # misc
 .DS_Store
 *.pem
+.worktrees/
 
 # debug
 npm-debug.log*

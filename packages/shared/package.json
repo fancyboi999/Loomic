@@ -1,0 +1,22 @@
+{
+  "name": "@loomic/shared",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run src/contracts.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
