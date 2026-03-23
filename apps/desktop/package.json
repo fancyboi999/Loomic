@@ -1,0 +1,16 @@
+{
+  "name": "@loomic/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@loomic/config": "workspace:*",
+    "@loomic/ui": "workspace:*"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('placeholder build for @loomic/desktop')\"",
+    "dev": "node -e \"console.log('placeholder dev for @loomic/desktop')\"",
+    "test": "node -e \"console.log('placeholder test for @loomic/desktop')\"",
+    "typecheck": "node -e \"console.log('placeholder typecheck for @loomic/desktop')\""
+  }
+}

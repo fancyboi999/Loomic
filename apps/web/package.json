@@ -1,0 +1,16 @@
+{
+  "name": "@loomic/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@loomic/config": "workspace:*",
+    "@loomic/ui": "workspace:*"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('placeholder build for @loomic/web')\"",
+    "dev": "node -e \"console.log('placeholder dev for @loomic/web')\"",
+    "test": "node -e \"console.log('placeholder test for @loomic/web')\"",
+    "typecheck": "node -e \"console.log('placeholder typecheck for @loomic/web')\""
+  }
+}

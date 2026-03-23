@@ -1,0 +1,15 @@
+{
+  "name": "@loomic/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@loomic/config": "workspace:*"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('placeholder build for @loomic/server')\"",
+    "dev": "node -e \"console.log('placeholder dev for @loomic/server')\"",
+    "test": "node -e \"console.log('placeholder test for @loomic/server')\"",
+    "typecheck": "node -e \"console.log('placeholder typecheck for @loomic/server')\""
+  }
+}
