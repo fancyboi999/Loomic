@@ -49,6 +49,12 @@ export const runCompletedEventSchema = z.object({
   timestamp: timestampSchema,
 });
 
+export const runCanceledEventSchema = z.object({
+  type: z.literal("run.canceled"),
+  runId: runIdSchema,
+  timestamp: timestampSchema,
+});
+
 export const runFailedEventSchema = z.object({
   type: z.literal("run.failed"),
   runId: runIdSchema,
@@ -61,6 +67,7 @@ export const streamEventSchema = z.discriminatedUnion("type", [
   messageDeltaEventSchema,
   toolStartedEventSchema,
   toolCompletedEventSchema,
+  runCanceledEventSchema,
   runCompletedEventSchema,
   runFailedEventSchema,
 ]);

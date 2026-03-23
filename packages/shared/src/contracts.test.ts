@@ -54,6 +54,7 @@ describe("@loomic/shared contracts", () => {
       "message.delta",
       "tool.started",
       "tool.completed",
+      "run.canceled",
       "run.completed",
       "run.failed",
     ];
@@ -105,6 +106,13 @@ describe("@loomic/shared contracts", () => {
               timestamp: "2026-03-23T12:00:00.000Z",
             });
             break;
+          case "run.canceled":
+            streamEventSchema.parse({
+              type,
+              runId: "run_123",
+              timestamp: "2026-03-23T12:00:00.000Z",
+            });
+            break;
           case "run.failed":
             streamEventSchema.parse({
               type,
@@ -121,6 +129,36 @@ describe("@loomic/shared contracts", () => {
         }
       }).not.toThrow();
     }
+  });
+
+  it("keeps stable messageId and toolCallId correlation fields", () => {
+    const messageEvent = streamEventSchema.parse({
+      type: "message.delta",
+      runId: "run_123",
+      messageId: "message_123",
+      delta: "hello",
+      timestamp: "2026-03-23T12:00:00.000Z",
+    });
+
+    const toolEvent = streamEventSchema.parse({
+      type: "tool.completed",
+      runId: "run_123",
+      toolCallId: "tool_123",
+      toolName: "project_search",
+      outputSummary: "Matched 2 files",
+      timestamp: "2026-03-23T12:00:01.000Z",
+    });
+
+    if (messageEvent.type !== "message.delta") {
+      throw new Error("Expected message.delta event.");
+    }
+
+    if (toolEvent.type !== "tool.completed") {
+      throw new Error("Expected tool.completed event.");
+    }
+
+    expect(messageEvent.messageId).toBe("message_123");
+    expect(toolEvent.toolCallId).toBe("tool_123");
   });
 
   it("exports stable error codes that serialize as plain JSON", () => {
