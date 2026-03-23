@@ -233,7 +233,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      bootstrap_viewer: {
+        Args: {
+          p_user_id: string
+          p_email: string
+          p_user_meta: Json
+        }
+        Returns: string
+      }
+      create_project_with_canvas: {
+        Args: {
+          p_workspace_id: string
+          p_name: string
+          p_slug: string
+          p_description: string | null
+          p_canvas_name: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       workspace_member_role: "owner" | "admin" | "member"
