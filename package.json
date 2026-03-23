@@ -7,7 +7,7 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "biome check .",
-    "test:workspace": "vitest --workspace vitest.workspace.ts run",
+    "test:workspace": "node --test tests/workspace.test.mjs",
     "test:packages": "turbo run test",
     "test": "pnpm run test:workspace && pnpm run test:packages",
     "typecheck": "turbo run typecheck"
