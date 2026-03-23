@@ -15,11 +15,17 @@ import {
   createProjectService,
   type ProjectService,
 } from "./features/projects/project-service.js";
+import {
+  createSettingsService,
+  type SettingsService,
+} from "./features/settings/settings-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerHealthRoutes } from "./http/health.js";
+import { registerModelRoutes } from "./http/models.js";
 import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
+import { registerSettingsRoutes } from "./http/settings.js";
 import { registerSseRoutes } from "./http/sse.js";
 import { registerViewerRoutes } from "./http/viewer.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
@@ -37,6 +43,7 @@ export type BuildAppOptions = {
   env?: Partial<ServerEnv>;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
+  settingsService?: SettingsService;
   viewerService?: ViewerService;
 };
 
@@ -69,6 +76,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     createProjectService({ createUserClient, viewerService });
   const canvasService =
     options.canvasService ?? createCanvasService({ createUserClient });
+  const settingsService =
+    options.settingsService ?? createSettingsService({ createUserClient });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -85,7 +94,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }
 
     if (corsResult.isBrowserRequest) {
-      reply.header("access-control-allow-methods", "GET,POST,PUT,OPTIONS");
+      reply.header("access-control-allow-methods", "GET,POST,PUT,PATCH,OPTIONS");
       reply.header(
         "access-control-allow-headers",
         resolveAllowedHeaders(
@@ -104,6 +113,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerSseRoutes(app, agentRuns, env);
   void registerViewerRoutes(app, {
     auth,
+    createUserClient,
     viewerService,
   });
   void registerProjectRoutes(app, {
@@ -114,6 +124,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     auth,
     canvasService,
   });
+  void registerSettingsRoutes(app, {
+    auth,
+    settingsService,
+    viewerService,
+  });
+  void registerModelRoutes(app);
 
   return app;
 }
