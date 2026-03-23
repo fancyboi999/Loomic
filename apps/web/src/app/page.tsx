@@ -1,5 +1,18 @@
-import { ChatWorkbench } from "../components/chat-workbench";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import { useAuth } from "../lib/auth-context";
 
 export default function HomePage() {
-  return <ChatWorkbench />;
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    router.replace(user ? "/projects" : "/login");
+  }, [user, loading, router]);
+
+  return null;
 }

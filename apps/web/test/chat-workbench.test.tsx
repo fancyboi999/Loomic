@@ -11,7 +11,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import HomePage from "../src/app/page";
+import { ChatWorkbench } from "../src/components/chat-workbench";
 import { getServerBaseUrl } from "../src/lib/env";
 
 class MockEventSource {
@@ -81,7 +81,7 @@ describe("ChatWorkbench", () => {
   });
 
   it("renders a minimal chat workbench with composer and event log", () => {
-    render(<HomePage />);
+    render(<ChatWorkbench />);
 
     expect(
       screen.getByRole("form", { name: /chat composer/i }),
@@ -101,7 +101,7 @@ describe("ChatWorkbench", () => {
   });
 
   it("uses explicit server base url config for direct server requests", async () => {
-    render(<HomePage />);
+    render(<ChatWorkbench />);
 
     await userEvent.click(screen.getByRole("button", { name: /start run/i }));
 
@@ -117,7 +117,7 @@ describe("ChatWorkbench", () => {
   });
 
   it("streams incoming SSE events into the UI incrementally", async () => {
-    render(<HomePage />);
+    render(<ChatWorkbench />);
 
     await userEvent.click(screen.getByRole("button", { name: /start run/i }));
 
@@ -187,7 +187,7 @@ describe("ChatWorkbench", () => {
   });
 
   it("treats run cancellation differently from transport failure", async () => {
-    render(<HomePage />);
+    render(<ChatWorkbench />);
 
     await userEvent.click(screen.getByRole("button", { name: /start run/i }));
     await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
@@ -217,7 +217,7 @@ describe("ChatWorkbench", () => {
   });
 
   it("shows a failed state when the SSE transport errors", async () => {
-    render(<HomePage />);
+    render(<ChatWorkbench />);
 
     await userEvent.click(screen.getByRole("button", { name: /start run/i }));
     await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));

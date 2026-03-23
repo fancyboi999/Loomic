@@ -17,6 +17,19 @@ type ToolActivity = {
   toolName: string;
 };
 
+function statusClasses(status: WorkbenchStatus): string {
+  switch (status) {
+    case "completed":
+      return "text-green-800 bg-green-100";
+    case "canceled":
+      return "text-yellow-800 bg-yellow-100";
+    case "failed":
+      return "text-red-800 bg-red-100";
+    default:
+      return "text-neutral-600 bg-neutral-100";
+  }
+}
+
 export function ChatWorkbench() {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [assistantResponse, setAssistantResponse] = useState("");
@@ -105,11 +118,15 @@ export function ChatWorkbench() {
   }
 
   return (
-    <section className="chat-workbench">
-      <div className="hero">
-        <p className="eyebrow">Loomic Phase A</p>
-        <h1>Runtime Chat Workbench</h1>
-        <p className="description">
+    <section className="mx-auto max-w-[920px] px-6 py-12 text-foreground">
+      <div className="mb-7">
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Loomic Phase A
+        </p>
+        <h1 className="text-4xl font-bold leading-[0.95] md:text-5xl">
+          Runtime Chat Workbench
+        </h1>
+        <p className="max-w-[40rem] text-base leading-relaxed text-muted-foreground">
           Directly calls the Loomic server, renders incremental assistant
           output, and surfaces tool lifecycle events from the real runtime.
         </p>
@@ -117,43 +134,53 @@ export function ChatWorkbench() {
 
       <form
         aria-label="chat composer"
-        className="composer"
+        className="grid gap-3 rounded-3xl border border-border bg-white/90 p-6 shadow-lg"
         onSubmit={handleSubmit}
       >
-        <label htmlFor="prompt">Prompt</label>
+        <label className="text-sm font-bold" htmlFor="prompt">
+          Prompt
+        </label>
         <textarea
+          className="min-h-[140px] resize-y rounded-2xl border border-border bg-neutral-50 p-4 font-[inherit]"
           id="prompt"
           name="prompt"
           rows={5}
           value={prompt}
           onChange={(inputEvent) => setPrompt(inputEvent.target.value)}
         />
-        <button disabled={status === "running"} type="submit">
+        <button
+          className="justify-self-start rounded-full border-0 bg-gradient-to-br from-[#16395d] to-[#217f80] px-5 py-3 font-bold text-white cursor-pointer disabled:cursor-progress disabled:opacity-70"
+          disabled={status === "running"}
+          type="submit"
+        >
           {status === "running" ? "Running..." : "Start Run"}
         </button>
       </form>
 
       <output
         aria-live="polite"
-        className={`stream-status stream-status--${status}`}
+        className={`my-4 inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 ${statusClasses(status)}`}
       >
         <strong>Status:</strong> {formatStatus(status)}
       </output>
 
       {errorMessage ? (
-        <p className="error" role="alert">
+        <p className="font-bold text-destructive" role="alert">
           {errorMessage}
         </p>
       ) : null}
 
-      <div className="panels">
-        <section aria-label="assistant response" className="panel">
+      <div className="mt-1.5 grid gap-6 grid-cols-1 md:grid-cols-2">
+        <section
+          aria-label="assistant response"
+          className="rounded-3xl border border-border bg-white/90 p-6 shadow-lg"
+        >
           <h2>Assistant Response</h2>
-          <div className="assistant-card">
+          <div className="rounded-2xl bg-neutral-100 p-6">
             {assistantResponse ? (
-              <p>{assistantResponse}</p>
+              <p className="m-0 leading-relaxed">{assistantResponse}</p>
             ) : (
-              <p className="placeholder">
+              <p className="m-0 leading-relaxed text-muted-foreground">
                 {status === "running"
                   ? "Waiting for the first delta..."
                   : "No assistant response yet."}
@@ -162,27 +189,45 @@ export function ChatWorkbench() {
           </div>
         </section>
 
-        <section aria-label="tool activity" className="panel">
+        <section
+          aria-label="tool activity"
+          className="rounded-3xl border border-border bg-white/90 p-6 shadow-lg"
+        >
           <h2>Tool Activity</h2>
-          <ul className="tool-list">
+          <ul className="grid gap-3 p-0 m-0 list-none">
             {toolActivities.length === 0 ? (
-              <li className="tool-card placeholder">No tool activity yet.</li>
+              <li className="rounded-2xl bg-neutral-100 p-6 text-muted-foreground">
+                No tool activity yet.
+              </li>
             ) : (
               toolActivities.map((activity) => (
-                <li className="tool-card" key={activity.toolCallId}>
-                  <div className="tool-header">
+                <li
+                  className="rounded-2xl bg-neutral-100 p-6"
+                  key={activity.toolCallId}
+                >
+                  <div className="flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-start">
                     <strong>{activity.toolName}</strong>
                     <span
-                      className={`tool-badge tool-badge--${activity.status}`}
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
+                        activity.status === "completed"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-neutral-200 text-neutral-700"
+                      }`}
                     >
                       {activity.status}
                     </span>
                   </div>
-                  <p className="tool-id">call id: {activity.toolCallId}</p>
+                  <p className="mt-2.5 text-sm text-muted-foreground">
+                    call id: {activity.toolCallId}
+                  </p>
                   {activity.outputSummary ? (
-                    <p className="tool-summary">{activity.outputSummary}</p>
+                    <p className="mt-3 m-0 leading-relaxed">
+                      {activity.outputSummary}
+                    </p>
                   ) : (
-                    <p className="placeholder">Waiting for tool output...</p>
+                    <p className="m-0 leading-relaxed text-muted-foreground">
+                      Waiting for tool output...
+                    </p>
                   )}
                 </li>
               ))
@@ -191,243 +236,33 @@ export function ChatWorkbench() {
         </section>
       </div>
 
-      <section aria-label="stream timeline" className="event-log">
+      <section
+        aria-label="stream timeline"
+        className="mt-6 rounded-3xl border border-border bg-white/90 p-6 shadow-lg"
+      >
         <h2>Stream Timeline</h2>
-        <ol>
+        <ol className="grid gap-3 p-0 m-0 list-none">
           {events.length === 0 ? (
-            <li className="placeholder">No events yet.</li>
+            <li className="rounded-2xl bg-neutral-100 p-6 text-muted-foreground">
+              No events yet.
+            </li>
           ) : (
             events.map((streamEvent, index) => (
-              <li key={`${streamEvent.type}-${index}`}>
-                <div className="timeline-row">
-                  <code>{streamEvent.type}</code>
-                  <span>{describeEvent(streamEvent)}</span>
+              <li
+                className="rounded-2xl bg-neutral-100 p-6"
+                key={`${streamEvent.type}-${index}`}
+              >
+                <div className="flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-start">
+                  <code className="text-blue-900">{streamEvent.type}</code>
+                  <span className="text-neutral-600 text-right max-sm:text-left">
+                    {describeEvent(streamEvent)}
+                  </span>
                 </div>
               </li>
             ))
           )}
         </ol>
       </section>
-
-      <style>{`
-        .chat-workbench {
-          margin: 0 auto;
-          max-width: 920px;
-          padding: 48px 24px 72px;
-          color: #132238;
-        }
-
-        .hero {
-          margin-bottom: 28px;
-        }
-
-        .eyebrow {
-          margin: 0 0 8px;
-          font-size: 0.8rem;
-          font-weight: 700;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: #4f6f8f;
-        }
-
-        h1 {
-          margin: 0;
-          font-size: clamp(2.2rem, 6vw, 4rem);
-          line-height: 0.95;
-        }
-
-        .description {
-          max-width: 40rem;
-          color: #51657d;
-          font-size: 1rem;
-          line-height: 1.6;
-        }
-
-        .composer,
-        .panel,
-        .event-log {
-          border: 1px solid #d7e2ee;
-          border-radius: 24px;
-          background: rgba(255, 255, 255, 0.88);
-          box-shadow: 0 18px 50px rgba(32, 57, 87, 0.08);
-        }
-
-        .composer {
-          display: grid;
-          gap: 12px;
-          padding: 24px;
-        }
-
-        label {
-          font-size: 0.9rem;
-          font-weight: 700;
-        }
-
-        textarea {
-          resize: vertical;
-          min-height: 140px;
-          border: 1px solid #b9c7d6;
-          border-radius: 18px;
-          padding: 16px;
-          font: inherit;
-          background: #f7fafc;
-        }
-
-        button {
-          justify-self: start;
-          border: 0;
-          border-radius: 999px;
-          padding: 12px 20px;
-          font: inherit;
-          font-weight: 700;
-          color: #fdfdfc;
-          background: linear-gradient(135deg, #16395d, #217f80);
-          cursor: pointer;
-        }
-
-        button[disabled] {
-          cursor: progress;
-          opacity: 0.72;
-        }
-
-        .stream-status {
-          margin: 18px 0;
-          color: #44576d;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 14px;
-          border-radius: 999px;
-          background: #eef4fa;
-        }
-
-        .stream-status--completed {
-          color: #1d5a43;
-          background: #e6f6ef;
-        }
-
-        .stream-status--canceled {
-          color: #7a5a14;
-          background: #fff5da;
-        }
-
-        .stream-status--failed {
-          color: #8f2e2e;
-          background: #fde8e8;
-        }
-
-        .error {
-          color: #a53d3d;
-          font-weight: 700;
-        }
-
-        .panels {
-          display: grid;
-          gap: 24px;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          margin-top: 6px;
-        }
-
-        .panel {
-          padding: 24px;
-        }
-
-        .panel h2,
-        .event-log {
-          margin-top: 24px;
-        }
-
-        .panel h2,
-        .event-log h2 {
-          margin-top: 0;
-        }
-
-        .assistant-card,
-        .tool-card,
-        .event-log li {
-          border-radius: 18px;
-          padding: 24px;
-          background: #eff5fb;
-        }
-
-        .assistant-card p,
-        .tool-card p {
-          margin: 0;
-          line-height: 1.6;
-        }
-
-        .tool-list,
-        .event-log ol {
-          display: grid;
-          gap: 12px;
-          padding: 0;
-          margin: 0;
-          list-style: none;
-        }
-
-        .tool-header,
-        .timeline-row {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .tool-badge {
-          border-radius: 999px;
-          padding: 4px 10px;
-          font-size: 0.78rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          background: #dce8f5;
-          color: #365777;
-        }
-
-        .tool-badge--completed {
-          background: #dcf5e8;
-          color: #1f694d;
-        }
-
-        .tool-id {
-          margin-top: 10px;
-          color: #5b7087;
-          font-size: 0.88rem;
-        }
-
-        .tool-summary {
-          margin-top: 12px;
-        }
-
-        .placeholder {
-          color: #5b7087;
-        }
-
-        .event-log {
-          padding: 24px;
-        }
-
-        .event-log code {
-          color: #1d486a;
-        }
-
-        .event-log span {
-          color: #304c68;
-          text-align: right;
-        }
-
-        @media (max-width: 640px) {
-          .timeline-row,
-          .tool-header {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .event-log span {
-            text-align: left;
-          }
-        }
-      `}</style>
     </section>
   );
 }
