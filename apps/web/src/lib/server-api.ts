@@ -6,6 +6,9 @@ import type {
   ProjectCreateRequest,
   ProjectCreateResponse,
   CanvasDetail,
+  ProfileUpdateResponse,
+  WorkspaceSettingsResponse,
+  ModelListResponse,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -128,4 +131,54 @@ export async function saveCanvas(
     },
   );
   if (!response.ok) return handleErrorResponse(response);
+}
+
+// --- Settings API ---
+
+export async function updateProfile(
+  accessToken: string,
+  data: { displayName: string },
+): Promise<ProfileUpdateResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/viewer/profile`, {
+    method: "PATCH",
+    headers: authJsonHeaders(accessToken),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as ProfileUpdateResponse;
+}
+
+export async function fetchWorkspaceSettings(
+  accessToken: string,
+): Promise<WorkspaceSettingsResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspace/settings`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as WorkspaceSettingsResponse;
+}
+
+export async function updateWorkspaceSettings(
+  accessToken: string,
+  data: { defaultModel: string },
+): Promise<WorkspaceSettingsResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspace/settings`,
+    {
+      method: "PUT",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as WorkspaceSettingsResponse;
+}
+
+export async function fetchModels(): Promise<ModelListResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/models`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch models: ${response.status}`);
+  }
+  return (await response.json()) as ModelListResponse;
 }

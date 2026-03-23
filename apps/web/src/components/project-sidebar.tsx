@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 
@@ -9,6 +11,7 @@ interface ProjectSidebarProps {
 }
 
 export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
+  const router = useRouter();
   const initial = workspace?.name?.charAt(0).toUpperCase() ?? "L";
   const recentProjects = projects.slice(0, 5);
 
@@ -38,9 +41,13 @@ export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
       <div className="text-sm font-medium bg-neutral-100 rounded px-2 py-1.5 mb-1">
         Projects
       </div>
-      <div className="text-sm text-muted-foreground px-2 py-1.5 cursor-default opacity-50">
+      <button
+        type="button"
+        onClick={() => router.push("/settings")}
+        className="block w-full text-left text-sm text-muted-foreground px-2 py-1.5 rounded hover:bg-neutral-100 cursor-pointer"
+      >
         Settings
-      </div>
+      </button>
 
       <Separator className="my-4" />
 
