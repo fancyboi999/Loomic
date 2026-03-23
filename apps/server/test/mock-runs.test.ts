@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import { BaseChatModel as BaseChatModelClass } from "@langchain/core/language_models/chat_models";
+import type { ChatResult } from "@langchain/core/outputs";
+import type { Runnable } from "@langchain/core/runnables";
+import { AIMessage, type BaseMessage } from "langchain";
+
 import {
   runCancelResponseSchema,
   runCreateResponseSchema,
@@ -20,7 +25,7 @@ afterEach(async () => {
   );
 });
 
-describe("mock agent runs", () => {
+describe("agent run routes", () => {
   it("creates a run record and returns a runId", async () => {
     const app = buildApp({
       env: {
@@ -53,6 +58,7 @@ describe("mock agent runs", () => {
 
   it("streams SSE frames from the mock run", async () => {
     const server = await startServer({
+      agentModel: new ScriptedTextModel(["Stream something back"]),
       env: {
         port: 3001,
         version: "9.9.9-test",
@@ -91,14 +97,13 @@ describe("mock agent runs", () => {
     expect(eventTypes).toEqual([
       "run.started",
       "message.delta",
-      "tool.started",
-      "tool.completed",
       "run.completed",
     ]);
   });
 
   it("marks the run canceled and stops further mock events", async () => {
     const server = await startServer({
+      agentModel: new ScriptedTextModel(["Cancel me once"]),
       env: {
         port: 3001,
         version: "9.9.9-test",
@@ -160,12 +165,13 @@ describe("mock agent runs", () => {
       status: "canceled",
     });
     expect(eventTypes).toContain("message.delta");
+    expect(eventTypes).toContain("run.canceled");
     expect(eventTypes).not.toContain("run.completed");
-    expect(eventTypes).not.toContain("tool.completed");
   });
 });
 
 type ServerEnvOverride = {
+  agentModel?: ScriptedTextModel;
   env: {
     port: number;
     version: string;
@@ -175,7 +181,11 @@ type ServerEnvOverride = {
 };
 
 async function startServer(options: ServerEnvOverride) {
-  const app = buildApp(options);
+  const app = buildApp({
+    env: options.env,
+    mockEventDelayMs: options.mockEventDelayMs,
+    ...(options.agentModel ? { agentModel: options.agentModel } : {}),
+  });
   appsUnderTest.add(app);
 
   await app.listen({ host: "127.0.0.1", port: 0 });
@@ -250,4 +260,42 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs = 1_000) {
       }, timeoutMs);
     }),
   ]);
+}
+
+class ScriptedTextModel extends BaseChatModelClass {
+  private currentIndex = 0;
+
+  constructor(private readonly responses: string[]) {
+    super({});
+  }
+
+  _llmType() {
+    return "scripted-text-model";
+  }
+
+  _combineLLMOutput() {
+    return [];
+  }
+
+  bindTools(): Runnable {
+    return this;
+  }
+
+  async _generate(_messages: BaseMessage[]): Promise<ChatResult> {
+    const content = this.responses[this.currentIndex] ?? "";
+    this.currentIndex += 1;
+
+    return {
+      generations: [
+        {
+          message: new AIMessage({
+            content,
+            id: `message_${this.currentIndex}`,
+          }),
+          text: content,
+        },
+      ],
+      llmOutput: {},
+    };
+  }
 }

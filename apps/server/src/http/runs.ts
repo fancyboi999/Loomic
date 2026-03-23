@@ -6,17 +6,17 @@ import {
   runCreateResponseSchema,
 } from "@loomic/shared";
 
-import type { MockRunStore } from "../mock/mock-run.js";
+import type { AgentRunService } from "../agent/runtime.js";
 
 export async function registerRunRoutes(
   app: FastifyInstance,
-  mockRuns: MockRunStore,
+  agentRuns: AgentRunService,
 ) {
   app.post("/api/agent/runs", async (request, reply) => {
     try {
       const payload = runCreateRequestSchema.parse(request.body);
       const response = runCreateResponseSchema.parse(
-        mockRuns.createRun(payload),
+        agentRuns.createRun(payload),
       );
 
       return reply.code(202).send(response);
@@ -27,7 +27,7 @@ export async function registerRunRoutes(
 
   app.post("/api/agent/runs/:runId/cancel", async (request, reply) => {
     const { runId } = request.params as { runId: string };
-    const canceledRun = mockRuns.cancelRun(runId);
+    const canceledRun = agentRuns.cancelRun(runId);
 
     if (!canceledRun) {
       return reply.code(404).send({

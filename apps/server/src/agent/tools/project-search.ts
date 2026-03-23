@@ -1,4 +1,5 @@
-import type { BackendProtocol } from "deepagents";
+import type { ToolRuntime } from "@langchain/core/tools";
+import type { BackendFactory, BackendProtocol } from "deepagents";
 import { tool } from "langchain";
 import { z } from "zod";
 
@@ -69,10 +70,12 @@ export async function runProjectSearch(
   };
 }
 
-export function createProjectSearchTool(backend: BackendProtocol) {
+export function createProjectSearchTool(
+  backend: BackendProtocol | BackendFactory,
+) {
   return tool(
-    async (input) => {
-      return await runProjectSearch(backend, input);
+    async (input, runtime: ToolRuntime) => {
+      return await runProjectSearch(resolveBackend(backend, runtime), input);
     },
     {
       name: "project_search",
@@ -81,4 +84,17 @@ export function createProjectSearchTool(backend: BackendProtocol) {
       schema: projectSearchSchema,
     },
   );
+}
+
+function resolveBackend(
+  backend: BackendProtocol | BackendFactory,
+  runtime: ToolRuntime,
+): BackendProtocol {
+  if (typeof backend === "function") {
+    return backend({
+      state: runtime.state,
+    });
+  }
+
+  return backend;
 }

@@ -1,12 +1,16 @@
+import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
+import type { LoomicAgentFactory } from "./agent/deep-agent.js";
+import { createAgentRunService } from "./agent/runtime.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerHealthRoutes } from "./http/health.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSseRoutes } from "./http/sse.js";
-import { createMockRunStore } from "./mock/mock-run.js";
 
 export type BuildAppOptions = {
+  agentFactory?: LoomicAgentFactory;
+  agentModel?: BaseLanguageModel | string;
   env?: Partial<ServerEnv>;
   mockEventDelayMs?: number;
 };
@@ -16,13 +20,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: false,
   });
-  const mockRuns = createMockRunStore(
-    options.mockEventDelayMs === undefined
+  const agentRuns = createAgentRunService({
+    ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
+    ...(options.agentModel ? { model: options.agentModel } : {}),
+    ...(options.mockEventDelayMs === undefined
       ? {}
-      : {
-          eventDelayMs: options.mockEventDelayMs,
-        },
-  );
+      : { eventDelayMs: options.mockEventDelayMs }),
+    env,
+  });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -54,8 +59,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   void registerHealthRoutes(app, env);
-  void registerRunRoutes(app, mockRuns);
-  void registerSseRoutes(app, mockRuns, env);
+  void registerRunRoutes(app, agentRuns);
+  void registerSseRoutes(app, agentRuns, env);
 
   return app;
 }

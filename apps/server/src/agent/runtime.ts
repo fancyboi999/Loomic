@@ -1,0 +1,215 @@
+import { setTimeout as delay } from "node:timers/promises";
+
+import type { BaseLanguageModel } from "@langchain/core/language_models/base";
+import type {
+  RunCancelResponse,
+  RunCreateRequest,
+  RunCreateResponse,
+  StreamEvent,
+} from "@loomic/shared";
+
+import type { ServerEnv } from "../config/env.js";
+import {
+  type LoomicAgent,
+  type LoomicAgentFactory,
+  createLoomicDeepAgent,
+} from "./deep-agent.js";
+import { adaptDeepAgentStream } from "./stream-adapter.js";
+
+type RuntimeRunStatus =
+  | "accepted"
+  | "canceled"
+  | "completed"
+  | "failed"
+  | "running";
+
+type RuntimeRunRecord = RunCreateRequest & {
+  consumed: boolean;
+  controller: AbortController;
+  runId: string;
+  status: RuntimeRunStatus;
+};
+
+type CreateAgentRuntimeOptions = {
+  agentFactory?: LoomicAgentFactory;
+  env: ServerEnv;
+  eventDelayMs?: number;
+  model?: BaseLanguageModel | string;
+  now?: () => string;
+  runIdFactory?: () => string;
+};
+
+export type AgentRunService = ReturnType<typeof createAgentRunService>;
+
+export function createAgentRunService(options: CreateAgentRuntimeOptions) {
+  const now = options.now ?? (() => new Date().toISOString());
+  const runs = new Map<string, RuntimeRunRecord>();
+  const runIdFactory =
+    options.runIdFactory ??
+    (() => `run_${Math.random().toString(36).slice(2, 10)}`);
+
+  return {
+    cancelRun(runId: string): RunCancelResponse | null {
+      const run = runs.get(runId);
+      if (!run) {
+        return null;
+      }
+
+      if (!run.controller.signal.aborted) {
+        run.controller.abort();
+      }
+
+      run.status = "canceled";
+      return {
+        runId,
+        status: "canceled",
+      };
+    },
+
+    createRun(input: RunCreateRequest): RunCreateResponse {
+      const runId = runIdFactory();
+
+      runs.set(runId, {
+        ...input,
+        consumed: false,
+        controller: new AbortController(),
+        runId,
+        status: "accepted",
+      });
+
+      return {
+        conversationId: input.conversationId,
+        runId,
+        sessionId: input.sessionId,
+        status: "accepted",
+      };
+    },
+
+    hasRun(runId: string) {
+      return runs.has(runId);
+    },
+
+    async *streamRun(runId: string): AsyncGenerator<StreamEvent> {
+      const run = runs.get(runId);
+      if (!run) {
+        throw new Error(`Run not found: ${runId}`);
+      }
+
+      if (run.consumed) {
+        return;
+      }
+
+      run.consumed = true;
+      run.status = "running";
+
+      let agent: LoomicAgent;
+      try {
+        agent = (options.agentFactory ?? defaultAgentFactory)({
+          env: options.env,
+          ...(options.model ? { model: options.model } : {}),
+        });
+      } catch (error) {
+        const failedEvent = toFailedEvent(runId, now, error);
+        run.status = "failed";
+        yield failedEvent;
+        return;
+      }
+
+      let stream: AsyncIterable<unknown>;
+      try {
+        stream = await agent.stream(
+          {
+            messages: [
+              {
+                content: run.prompt,
+                role: "user",
+              },
+            ],
+          },
+          {
+            signal: run.controller.signal,
+            streamMode: ["messages", "updates"],
+          },
+        );
+      } catch (error) {
+        const failedEvent = toFailedEvent(runId, now, error);
+        run.status = "failed";
+        yield failedEvent;
+        return;
+      }
+
+      for await (const event of adaptDeepAgentStream({
+        conversationId: run.conversationId,
+        now,
+        runId,
+        sessionId: run.sessionId,
+        signal: run.controller.signal,
+        stream,
+      })) {
+        run.status = mapEventToStatus(event);
+        yield event;
+
+        if (!isTerminalEvent(event) && options.eventDelayMs) {
+          try {
+            await delay(options.eventDelayMs, undefined, {
+              signal: run.controller.signal,
+            });
+          } catch {
+            run.status = "canceled";
+            yield {
+              runId,
+              timestamp: now(),
+              type: "run.canceled",
+            };
+            return;
+          }
+        }
+      }
+    },
+  };
+}
+
+function defaultAgentFactory(options: {
+  env: ServerEnv;
+  model?: BaseLanguageModel | string;
+}) {
+  return createLoomicDeepAgent(options);
+}
+
+function isTerminalEvent(event: StreamEvent) {
+  return (
+    event.type === "run.canceled" ||
+    event.type === "run.completed" ||
+    event.type === "run.failed"
+  );
+}
+
+function mapEventToStatus(event: StreamEvent): RuntimeRunStatus {
+  switch (event.type) {
+    case "run.canceled":
+      return "canceled";
+    case "run.completed":
+      return "completed";
+    case "run.failed":
+      return "failed";
+    default:
+      return "running";
+  }
+}
+
+function toFailedEvent(
+  runId: string,
+  now: () => string,
+  error: unknown,
+): StreamEvent {
+  return {
+    error: {
+      code: "run_failed",
+      message:
+        error instanceof Error ? error.message : "Deep agent runtime failed.",
+    },
+    runId,
+    timestamp: now(),
+    type: "run.failed",
+  };
+}
