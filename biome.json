@@ -2,7 +2,16 @@
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
     "ignoreUnknown": true,
-    "include": ["**/*.{js,mjs,cjs,ts,tsx,json,jsonc}"]
+    "ignore": ["**/node_modules/**", "**/.turbo/**", "**/dist/**"],
+    "include": [
+      "**/*.js",
+      "**/*.mjs",
+      "**/*.cjs",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.json",
+      "**/*.jsonc"
+    ]
   },
   "formatter": {
     "enabled": true,

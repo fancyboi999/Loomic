@@ -5,7 +5,5 @@
     "outDir": "dist",
     "composite": true
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

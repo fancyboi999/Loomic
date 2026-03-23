@@ -1,1 +1,1 @@
-export const uiPackageStatus = 'placeholder';
+export const uiPackageStatus = "placeholder";
