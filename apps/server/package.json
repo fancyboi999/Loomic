@@ -3,13 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@loomic/shared": "workspace:*",
+    "fastify": "^5.2.1"
+  },
   "devDependencies": {
-    "@loomic/config": "workspace:*"
+    "@loomic/config": "workspace:*",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "vitest": "^3.2.4"
   },
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
-    "dev": "node -e \"console.log('placeholder dev for @loomic/server')\"",
-    "test": "pnpm run typecheck",
-    "typecheck": "node ../../scripts/validate-foundation-app.mjs typecheck"
+    "dev": "node --import tsx ./src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
