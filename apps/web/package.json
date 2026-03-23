@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@base-ui/react": "^1.3.0",
+    "@excalidraw/excalidraw": "^0.18.0",
     "@loomic/shared": "workspace:*",
     "@supabase/supabase-js": "^2.57.0",
     "class-variance-authority": "^0.7.1",

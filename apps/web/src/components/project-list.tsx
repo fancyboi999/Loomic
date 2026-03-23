@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSummary } from "@loomic/shared";
+import { useRouter } from "next/navigation";
 
 import { Button } from "./ui/button";
 
@@ -11,6 +12,7 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ projects, highlightId, onCreateClick }: ProjectListProps) {
+  const router = useRouter();
   return (
     <div>
       {/* Header */}
@@ -35,6 +37,9 @@ export function ProjectList({ projects, highlightId, onCreateClick }: ProjectLis
           {projects.map((project) => (
             <div
               key={project.id}
+              onClick={() =>
+                router.push(`/canvas?id=${project.primaryCanvas.id}`)
+              }
               className={`flex items-center gap-3 rounded-lg px-3 py-3 cursor-pointer hover:bg-neutral-50 transition-colors ${
                 highlightId === project.id ? "bg-neutral-100 ring-1 ring-neutral-200" : ""
               }`}

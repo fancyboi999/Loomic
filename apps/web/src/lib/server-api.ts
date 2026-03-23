@@ -5,6 +5,7 @@ import type {
   ProjectListResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
+  CanvasDetail,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -97,4 +98,34 @@ export async function createProject(
   });
   if (!response.ok) return handleErrorResponse(response);
   return (await response.json()) as ProjectCreateResponse;
+}
+
+// --- Canvas API ---
+
+export async function fetchCanvas(
+  accessToken: string,
+  canvasId: string,
+): Promise<{ canvas: CanvasDetail }> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/canvases/${canvasId}`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as { canvas: CanvasDetail };
+}
+
+export async function saveCanvas(
+  accessToken: string,
+  canvasId: string,
+  content: { elements: Record<string, unknown>[]; appState: Record<string, unknown> },
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/canvases/${canvasId}`,
+    {
+      method: "PUT",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify({ content }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
 }
