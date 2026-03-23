@@ -30,8 +30,8 @@ export const projectListResponseSchema = z.object({
 });
 
 export const projectCreateRequestSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().min(1).optional(),
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1).optional(),
 });
 
 export const projectCreateResponseSchema = z.object({

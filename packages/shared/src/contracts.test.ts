@@ -166,6 +166,33 @@ describe("@loomic/shared contracts", () => {
     ).toThrow();
   });
 
+  it("rejects a whitespace-only project name", () => {
+    const schema = getExportedSchema("projectCreateRequestSchema");
+    const result = schema.safeParse({ name: "   " });
+    expect(result.success).toBe(false);
+  });
+
+  it("trims a valid project name", () => {
+    const schema = getExportedSchema("projectCreateRequestSchema");
+    const result = schema.safeParse({ name: "  My Project  " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.name).toBe("My Project");
+    }
+  });
+
+  it("trims a valid project description", () => {
+    const schema = getExportedSchema("projectCreateRequestSchema");
+    const result = schema.safeParse({
+      name: "Test",
+      description: "  Some desc  ",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.description).toBe("Some desc");
+    }
+  });
+
   it("rejects a project response without primary canvas metadata", () => {
     const projectListResponseSchema = getExportedSchema(
       "projectListResponseSchema",
