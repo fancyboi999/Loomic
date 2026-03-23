@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@loomic/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.57.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
