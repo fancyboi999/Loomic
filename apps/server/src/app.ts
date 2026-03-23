@@ -8,10 +8,15 @@ import {
   type ViewerService,
 } from "./features/bootstrap/ensure-user-foundation.js";
 import {
+  createCanvasService,
+  type CanvasService,
+} from "./features/canvas/canvas-service.js";
+import {
   createProjectService,
   type ProjectService,
 } from "./features/projects/project-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
+import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerHealthRoutes } from "./http/health.js";
 import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
@@ -28,6 +33,7 @@ export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
   agentModel?: BaseLanguageModel | string;
   auth?: RequestAuthenticator;
+  canvasService?: CanvasService;
   env?: Partial<ServerEnv>;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
@@ -61,6 +67,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const projectService =
     options.projectService ??
     createProjectService({ createUserClient, viewerService });
+  const canvasService =
+    options.canvasService ?? createCanvasService({ createUserClient });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -77,7 +85,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }
 
     if (corsResult.isBrowserRequest) {
-      reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+      reply.header("access-control-allow-methods", "GET,POST,PUT,OPTIONS");
       reply.header(
         "access-control-allow-headers",
         resolveAllowedHeaders(
@@ -101,6 +109,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerProjectRoutes(app, {
     auth,
     projectService,
+  });
+  void registerCanvasRoutes(app, {
+    auth,
+    canvasService,
   });
 
   return app;
