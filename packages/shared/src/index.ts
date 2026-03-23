@@ -1,4 +1,4 @@
-export const sharedPackageName = "@loomic/shared" as const;
-
-export const sharedPackageDescription =
-  "Shared contracts placeholder for the Loomic monorepo." as const;
+export * from "./contracts.js";
+export * from "./errors.js";
+export * from "./events.js";
+export * from "./http.js";

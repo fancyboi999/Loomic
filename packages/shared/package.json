@@ -11,9 +11,12 @@
     }
   },
   "files": ["dist"],
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm run typecheck",
+    "test": "vitest run src/contracts.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
