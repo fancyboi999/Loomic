@@ -14,11 +14,14 @@ export type ServerEnv = {
   openAIApiBase?: string;
   openAIApiKey?: string;
   port: number;
+  replicateApiToken?: string;
   supabaseAnonKey?: string;
   supabaseProjectId?: string;
   supabaseServiceRoleKey?: string;
   supabaseUrl?: string;
   version: string;
+  volcesApiKey?: string;
+  volcesBaseUrl?: string;
   webOrigin: string;
 };
 
@@ -44,6 +47,12 @@ export function loadServerEnv(
   const supabaseProjectId =
     overrides.supabaseProjectId ??
     normalizeOptionalString(source.SUPABASE_PROJECT_ID);
+  const replicateApiToken =
+    overrides.replicateApiToken ?? normalizeOptionalString(source.REPLICATE_API_TOKEN);
+  const volcesApiKey =
+    overrides.volcesApiKey ?? normalizeOptionalString(source.VOLCES_API_KEY);
+  const volcesBaseUrl =
+    overrides.volcesBaseUrl ?? normalizeOptionalString(source.VOLCES_BASE_URL);
 
   return {
     agentBackendMode:
@@ -64,6 +73,9 @@ export function loadServerEnv(
     ...(supabaseAnonKey ? { supabaseAnonKey } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
     ...(supabaseProjectId ? { supabaseProjectId } : {}),
+    ...(replicateApiToken ? { replicateApiToken } : {}),
+    ...(volcesApiKey ? { volcesApiKey } : {}),
+    ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
   };
 }
 
