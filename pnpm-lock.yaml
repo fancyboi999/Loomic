@@ -47,6 +47,8 @@ importers:
 
   packages/config: {}
 
+  packages/shared: {}
+
   packages/ui:
     devDependencies:
       '@loomic/config':
