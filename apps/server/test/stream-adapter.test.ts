@@ -8,51 +8,67 @@ describe("deep-agent stream adapter", () => {
   it("maps deep-agent chunks onto Loomic SSE events", async () => {
     const stream = makeStream([
       [
-        "messages",
-        [
-          new AIMessage({
-            content: "",
-            id: "message_model_1",
-            tool_calls: [
-              {
-                args: {
-                  query: "foundation",
-                },
-                id: "tool_call_1",
-                name: "project_search",
-                type: "tool_call",
-              },
-            ],
-          }),
-          {},
-        ],
-      ],
-      [
         "updates",
         {
-          tools: {
+          model_request: {
             messages: [
-              new ToolMessage({
-                content: JSON.stringify({
-                  matchCount: 2,
-                  summary: "Matched 2 files",
-                }),
-                name: "project_search",
-                tool_call_id: "tool_call_1",
+              new AIMessage({
+                content: "",
+                id: "message_model_1",
+                tool_calls: [
+                  {
+                    args: {
+                      query: "foundation",
+                    },
+                    id: "tool_call_1",
+                    name: "project_search",
+                    type: "tool_call",
+                  },
+                ],
               }),
             ],
           },
         },
       ],
       [
-        "messages",
-        [
-          new AIMessage({
-            content: "Found the Loomic foundation docs.",
-            id: "message_model_2",
+        "tools",
+        {
+          event: "on_tool_start",
+          input: JSON.stringify({
+            query: "foundation",
           }),
-          {},
-        ],
+          name: "project_search",
+          toolCallId: "tool_call_1",
+        },
+      ],
+      [
+        "tools",
+        {
+          event: "on_tool_end",
+          name: "project_search",
+          output: new ToolMessage({
+            content: JSON.stringify({
+              matchCount: 2,
+              summary: "Matched 2 files",
+            }),
+            name: "project_search",
+            tool_call_id: "tool_call_1",
+          }),
+          toolCallId: "tool_call_1",
+        },
+      ],
+      [
+        "updates",
+        {
+          model_request: {
+            messages: [
+              new AIMessage({
+                content: "Found the Loomic foundation docs.",
+                id: "message_model_2",
+              }),
+            ],
+          },
+        },
       ],
     ]);
 

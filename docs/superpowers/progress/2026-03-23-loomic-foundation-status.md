@@ -39,6 +39,14 @@ This progress note records the implementation status for the Loomic foundation a
   - production file loading from `apps/web/out`
   - preload bridge exposing minimal runtime metadata
 - Build orchestration now enforces `@loomic/web#build` before `@loomic/desktop#build` to avoid concurrent writes to `.next`.
+- Phase `A` real-provider validation now passes against the approved OpenAI-compatible gateway using `az_sre/gpt-5.4`.
+- Server streaming now uses Deep Agents `["updates", "tools"]` mode instead of `["messages", "updates"]`.
+  - This was required because the latter combination reliably failed during real runs with `patchToolCallsMiddleware: expected AIMessage or Command, got object`.
+  - The replacement mode still provides:
+    - tool start events
+    - tool completion events
+    - final assistant message emission
+    - stable `run.completed` termination
 
 ## Verification
 
@@ -67,15 +75,35 @@ pnpm --filter @loomic/web test
 pnpm --filter @loomic/desktop test
 ```
 
+Additional real-provider smoke validation passed:
+
+```bash
+OPENAI_API_KEY=... \
+OPENAI_API_BASE=https://one-api.nowcoder.com/v1 \
+LOOMIC_AGENT_MODEL=az_sre/gpt-5.4 \
+pnpm --filter @loomic/server dev
+
+curl http://127.0.0.1:3001/api/health
+curl -X POST http://127.0.0.1:3001/api/agent/runs ...
+curl -N http://127.0.0.1:3001/api/agent/runs/<runId>/events
+```
+
+Observed SSE terminal path:
+
+- `run.started`
+- multiple `tool.started`
+- multiple `tool.completed`
+- `message.delta`
+- `run.completed`
+
 ## Current Residual Risks
 
 - `apps/web/out` is currently treated as a production artifact for the Electron shell. That is acceptable for Phase `D`, but later packaging should decide whether this remains committed or becomes a generated-only artifact.
 - Electron GUI smoke verification is still limited by local Electron binary setup and host environment constraints, even though desktop tests and production path validation pass.
-- Real provider smoke validation has not happened yet. The runtime is now real, but the local automated path still relies on scripted/fake models.
 - `apps/web/out` is still a tracked production artifact, so repo-wide `build` mutates generated files during verification.
+- Deep Agents `["messages", "updates"]` streaming still appears incompatible with this agent/tool stack under real provider runs. Loomic is now intentionally pinned to `["updates", "tools"]` until upstream behavior is clarified.
 
 ## Next
 
-- Run Phase `A` real-provider smoke validation with the approved local API credentials.
 - Decide whether `apps/web/out` remains committed or becomes a generated-only artifact.
-- Prepare the first pushable branch snapshot after the remaining validation pass.
+- Prepare the first pushable Phase `A` branch snapshot.

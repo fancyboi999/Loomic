@@ -128,7 +128,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           },
           {
             signal: run.controller.signal,
-            streamMode: ["messages", "updates"],
+            streamMode: ["updates", "tools"],
           },
         );
       } catch (error) {

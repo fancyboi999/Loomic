@@ -13,6 +13,7 @@ import type { StreamEvent } from "@loomic/shared";
 
 type DeepAgentChunk =
   | ["messages", [AIMessage | AIMessageChunk | ToolMessage, unknown]]
+  | ["tools", Record<string, unknown>]
   | ["updates", Record<string, unknown>];
 
 type AdaptDeepAgentStreamOptions = {
@@ -98,6 +99,45 @@ export async function* adaptDeepAgentStream(
 
       if (isUpdatesChunk(chunk)) {
         for (const message of extractUpdatedMessages(chunk[1])) {
+          if (AIMessageClass.isInstance(message)) {
+            for (const toolCall of message.tool_calls ?? []) {
+              if (!toolCall.id || !toolCall.name) {
+                continue;
+              }
+
+              if (seenStartedToolCalls.has(toolCall.id)) {
+                continue;
+              }
+
+              seenStartedToolCalls.add(toolCall.id);
+              yield {
+                runId: options.runId,
+                timestamp: now(),
+                toolCallId: toolCall.id,
+                toolName: toolCall.name,
+                type: "tool.started",
+              };
+            }
+
+            if ((message.tool_calls?.length ?? 0) > 0) {
+              continue;
+            }
+
+            const delta = extractMessageText(message.content);
+            if (!delta) {
+              continue;
+            }
+
+            yield {
+              delta,
+              messageId: message.id ?? `message_${options.runId}`,
+              runId: options.runId,
+              timestamp: now(),
+              type: "message.delta",
+            };
+            continue;
+          }
+
           if (!ToolMessageClass.isInstance(message)) {
             continue;
           }
@@ -113,6 +153,56 @@ export async function* adaptDeepAgentStream(
             timestamp: now(),
             toolCallId: message.tool_call_id,
             toolName: message.name ?? "unknown_tool",
+            type: "tool.completed",
+          };
+        }
+      }
+
+      if (isToolsChunk(chunk)) {
+        const payload = chunk[1];
+
+        if (payload.event === "on_tool_start") {
+          const toolCallId = readString(payload.toolCallId);
+          const toolName = readString(payload.name);
+
+          if (
+            !toolCallId ||
+            !toolName ||
+            seenStartedToolCalls.has(toolCallId)
+          ) {
+            continue;
+          }
+
+          seenStartedToolCalls.add(toolCallId);
+          yield {
+            runId: options.runId,
+            timestamp: now(),
+            toolCallId,
+            toolName,
+            type: "tool.started",
+          };
+          continue;
+        }
+
+        if (payload.event === "on_tool_end") {
+          const toolCallId = readString(payload.toolCallId);
+          const toolName = readString(payload.name);
+
+          if (
+            !toolCallId ||
+            !toolName ||
+            seenCompletedToolCalls.has(toolCallId)
+          ) {
+            continue;
+          }
+
+          seenCompletedToolCalls.add(toolCallId);
+          yield {
+            outputSummary: summarizeToolOutput(payload.output),
+            runId: options.runId,
+            timestamp: now(),
+            toolCallId,
+            toolName,
             type: "tool.completed",
           };
         }
@@ -199,7 +289,7 @@ function extractUpdatedMessages(payload: Record<string, unknown>) {
 }
 
 function summarizeToolMessage(message: ToolMessage) {
-  const parsed = tryParseJson(message.content);
+  const parsed = tryParseJson(extractMessageText(message.content));
   if (
     parsed &&
     typeof parsed === "object" &&
@@ -211,6 +301,24 @@ function summarizeToolMessage(message: ToolMessage) {
 
   const textContent = extractMessageText(message.content);
   return textContent || undefined;
+}
+
+function summarizeToolOutput(output: unknown) {
+  if (ToolMessageClass.isInstance(output)) {
+    return summarizeToolMessage(output);
+  }
+
+  if (output && typeof output === "object") {
+    const serializedOutput = JSON.stringify(output);
+    return summarizeToolMessage(
+      new ToolMessageClass({
+        content: serializedOutput,
+        tool_call_id: "tool_output",
+      }),
+    );
+  }
+
+  return extractMessageText(output) || undefined;
 }
 
 function tryParseJson(value: unknown) {
@@ -253,4 +361,19 @@ function isUpdatesChunk(
     !!chunk[1] &&
     typeof chunk[1] === "object"
   );
+}
+
+function isToolsChunk(
+  chunk: DeepAgentChunk | unknown,
+): chunk is ["tools", Record<string, unknown>] {
+  return (
+    Array.isArray(chunk) &&
+    chunk[0] === "tools" &&
+    !!chunk[1] &&
+    typeof chunk[1] === "object"
+  );
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }

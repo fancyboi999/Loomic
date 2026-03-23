@@ -1,5 +1,4 @@
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
-import { ChatOpenAI } from "@langchain/openai";
 import type { BackendFactory } from "deepagents";
 import { createDeepAgent } from "deepagents";
 
@@ -25,26 +24,34 @@ export function createLoomicDeepAgent(options: {
   const backendFactory =
     options.backendFactory ?? createAgentBackendFactory(options.env);
 
+  if (!options.model) {
+    applyOpenAICompatEnv(options.env);
+  }
+
   return createDeepAgent({
     backend: backendFactory,
-    model: options.model ?? createDefaultModel(options.env),
+    model: options.model ?? createDefaultModelSpecifier(options.env),
     name: "loomic-phase-a",
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     tools: createPhaseATools(backendFactory),
   });
 }
 
-function createDefaultModel(env: ServerEnv) {
-  return new ChatOpenAI({
-    model: env.agentModel,
-    temperature: 0,
-    ...(env.openAIApiKey ? { apiKey: env.openAIApiKey } : {}),
-    ...(env.openAIApiBase
-      ? {
-          configuration: {
-            baseURL: env.openAIApiBase,
-          },
-        }
-      : {}),
-  });
+export function createDefaultModelSpecifier(
+  env: Pick<ServerEnv, "agentModel">,
+) {
+  return `openai:${env.agentModel}`;
+}
+
+export function applyOpenAICompatEnv(
+  env: Pick<ServerEnv, "openAIApiBase" | "openAIApiKey">,
+  target: NodeJS.ProcessEnv = process.env,
+) {
+  if (env.openAIApiKey) {
+    target.OPENAI_API_KEY = env.openAIApiKey;
+  }
+
+  if (env.openAIApiBase) {
+    target.OPENAI_BASE_URL = env.openAIApiBase;
+  }
 }
