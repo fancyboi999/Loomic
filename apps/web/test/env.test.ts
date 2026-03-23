@@ -14,7 +14,7 @@ describe("@loomic/web env helpers", () => {
         NEXT_PUBLIC_SERVER_BASE_URL: "http://localhost:4010",
         NEXT_PUBLIC_SUPABASE_URL: " https://example.supabase.co ",
         NEXT_PUBLIC_SUPABASE_ANON_KEY: " anon-key ",
-      } as NodeJS.ProcessEnv,
+      } as unknown as NodeJS.ProcessEnv,
     );
 
     expect(env).toEqual({
@@ -30,7 +30,7 @@ describe("@loomic/web env helpers", () => {
         {},
         {
           NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
-        } as NodeJS.ProcessEnv,
+        } as unknown as NodeJS.ProcessEnv,
       ),
     ).toThrow(/NEXT_PUBLIC_SUPABASE_ANON_KEY/);
   });
