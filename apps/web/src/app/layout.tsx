@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ThemeProvider } from "next-themes";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+
+import { Providers } from "../components/providers";
 
 import "./globals.css";
 
@@ -17,9 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={cn(geist.variable)} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
