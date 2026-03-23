@@ -128,6 +128,22 @@ export const chatMessageCreateRequestSchema = z.object({
   toolActivities: z.array(chatToolActivitySchema).nullable().optional(),
 });
 
+export const assetBucketSchema = z.enum(["project-assets", "user-avatars"]);
+
+export const assetObjectSchema = z.object({
+  id: identifierSchema,
+  bucket: assetBucketSchema,
+  objectPath: z.string().min(1),
+  mimeType: z.string().min(1).nullable(),
+  byteSize: z.number().int().nonnegative().nullable(),
+  workspaceId: workspaceIdSchema,
+  projectId: projectIdSchema.nullable(),
+  createdAt: timestampSchema,
+});
+
+export type AssetBucket = z.infer<typeof assetBucketSchema>;
+export type AssetObject = z.infer<typeof assetObjectSchema>;
+
 export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type ChatMessageCreateRequest = z.infer<typeof chatMessageCreateRequestSchema>;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  assetObjectSchema,
   canvasContentSchema,
   canvasDetailSchema,
   chatMessageSchema,
@@ -64,6 +65,8 @@ export const applicationErrorCodeSchema = z.enum([
   "session_not_found",
   "settings_not_found",
   "settings_update_failed",
+  "upload_failed",
+  "asset_not_found",
 ]);
 
 export const applicationErrorResponseSchema = z.object({
@@ -139,3 +142,15 @@ export type ProfileUpdateResponse = z.infer<typeof profileUpdateResponseSchema>;
 export type WorkspaceSettingsResponse = z.infer<typeof workspaceSettingsResponseSchema>;
 export type WorkspaceSettingsUpdateRequest = z.infer<typeof workspaceSettingsUpdateRequestSchema>;
 export type ModelListResponse = z.infer<typeof modelListResponseSchema>;
+
+export const uploadResponseSchema = z.object({
+  asset: assetObjectSchema,
+  signedUrl: z.string().min(1),
+});
+
+export const assetSignedUrlResponseSchema = z.object({
+  signedUrl: z.string().min(1),
+});
+
+export type UploadResponse = z.infer<typeof uploadResponseSchema>;
+export type AssetSignedUrlResponse = z.infer<typeof assetSignedUrlResponseSchema>;

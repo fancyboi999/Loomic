@@ -1,4 +1,5 @@
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
+import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
@@ -23,6 +24,10 @@ import {
   createSettingsService,
   type SettingsService,
 } from "./features/settings/settings-service.js";
+import {
+  createUploadService,
+  type UploadService,
+} from "./features/uploads/upload-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerChatRoutes } from "./http/chat.js";
@@ -32,6 +37,7 @@ import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSettingsRoutes } from "./http/settings.js";
 import { registerSseRoutes } from "./http/sse.js";
+import { registerUploadRoutes } from "./http/uploads.js";
 import { registerViewerRoutes } from "./http/viewer.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
 import {
@@ -47,6 +53,7 @@ export type BuildAppOptions = {
   canvasService?: CanvasService;
   chatService?: ChatService;
   env?: Partial<ServerEnv>;
+  uploadService?: UploadService;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
   settingsService?: SettingsService;
@@ -57,6 +64,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const env = loadServerEnv(options.env);
   const app = Fastify({
     logger: false,
+  });
+  void app.register(multipart, {
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
   const agentRuns = createAgentRunService({
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
@@ -86,6 +96,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     options.chatService ?? createChatService({ createUserClient });
   const settingsService =
     options.settingsService ?? createSettingsService({ createUserClient });
+  const uploadService =
+    options.uploadService ?? createUploadService({ createUserClient });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -145,6 +157,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerChatRoutes(app, {
     auth,
     chatService,
+  });
+  void registerUploadRoutes(app, {
+    auth,
+    uploadService,
+    viewerService,
   });
 
   return app;

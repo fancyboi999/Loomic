@@ -14,6 +14,8 @@ import type {
   MessageListResponse,
   MessageCreateResponse,
   ChatMessageCreateRequest,
+  UploadResponse,
+  AssetSignedUrlResponse,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -276,4 +278,52 @@ export async function saveMessage(
   );
   if (!response.ok) return handleErrorResponse(response);
   return (await response.json()) as MessageCreateResponse;
+}
+
+// --- Upload API ---
+
+export async function uploadFile(
+  accessToken: string,
+  file: File,
+  projectId?: string,
+): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (projectId) {
+    formData.append("projectId", projectId);
+  }
+
+  const response = await fetch(`${getServerBaseUrl()}/api/uploads`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: formData,
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as UploadResponse;
+}
+
+export async function getAssetSignedUrl(
+  accessToken: string,
+  assetId: string,
+): Promise<AssetSignedUrlResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/uploads/${assetId}/url`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as AssetSignedUrlResponse;
+}
+
+export async function deleteAsset(
+  accessToken: string,
+  assetId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/uploads/${assetId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
 }
