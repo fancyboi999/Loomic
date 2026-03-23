@@ -1,0 +1,22 @@
+{
+  "name": "@loomic/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/main.ts",
+  "devDependencies": {
+    "@loomic/config": "workspace:*",
+    "@loomic/ui": "workspace:*",
+    "@types/node": "^22.13.10",
+    "electron": "^35.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  },
+  "scripts": {
+    "build": "NODE_OPTIONS='--import tsx' node -e \"import { access } from 'node:fs/promises'; import { resolveDesktopContentSource } from './src/url.ts'; const source = resolveDesktopContentSource({ mode: 'production' }); if (source.kind !== 'file') throw new Error('Expected a file-based desktop renderer entrypoint in production.'); await access(source.filePath);\" && node ../../scripts/validate-foundation-app.mjs build",
+    "dev": "NODE_OPTIONS='--import tsx' electron ./src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

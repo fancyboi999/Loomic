@@ -1,0 +1,29 @@
+{
+  "name": "@loomic/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@loomic/shared": "workspace:*",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@loomic/config": "workspace:*",
+    "@loomic/ui": "workspace:*",
+    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "jsdom": "^26.0.0"
+  },
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev -p 3000",
+    "test": "vitest run test/chat-workbench.test.tsx",
+    "typecheck": "next typegen && node -e \"const { existsSync } = require('node:fs'); const required = ['.next/types/app/layout.ts', '.next/types/app/page.ts']; const startedAt = Date.now(); (function waitForTypes() { if (required.every((file) => existsSync(file))) { return; } if (Date.now() - startedAt > 3000) { console.error('Next.js route types did not materialize in time.'); process.exit(1); } setTimeout(waitForTypes, 50); })();\" && tsc -p tsconfig.json --noEmit"
+  }
+}
