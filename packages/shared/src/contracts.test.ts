@@ -161,6 +161,27 @@ describe("@loomic/shared contracts", () => {
     expect(toolEvent.toolCallId).toBe("tool_123");
   });
 
+  it("requires correlation fields for message and tool lifecycle events", () => {
+    expect(() =>
+      streamEventSchema.parse({
+        type: "message.delta",
+        runId: "run_123",
+        delta: "hello",
+        timestamp: "2026-03-23T12:00:00.000Z",
+      }),
+    ).toThrow();
+
+    expect(() =>
+      streamEventSchema.parse({
+        type: "tool.completed",
+        runId: "run_123",
+        toolName: "project_search",
+        outputSummary: "Matched 2 files",
+        timestamp: "2026-03-23T12:00:01.000Z",
+      }),
+    ).toThrow();
+  });
+
   it("exports stable error codes that serialize as plain JSON", () => {
     expect(errorCodeValues).toEqual([
       "invalid_request",

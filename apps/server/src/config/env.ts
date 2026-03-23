@@ -35,7 +35,9 @@ export function loadServerEnv(
       overrides.agentBackendMode ??
       parseAgentBackendMode(source.LOOMIC_AGENT_BACKEND_MODE),
     agentModel:
-      overrides.agentModel ?? source.LOOMIC_AGENT_MODEL ?? DEFAULT_AGENT_MODEL,
+      overrides.agentModel ??
+      parseAgentModel(source.LOOMIC_AGENT_MODEL) ??
+      DEFAULT_AGENT_MODEL,
     port: overrides.port ?? parsePort(source.LOOMIC_SERVER_PORT),
     version: overrides.version ?? readServerVersion(),
     webOrigin:
@@ -60,6 +62,10 @@ function parseAgentBackendMode(rawMode: string | undefined): AgentBackendMode {
 
 function parseAgentFilesRoot(rawRoot: string | undefined) {
   return normalizeOptionalString(rawRoot);
+}
+
+function parseAgentModel(rawModel: string | undefined) {
+  return normalizeOptionalString(rawModel);
 }
 
 function normalizeOptionalString(value: string | undefined) {

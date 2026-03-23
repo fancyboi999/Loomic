@@ -32,6 +32,14 @@ describe("@loomic/server phase-a env", () => {
     expect(env.agentFilesRoot).toBeUndefined();
   });
 
+  it("falls back to the default model when LOOMIC_AGENT_MODEL is blank", () => {
+    const env = loadServerEnv({}, {
+      LOOMIC_AGENT_MODEL: "   ",
+    } as NodeJS.ProcessEnv);
+
+    expect(env.agentModel).toBe(DEFAULT_AGENT_MODEL);
+  });
+
   it("rejects unsupported backend modes", () => {
     expect(() =>
       loadServerEnv({}, {
