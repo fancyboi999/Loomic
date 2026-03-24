@@ -5,6 +5,7 @@ import {
   projectCreateRequestSchema,
   projectCreateResponseSchema,
   projectListResponseSchema,
+  projectUpdateRequestSchema,
   unauthenticatedErrorResponseSchema,
 } from "@loomic/shared";
 
@@ -101,6 +102,38 @@ export async function registerProjectRoutes(
     }
   });
 
+  app.patch("/api/projects/:projectId", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+
+      if (!user) {
+        return reply.code(401).send(
+          unauthenticatedErrorResponseSchema.parse({
+            error: {
+              code: "unauthorized",
+              message: "Missing or invalid bearer token.",
+            },
+          }),
+        );
+      }
+
+      const { projectId } = request.params as { projectId: string };
+      const payload = projectUpdateRequestSchema.parse(request.body);
+      await options.projectService.updateProject(user, projectId, payload);
+
+      return reply.code(204).send();
+    } catch (error) {
+      if (isZodError(error)) {
+        return reply.code(400).send({
+          issues: error.issues,
+          message: "Invalid request body",
+        });
+      }
+
+      return sendProjectError(error, reply, "project_update_failed");
+    }
+  });
+
   app.put<{ Params: { projectId: string } }>(
     "/api/projects/:projectId/thumbnail",
     { bodyLimit: 2 * 1024 * 1024 }, // 2 MB for thumbnails
@@ -152,7 +185,11 @@ export async function registerProjectRoutes(
 function sendProjectError(
   error: unknown,
   reply: FastifyReply,
-  fallbackCode: "application_error" | "project_create_failed" | "project_query_failed",
+  fallbackCode:
+    | "application_error"
+    | "project_create_failed"
+    | "project_query_failed"
+    | "project_update_failed",
 ) {
   if (error instanceof ProjectServiceError) {
     return reply.code(error.statusCode).send(
@@ -172,7 +209,9 @@ function sendProjectError(
         message:
           fallbackCode === "project_query_failed"
             ? "Unable to load projects."
-            : "Unable to create project.",
+            : fallbackCode === "project_update_failed"
+              ? "Unable to update project."
+              : "Unable to create project.",
       },
     }),
   );

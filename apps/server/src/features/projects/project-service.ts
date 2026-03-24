@@ -1,6 +1,7 @@
 import type {
   ProjectCreateRequest,
   ProjectSummary,
+  ProjectUpdateRequest,
 } from "@loomic/shared";
 
 import {
@@ -18,6 +19,7 @@ const PROJECT_QUERY_FAILED_MESSAGE = "Unable to load projects.";
 const PROJECT_CREATE_FAILED_MESSAGE = "Unable to create project.";
 const PROJECT_DELETE_FAILED_MESSAGE = "Unable to delete project.";
 const PROJECT_NOT_FOUND_MESSAGE = "Project not found.";
+const PROJECT_UPDATE_FAILED_MESSAGE = "Unable to update project.";
 const PROJECT_SLUG_TAKEN_MESSAGE =
   "Project slug is already taken in this workspace.";
 
@@ -37,6 +39,11 @@ export type ProjectService = {
     buffer: Buffer,
     mimeType: string,
   ): Promise<{ thumbnailUrl: string }>;
+  updateProject(
+    user: AuthenticatedUser,
+    projectId: string,
+    input: ProjectUpdateRequest,
+  ): Promise<void>;
 };
 
 export class ProjectServiceError extends Error {
@@ -46,7 +53,8 @@ export class ProjectServiceError extends Error {
     | "project_delete_failed"
     | "project_not_found"
     | "project_query_failed"
-    | "project_slug_taken";
+    | "project_slug_taken"
+    | "project_update_failed";
 
   constructor(
     code:
@@ -54,7 +62,8 @@ export class ProjectServiceError extends Error {
       | "project_delete_failed"
       | "project_not_found"
       | "project_query_failed"
-      | "project_slug_taken",
+      | "project_slug_taken"
+      | "project_update_failed",
     message: string,
     statusCode: number,
   ) {
@@ -289,6 +298,38 @@ export function createProjectService(options: {
         .createSignedUrl(objectPath, THUMBNAIL_URL_EXPIRY_SECONDS);
 
       return { thumbnailUrl: urlData?.signedUrl ?? "" };
+    },
+
+    async updateProject(user, projectId, input) {
+      const client = options.createUserClient(user.accessToken);
+
+      const payload: Record<string, unknown> = {};
+      if (input.brand_kit_id !== undefined) payload.brand_kit_id = input.brand_kit_id;
+
+      if (Object.keys(payload).length === 0) {
+        return;
+      }
+
+      const { error: updateError, count } = await client
+        .from("projects")
+        .update(payload)
+        .eq("id", projectId);
+
+      if (updateError) {
+        throw new ProjectServiceError(
+          "project_update_failed",
+          PROJECT_UPDATE_FAILED_MESSAGE,
+          500,
+        );
+      }
+
+      if (count === 0) {
+        throw new ProjectServiceError(
+          "project_not_found",
+          PROJECT_NOT_FOUND_MESSAGE,
+          404,
+        );
+      }
     },
   };
 }
