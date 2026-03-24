@@ -254,14 +254,14 @@ describe("deep-agent runtime integration", () => {
     ]);
     expect(capturedConfigs).toEqual([
       expect.objectContaining({
-        configurable: {
+        configurable: expect.objectContaining({
           thread_id: "thread_stable",
-        },
+        }),
       }),
       expect.objectContaining({
-        configurable: {
+        configurable: expect.objectContaining({
           thread_id: "thread_stable",
-        },
+        }),
       }),
     ]);
   });

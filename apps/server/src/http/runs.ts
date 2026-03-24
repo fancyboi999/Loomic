@@ -77,6 +77,7 @@ export async function registerRunRoutes(
 
       const response = runCreateResponseSchema.parse(
         agentRuns.createRun(payload, {
+          ...(authenticatedUser ? { accessToken: authenticatedUser.accessToken } : {}),
           ...(model ? { model } : {}),
           ...(sessionThread ? { threadId: sessionThread.threadId } : {}),
         }),
