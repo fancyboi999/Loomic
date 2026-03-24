@@ -112,6 +112,66 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ]);
   });
 
+  it("does not emit a duplicate full-message delta after token streaming for the same message", async () => {
+    const stream = makeStream([
+      {
+        event: "on_chat_model_stream",
+        data: {
+          chunk: new AIMessageChunk({
+            content: "你好，",
+            id: "message_model_dup",
+          }),
+        },
+        run_id: "model_run_dup",
+      },
+      {
+        event: "on_chat_model_stream",
+        data: {
+          chunk: new AIMessageChunk({
+            content: "西米！",
+            id: "message_model_dup",
+          }),
+        },
+        run_id: "model_run_dup",
+      },
+      {
+        event: "on_chat_model_end",
+        data: {
+          output: new AIMessageChunk({
+            content: "你好，西米！",
+            id: "message_model_dup",
+          }),
+        },
+        run_id: "model_run_dup",
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({ type: "run.started" }),
+      expect.objectContaining({
+        delta: "你好，",
+        messageId: "message_model_dup",
+        type: "message.delta",
+      }),
+      expect.objectContaining({
+        delta: "西米！",
+        messageId: "message_model_dup",
+        type: "message.delta",
+      }),
+      expect.objectContaining({ type: "run.completed" }),
+    ]);
+  });
+
   it("emits run.canceled when the stream is aborted", async () => {
     const controller = new AbortController();
     controller.abort();
