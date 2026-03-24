@@ -129,109 +129,6 @@ export type Database = {
           },
         ]
       }
-      agent_checkpoints: {
-        Row: {
-          thread_id: string
-          checkpoint_ns: string
-          checkpoint_id: string
-          parent_checkpoint_id: string | null
-          payload: Json
-          metadata: Json
-          created_at: string
-        }
-        Insert: {
-          thread_id: string
-          checkpoint_ns?: string
-          checkpoint_id: string
-          parent_checkpoint_id?: string | null
-          payload: Json
-          metadata?: Json
-          created_at?: string
-        }
-        Update: {
-          thread_id?: string
-          checkpoint_ns?: string
-          checkpoint_id?: string
-          parent_checkpoint_id?: string | null
-          payload?: Json
-          metadata?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_checkpoints_parent_fkey"
-            columns: ["thread_id", "checkpoint_ns", "parent_checkpoint_id"]
-            isOneToOne: false
-            referencedRelation: "agent_checkpoints"
-            referencedColumns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
-          },
-        ]
-      }
-      agent_checkpoint_writes: {
-        Row: {
-          thread_id: string
-          checkpoint_ns: string
-          checkpoint_id: string
-          task_id: string
-          idx: number
-          channel: string
-          value: Json
-          created_at: string
-        }
-        Insert: {
-          thread_id: string
-          checkpoint_ns?: string
-          checkpoint_id: string
-          task_id: string
-          idx: number
-          channel: string
-          value: Json
-          created_at?: string
-        }
-        Update: {
-          thread_id?: string
-          checkpoint_ns?: string
-          checkpoint_id?: string
-          task_id?: string
-          idx?: number
-          channel?: string
-          value?: Json
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_checkpoint_writes_checkpoint_fkey"
-            columns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
-            isOneToOne: false
-            referencedRelation: "agent_checkpoints"
-            referencedColumns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
-          },
-        ]
-      }
-      agent_store_items: {
-        Row: {
-          namespace: string[]
-          key: string
-          value: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          namespace: string[]
-          key: string
-          value: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          namespace?: string[]
-          key?: string
-          value?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       asset_objects: {
         Row: {
           bucket: string
@@ -507,6 +404,163 @@ export type Database = {
     Enums: {
       workspace_member_role: "owner" | "admin" | "member"
       workspace_type: "personal" | "team"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  langgraph: {
+    Tables: {
+      checkpoint_migrations: {
+        Row: {
+          v: number
+        }
+        Insert: {
+          v: number
+        }
+        Update: {
+          v?: number
+        }
+        Relationships: []
+      }
+      checkpoints: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          parent_checkpoint_id: string | null
+          type: string | null
+          checkpoint: Json
+          metadata: Json
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          parent_checkpoint_id?: string | null
+          type?: string | null
+          checkpoint: Json
+          metadata?: Json
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          parent_checkpoint_id?: string | null
+          type?: string | null
+          checkpoint?: Json
+          metadata?: Json
+        }
+        Relationships: []
+      }
+      checkpoint_blobs: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          channel: string
+          version: string
+          type: string
+          blob: string | null
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          channel: string
+          version: string
+          type: string
+          blob?: string | null
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          channel?: string
+          version?: string
+          type?: string
+          blob?: string | null
+        }
+        Relationships: []
+      }
+      checkpoint_writes: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          type: string | null
+          blob: string
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          type?: string | null
+          blob: string
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          task_id?: string
+          idx?: number
+          channel?: string
+          type?: string | null
+          blob?: string
+        }
+        Relationships: []
+      }
+      store_migrations: {
+        Row: {
+          v: number
+        }
+        Insert: {
+          v: number
+        }
+        Update: {
+          v?: number
+        }
+        Relationships: []
+      }
+      store: {
+        Row: {
+          namespace_path: string
+          key: string
+          value: Json
+          created_at: string | null
+          updated_at: string | null
+          expires_at: string | null
+        }
+        Insert: {
+          namespace_path: string
+          key: string
+          value: Json
+          created_at?: string | null
+          updated_at?: string | null
+          expires_at?: string | null
+        }
+        Update: {
+          namespace_path?: string
+          key?: string
+          value?: Json
+          created_at?: string | null
+          updated_at?: string | null
+          expires_at?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
