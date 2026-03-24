@@ -55,13 +55,23 @@ export const unauthenticatedErrorResponseSchema = z.object({
 export const applicationErrorCodeSchema = z.enum([
   "application_error",
   "bootstrap_failed",
+  "brand_kit_not_found",
+  "brand_kit_create_failed",
+  "brand_kit_update_failed",
+  "brand_kit_delete_failed",
+  "brand_kit_query_failed",
+  "brand_kit_asset_not_found",
+  "brand_kit_asset_create_failed",
   "canvas_not_found",
   "canvas_save_failed",
   "chat_error",
   "profile_update_failed",
   "project_query_failed",
   "project_create_failed",
+  "project_delete_failed",
+  "project_not_found",
   "project_slug_taken",
+  "project_update_failed",
   "session_not_found",
   "settings_not_found",
   "settings_update_failed",
@@ -154,3 +164,8 @@ export const assetSignedUrlResponseSchema = z.object({
 
 export type UploadResponse = z.infer<typeof uploadResponseSchema>;
 export type AssetSignedUrlResponse = z.infer<typeof assetSignedUrlResponseSchema>;
+
+export const projectUpdateRequestSchema = z.object({
+  brand_kit_id: z.string().uuid().nullable().optional(),
+});
+export type ProjectUpdateRequest = z.infer<typeof projectUpdateRequestSchema>;
