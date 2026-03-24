@@ -31,6 +31,25 @@ describe("@loomic/shared contracts", () => {
     expect(parsed.service).toBe("loomic-server");
   });
 
+  it("accepts canvasId as optional field", () => {
+    const result = runCreateRequestSchema.parse({
+      sessionId: "session-1",
+      conversationId: "conv-1",
+      prompt: "Hello",
+      canvasId: "canvas-1",
+    });
+    expect(result.canvasId).toBe("canvas-1");
+  });
+
+  it("succeeds without canvasId (backward compat)", () => {
+    const result = runCreateRequestSchema.parse({
+      sessionId: "session-1",
+      conversationId: "conv-1",
+      prompt: "Hello",
+    });
+    expect(result.canvasId).toBeUndefined();
+  });
+
   it("accepts sessionId and conversationId for run creation", () => {
     const request = runCreateRequestSchema.parse({
       sessionId: "session_123",

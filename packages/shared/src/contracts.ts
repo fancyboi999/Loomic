@@ -29,6 +29,7 @@ export const runCreateRequestSchema = z.object({
   sessionId: sessionIdSchema,
   conversationId: conversationIdSchema,
   prompt: z.string().min(1),
+  canvasId: canvasIdSchema.optional(),
 });
 
 export const runCreateResponseSchema = z.object({
