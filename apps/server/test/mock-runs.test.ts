@@ -18,6 +18,9 @@ import {
   type ThreadService,
 } from "../src/features/chat/thread-service.js";
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const appsUnderTest = new Set<Awaited<ReturnType<typeof buildApp>>>();
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
@@ -55,7 +58,7 @@ describe("agent run routes", () => {
     expect(response.statusCode).toBe(202);
 
     const payload = runCreateResponseSchema.parse(response.json());
-    expect(payload.runId).toMatch(/^run_/);
+    expect(payload.runId).toMatch(uuidPattern);
     expect(payload.sessionId).toBe("session-1");
     expect(payload.conversationId).toBe("conversation-1");
     expect(payload.status).toBe("accepted");
@@ -109,7 +112,7 @@ describe("agent run routes", () => {
       sessionId: "session-1",
       threadId: "thread-1",
     });
-    expect(acceptedRuns[0]?.runId).toMatch(/^run_/);
+    expect(acceptedRuns[0]?.runId).toMatch(uuidPattern);
   });
 
   it("rejects authenticated runs when the session cannot be resumed", async () => {

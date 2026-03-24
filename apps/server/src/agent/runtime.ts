@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
@@ -52,7 +53,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
   const runs = new Map<string, RuntimeRunRecord>();
   const runIdFactory =
     options.runIdFactory ??
-    (() => `run_${Math.random().toString(36).slice(2, 10)}`);
+    (() => randomUUID());
 
   return {
     cancelRun(runId: string): RunCancelResponse | null {
