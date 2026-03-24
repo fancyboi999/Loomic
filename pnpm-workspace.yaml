@@ -1,3 +1,12 @@
 packages:
   - apps/*
   - packages/*
+
+ignoredBuiltDependencies:
+  - '@biomejs/biome'
+  - msw
+
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+  - sharp

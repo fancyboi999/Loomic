@@ -10,7 +10,7 @@ const videoGenerateSchema = z.object({
   resolution: z.enum(["480p", "720p", "1080p"]).optional().default("720p"),
   duration: z.number().int().min(5).max(10).optional().default(5),
   aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional().default("16:9"),
-  inputImages: z.array(z.string().url()).optional().describe("First frame reference"),
+  inputImages: z.array(z.string()).optional().describe("First frame reference image URLs"),
 });
 
 type VideoGenerateResult = {
@@ -33,7 +33,7 @@ export async function runVideoGenerate(
       resolution: input.resolution,
       duration: input.duration as 5 | 10,
       aspectRatio: input.aspectRatio,
-      ...(input.inputImages ? { inputImages: input.inputImages } : {}),
+      ...(input.inputImages?.length ? { inputImages: input.inputImages } : {}),
     });
 
     return {

@@ -22,12 +22,14 @@ describe("generate_image tool", () => {
     registerImageProvider(mockProvider);
 
     const result = await runImageGenerate({
+      title: "A cute cat",
       prompt: "a cat",
       model: "google/nano-banana-pro",
       aspectRatio: "1:1",
     });
 
     expect(result.summary).toContain("Generated image");
+    expect(result.title).toBe("A cute cat");
     expect(result.imageUrl).toBe("https://example.com/img.png");
     expect(result.width).toBe(1024);
   });
@@ -40,6 +42,7 @@ describe("generate_image tool", () => {
     registerImageProvider(mockProvider);
 
     const result = await runImageGenerate({
+      title: "Test image",
       prompt: "test",
       model: "google/nano-banana-pro",
       aspectRatio: "1:1",

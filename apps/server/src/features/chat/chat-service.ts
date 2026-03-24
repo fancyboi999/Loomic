@@ -2,6 +2,7 @@ import type {
   ChatMessage,
   ChatMessageCreateRequest,
   ChatSessionSummary,
+  ContentBlock,
   Json,
 } from "@loomic/shared";
 
@@ -52,6 +53,26 @@ export type ChatService = {
     input: ChatMessageCreateRequest,
   ): Promise<ChatMessage>;
 };
+
+/**
+ * Synthesize content blocks from legacy `content` + `tool_activities` columns.
+ * Produces the same ordering the old client saw: text first, then tool blocks.
+ */
+function synthesizeLegacyBlocks(
+  content: string | null,
+  toolActivities: unknown[] | null,
+): ContentBlock[] | null {
+  const blocks: ContentBlock[] = [];
+  if (content) {
+    blocks.push({ type: "text", text: content });
+  }
+  if (toolActivities && Array.isArray(toolActivities)) {
+    for (const t of toolActivities) {
+      blocks.push({ type: "tool", ...(t as Omit<ContentBlock & { type: "tool" }, "type">) });
+    }
+  }
+  return blocks.length > 0 ? blocks : null;
+}
 
 export function createChatService(options: {
   createUserClient: (accessToken: string) => UserSupabaseClient;
@@ -129,7 +150,7 @@ export function createChatService(options: {
       const client = options.createUserClient(user.accessToken);
       const { data, error } = await client
         .from("chat_messages")
-        .select("id, role, content, tool_activities, created_at")
+        .select("id, role, content, tool_activities, content_blocks, created_at")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
 
@@ -137,13 +158,24 @@ export function createChatService(options: {
         throw new ChatServiceError("chat_error", "Failed to list messages.", 500);
       }
 
-      return (data ?? []).map((row) => ({
-        id: row.id,
-        role: row.role as "user" | "assistant",
-        content: row.content,
-        toolActivities: row.tool_activities as ChatMessage["toolActivities"],
-        createdAt: row.created_at,
-      }));
+      return (data ?? []).map((row) => {
+        const contentBlocks =
+          Array.isArray(row.content_blocks) && row.content_blocks.length > 0
+            ? (row.content_blocks as ContentBlock[])
+            : synthesizeLegacyBlocks(
+                row.content,
+                row.tool_activities as unknown[] | null,
+              );
+
+        return {
+          id: row.id,
+          role: row.role as "user" | "assistant",
+          content: row.content,
+          toolActivities: row.tool_activities as ChatMessage["toolActivities"],
+          contentBlocks,
+          createdAt: row.created_at,
+        };
+      });
     },
 
     async createMessage(user, sessionId, input) {
@@ -157,8 +189,11 @@ export function createChatService(options: {
           ...(input.toolActivities
             ? { tool_activities: input.toolActivities as unknown as Json }
             : {}),
+          ...(input.contentBlocks
+            ? { content_blocks: input.contentBlocks as unknown as Json }
+            : {}),
         })
-        .select("id, role, content, tool_activities, created_at")
+        .select("id, role, content, tool_activities, content_blocks, created_at")
         .single();
 
       if (error || !data) {
@@ -171,11 +206,20 @@ export function createChatService(options: {
         .update({ updated_at: new Date().toISOString() })
         .eq("id", sessionId);
 
+      const contentBlocks =
+        Array.isArray(data.content_blocks) && data.content_blocks.length > 0
+          ? (data.content_blocks as ContentBlock[])
+          : synthesizeLegacyBlocks(
+              data.content,
+              data.tool_activities as unknown[] | null,
+            );
+
       return {
         id: data.id,
         role: data.role as "user" | "assistant",
         content: data.content,
         toolActivities: data.tool_activities as ChatMessage["toolActivities"],
+        contentBlocks,
         createdAt: data.created_at,
       };
     },

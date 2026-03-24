@@ -53,14 +53,13 @@ function CanvasPageContent() {
   }, []);
 
   // Only re-fetch when canvasId changes or on initial auth resolution.
-  // Token refreshes (e.g. tab switch back) should NOT trigger a reload.
-  const hasAuthed = !authLoading && !!user && !!accessToken;
-  const hasAuthedRef = useRef(false);
-  if (hasAuthed) hasAuthedRef.current = true;
+  // Token refreshes (e.g. tab switch back) should NOT trigger a reload —
+  // we depend on user.id (stable string) instead of the user object ref.
+  const userId = user?.id;
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!userId) {
       routerRef.current.replace("/login");
       return;
     }
@@ -91,7 +90,7 @@ function CanvasPageContent() {
         setPageLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, canvasId]);
+  }, [authLoading, userId, canvasId]);
 
   if (!canvasId) {
     return (
