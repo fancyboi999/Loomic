@@ -337,3 +337,34 @@ export async function deleteAsset(
   );
   if (!response.ok) return handleErrorResponse(response);
 }
+
+// --- Canvas-Native Generation API ---
+
+export type GenerateImageResponse = {
+  url: string;
+  prompt: string;
+  mimeType: string;
+  width: number;
+  height: number;
+};
+
+export async function generateImageDirect(
+  accessToken: string,
+  prompt: string,
+  options?: { model?: string; aspectRatio?: string },
+): Promise<GenerateImageResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/agent/generate-image`,
+    {
+      method: "POST",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify({
+        prompt,
+        ...(options?.model ? { model: options.model } : {}),
+        ...(options?.aspectRatio ? { aspectRatio: options.aspectRatio } : {}),
+      }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as GenerateImageResponse;
+}
