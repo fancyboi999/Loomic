@@ -325,24 +325,3 @@ function isStreamEvent(value: unknown): value is LangChainStreamEvent {
 function readString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
-
-
-/**
- * Extract tool_call_id from streamEvents metadata or data.
- * LangChain stores it in metadata.tool_call_id or data.input.tool_call_id.
- */
-function extractToolCallId(evt: LangChainStreamEvent): string | undefined {
-  // Check metadata first (most reliable)
-  const metaId = readString(
-    (evt.metadata as Record<string, unknown> | undefined)?.tool_call_id,
-  );
-  if (metaId) return metaId;
-
-  // Check if the output is a ToolMessage with tool_call_id
-  if (evt.data?.output && ToolMessageClass.isInstance(evt.data.output)) {
-    const id = readString((evt.data.output as ToolMessage).tool_call_id);
-    if (id) return id;
-  }
-
-  return undefined;
-}

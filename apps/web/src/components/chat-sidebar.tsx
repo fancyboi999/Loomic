@@ -333,7 +333,7 @@ export function ChatSidebar({
               tool.status = "completed";
               tool.outputSummary = event.outputSummary;
               if (event.artifacts) {
-                (tool as any).artifacts = event.artifacts;
+                tool.artifacts = event.artifacts;
               }
             }
 

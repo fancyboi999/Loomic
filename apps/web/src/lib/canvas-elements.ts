@@ -107,7 +107,10 @@ export async function insertImageOnCanvas(
     ) => void;
     getSceneElements: () => readonly any[];
     getAppState: () => any;
-    updateScene: (scene: { elements: any[] }) => void;
+    updateScene: (scene: {
+      elements: any[];
+      captureUpdate?: string;
+    }) => void;
   },
   artifact: ImageArtifact,
 ): Promise<void> {
@@ -136,6 +139,7 @@ export async function insertImageOnCanvas(
 
   api.updateScene({
     elements: [...api.getSceneElements(), element],
+    captureUpdate: "IMMEDIATELY",
   });
 }
 
