@@ -46,6 +46,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       <div className="flex min-h-[100px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-2 transition-colors focus-within:border-[#C0C0C0]">
         <textarea
           ref={textareaRef}
+          data-chat-input
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}

@@ -7,7 +7,9 @@ import {
 } from "@loomic/shared";
 
 import { generateImage } from "../generation/image-generation.js";
-import type { RequestAuthenticator } from "../supabase/user.js";
+import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
+import type { UploadService } from "../features/uploads/upload-service.js";
+import type { AuthenticatedUser, RequestAuthenticator } from "../supabase/user.js";
 
 const generateImageRequestSchema = z.object({
   prompt: z.string().min(1),
@@ -19,6 +21,8 @@ export async function registerGenerateRoutes(
   app: FastifyInstance,
   options: {
     auth: RequestAuthenticator;
+    uploadService: UploadService;
+    viewerService: ViewerService;
   },
 ) {
   app.post("/api/agent/generate-image", async (request, reply) => {
@@ -55,8 +59,18 @@ export async function registerGenerateRoutes(
         aspectRatio: payload.aspectRatio ?? "1:1",
       });
 
+      // Download from Replicate CDN and persist to Supabase Storage
+      const { signedUrl, assetId } = await downloadAndUpload(
+        result.url,
+        result.mimeType,
+        payload.prompt,
+        user,
+        options,
+      );
+
       return reply.code(200).send({
-        url: result.url,
+        url: signedUrl,
+        assetId,
         prompt: payload.prompt,
         mimeType: result.mimeType,
         width: result.width,
@@ -87,4 +101,34 @@ export async function registerGenerateRoutes(
       );
     }
   });
+}
+
+async function downloadAndUpload(
+  sourceUrl: string,
+  mimeType: string,
+  prompt: string,
+  user: AuthenticatedUser,
+  deps: { uploadService: UploadService; viewerService: ViewerService },
+): Promise<{ signedUrl: string; assetId: string }> {
+  const response = await fetch(sourceUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download generated image: ${response.status}`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  const ext = mimeType === "image/webp" ? "webp" : "png";
+  const slug = prompt.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const fileName = `gen-${slug}-${Date.now()}.${ext}`;
+
+  const viewer = await deps.viewerService.ensureViewer(user);
+
+  const result = await deps.uploadService.uploadFile(user, {
+    bucket: "project-assets",
+    fileName,
+    fileBuffer: buffer,
+    mimeType,
+    workspaceId: viewer.workspace.id,
+  });
+
+  return { signedUrl: result.signedUrl, assetId: result.asset.id };
 }

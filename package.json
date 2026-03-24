@@ -17,5 +17,8 @@
     "turbo": "^2.3.3",
     "typescript": "^5.7.3",
     "vitest": "^3.0.7"
+  },
+  "dependencies": {
+    "global-agent": "^4.1.3"
   }
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import type { ContentBlock, ToolArtifact, ToolBlock } from "@loomic/shared";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export type { ContentBlock, ToolArtifact };
 
@@ -24,7 +26,7 @@ export function ChatMessage({
     const text = contentBlocks[0]?.type === "text" ? contentBlocks[0].text : "";
     return (
       <div className="flex w-full justify-end pl-10">
-        <div className="whitespace-pre-wrap text-sm leading-[1.6] text-[#2F3640]">
+        <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#363636]">
           {text}
         </div>
       </div>
@@ -40,16 +42,41 @@ export function ChatMessage({
     }
   }
 
+  // Show thinking indicator when streaming but no content has arrived yet
+  const hasContent = contentBlocks.some(
+    (b) => (b.type === "text" && b.text.length > 0) || b.type === "tool",
+  );
+  const showThinking = isStreaming && !hasContent;
+
   return (
     <div className="flex w-full flex-col gap-2 pr-10">
+      {showThinking && (
+        <div className="flex items-center gap-1 text-sm text-[#A4A9B2]">
+          <span>思考中</span>
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "0ms" }}
+          />
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "150ms" }}
+          />
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "300ms" }}
+          />
+        </div>
+      )}
       {contentBlocks.map((block, idx) => {
         if (block.type === "text") {
           return (
             <div
               key={idx}
-              className="whitespace-pre-wrap text-sm leading-[1.6] text-[#2F3640]"
+              className="markdown-content text-sm leading-[1.6] text-[#2F3640]"
             >
-              {block.text}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {block.text}
+              </ReactMarkdown>
               {isStreaming && idx === lastTextIdx && (
                 <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-[#2F3640] animate-pulse rounded-full" />
               )}

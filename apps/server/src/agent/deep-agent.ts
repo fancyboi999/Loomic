@@ -9,6 +9,7 @@ import { createAgentBackendFactory } from "./backends/index.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import { createImageSubAgent, createVideoSubAgent } from "./sub-agents.js";
 import { createMainAgentTools } from "./tools/index.js";
+import type { PersistImageFn } from "./tools/image-generate.js";
 
 export type LoomicAgent = Pick<
   ReturnType<typeof createDeepAgent>,
@@ -16,23 +17,28 @@ export type LoomicAgent = Pick<
 >;
 
 export type LoomicAgentFactory = (options: {
+  canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
+  persistImage?: PersistImageFn;
   store?: BaseStore;
 }) => LoomicAgent;
 
 export function createLoomicDeepAgent(options: {
   backendFactory?: BackendFactory;
+  canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
+  persistImage?: PersistImageFn;
   store?: BaseStore;
 }): LoomicAgent {
   const backendFactory =
-    options.backendFactory ?? createAgentBackendFactory(options.env);
+    options.backendFactory ??
+    createAgentBackendFactory(options.env, options.canvasId);
 
   applyOpenAICompatEnv(options.env);
 
@@ -56,7 +62,12 @@ export function createLoomicDeepAgent(options: {
     model: resolvedModel,
     name: "loomic",
     ...(options.store ? { store: options.store } : {}),
-    subagents: [createImageSubAgent(), createVideoSubAgent()],
+    subagents: [
+      createImageSubAgent(
+        options.persistImage ? { persistImage: options.persistImage } : undefined,
+      ),
+      createVideoSubAgent(),
+    ],
     systemPrompt: LOOMIC_SYSTEM_PROMPT,
     tools: createMainAgentTools(backendFactory, { createUserClient }),
   });

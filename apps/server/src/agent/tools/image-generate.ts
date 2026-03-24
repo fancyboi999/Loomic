@@ -56,8 +56,19 @@ type ImageGenerateResult = {
   error?: string;
 };
 
+/**
+ * Optional function to persist a generated image to OSS.
+ * Accepts the ephemeral URL and returns a persistent signed URL.
+ */
+export type PersistImageFn = (
+  sourceUrl: string,
+  mimeType: string,
+  prompt: string,
+) => Promise<string>;
+
 export async function runImageGenerate(
   input: ImageGenerateInput,
+  persistImage?: PersistImageFn,
 ): Promise<ImageGenerateResult> {
   try {
     const result = await generateImage("replicate", {
@@ -67,10 +78,19 @@ export async function runImageGenerate(
       ...(input.inputImages?.length ? { inputImages: input.inputImages } : {}),
     });
 
+    let imageUrl = result.url;
+    if (persistImage) {
+      try {
+        imageUrl = await persistImage(result.url, result.mimeType, input.prompt);
+      } catch {
+        // Fall back to ephemeral URL if upload fails
+      }
+    }
+
     return {
       summary: `Generated image (${result.width}x${result.height}) via replicate/${input.model}`,
       title: input.title,
-      imageUrl: result.url,
+      imageUrl,
       mimeType: result.mimeType,
       width: result.width,
       height: result.height,
@@ -84,10 +104,12 @@ export async function runImageGenerate(
   }
 }
 
-export function createImageGenerateTool() {
+export function createImageGenerateTool(deps?: {
+  persistImage?: PersistImageFn;
+}) {
   return tool(
     async (input) => {
-      return await runImageGenerate(input);
+      return await runImageGenerate(input, deps?.persistImage);
     },
     {
       name: "generate_image",

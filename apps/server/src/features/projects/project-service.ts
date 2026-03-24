@@ -12,29 +12,47 @@ import type {
   UserSupabaseClient,
 } from "../../supabase/user.js";
 
+const THUMBNAIL_BUCKET = "project-assets";
+const THUMBNAIL_URL_EXPIRY_SECONDS = 3600;
 const PROJECT_QUERY_FAILED_MESSAGE = "Unable to load projects.";
 const PROJECT_CREATE_FAILED_MESSAGE = "Unable to create project.";
+const PROJECT_DELETE_FAILED_MESSAGE = "Unable to delete project.";
+const PROJECT_NOT_FOUND_MESSAGE = "Project not found.";
 const PROJECT_SLUG_TAKEN_MESSAGE =
   "Project slug is already taken in this workspace.";
 
 export type ProjectService = {
+  archiveProject(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<void>;
   createProject(
     user: AuthenticatedUser,
     input: ProjectCreateRequest,
   ): Promise<ProjectSummary>;
   listProjects(user: AuthenticatedUser): Promise<ProjectSummary[]>;
+  saveThumbnail(
+    user: AuthenticatedUser,
+    projectId: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<{ thumbnailUrl: string }>;
 };
 
 export class ProjectServiceError extends Error {
   readonly statusCode: number;
   readonly code:
     | "project_create_failed"
+    | "project_delete_failed"
+    | "project_not_found"
     | "project_query_failed"
     | "project_slug_taken";
 
   constructor(
     code:
       | "project_create_failed"
+      | "project_delete_failed"
+      | "project_not_found"
       | "project_query_failed"
       | "project_slug_taken",
     message: string,
@@ -51,6 +69,45 @@ export function createProjectService(options: {
   viewerService: ViewerService;
 }): ProjectService {
   return {
+    async archiveProject(user, projectId) {
+      const client = options.createUserClient(user.accessToken);
+
+      const { data: existing, error: findError } = await client
+        .from("projects")
+        .select("id")
+        .eq("id", projectId)
+        .is("archived_at", null)
+        .maybeSingle();
+
+      if (findError) {
+        throw new ProjectServiceError(
+          "project_delete_failed",
+          PROJECT_DELETE_FAILED_MESSAGE,
+          500,
+        );
+      }
+
+      if (!existing) {
+        throw new ProjectServiceError(
+          "project_not_found",
+          PROJECT_NOT_FOUND_MESSAGE,
+          404,
+        );
+      }
+
+      const { error: updateError } = await client
+        .from("projects")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", projectId);
+
+      if (updateError) {
+        throw new ProjectServiceError(
+          "project_delete_failed",
+          PROJECT_DELETE_FAILED_MESSAGE,
+          500,
+        );
+      }
+    },
     async createProject(user, input) {
       await ensureFoundation(options.viewerService, user, "project_create_failed");
 
@@ -121,7 +178,7 @@ export function createProjectService(options: {
       const { data: projects, error: projectQueryError } = await client
         .from("projects")
         .select(
-          "id, name, slug, description, created_at, updated_at, workspace_id",
+          "id, name, slug, description, created_at, updated_at, workspace_id, thumbnail_path",
         )
         .eq("workspace_id", workspace.id)
         .is("archived_at", null)
@@ -160,6 +217,12 @@ export function createProjectService(options: {
         canvases.map((canvas) => [canvas.project_id, canvas]),
       );
 
+      // Generate signed thumbnail URLs for projects that have them
+      const thumbnailUrls = await generateThumbnailUrls(
+        client,
+        projects.filter((p) => p.thumbnail_path),
+      );
+
       return projects.map((project) => {
         const canvas = primaryCanvasByProjectId.get(project.id);
 
@@ -174,9 +237,58 @@ export function createProjectService(options: {
         return mapProjectSummary({
           canvas,
           project,
+          thumbnailUrl: thumbnailUrls.get(project.id) ?? null,
           workspace,
         });
       });
+    },
+
+    async saveThumbnail(user, projectId, buffer, mimeType) {
+      const client = options.createUserClient(user.accessToken);
+
+      // Resolve workspace_id — RLS requires first path segment to be the workspace UUID
+      const { data: proj } = await client
+        .from("projects")
+        .select("workspace_id")
+        .eq("id", projectId)
+        .single();
+      if (!proj) {
+        throw new ProjectServiceError("project_create_failed", "Project not found.", 404);
+      }
+
+      const ext = mimeType === "image/webp" ? "webp" : "png";
+      const objectPath = `${proj.workspace_id}/${projectId}/thumbnail.${ext}`;
+
+      const { error: uploadError } = await client.storage
+        .from(THUMBNAIL_BUCKET)
+        .upload(objectPath, buffer, { contentType: mimeType, upsert: true });
+
+      if (uploadError) {
+        throw new ProjectServiceError(
+          "project_create_failed",
+          `Thumbnail upload failed: ${uploadError.message}`,
+          500,
+        );
+      }
+
+      const { error: updateError } = await client
+        .from("projects")
+        .update({ thumbnail_path: objectPath })
+        .eq("id", projectId);
+
+      if (updateError) {
+        throw new ProjectServiceError(
+          "project_create_failed",
+          "Failed to save thumbnail reference.",
+          500,
+        );
+      }
+
+      const { data: urlData } = await client.storage
+        .from(THUMBNAIL_BUCKET)
+        .createSignedUrl(objectPath, THUMBNAIL_URL_EXPIRY_SECONDS);
+
+      return { thumbnailUrl: urlData?.signedUrl ?? "" };
     },
   };
 }
@@ -264,6 +376,7 @@ function mapProjectSummary(options: {
     slug: string;
     updated_at: string;
   };
+  thumbnailUrl?: string | null;
   workspace: {
     id: string;
     name: string;
@@ -282,6 +395,7 @@ function mapProjectSummary(options: {
       name: options.canvas.name,
     },
     slug: options.project.slug,
+    ...(options.thumbnailUrl ? { thumbnailUrl: options.thumbnailUrl } : {}),
     updatedAt: options.project.updated_at,
     workspace: {
       id: options.workspace.id,
@@ -305,4 +419,37 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 
   return slug || "project";
+}
+
+async function generateThumbnailUrls(
+  client: UserSupabaseClient,
+  projects: Array<{ id: string; thumbnail_path: string | null }>,
+): Promise<Map<string, string>> {
+  const urlMap = new Map<string, string>();
+  if (projects.length === 0) return urlMap;
+
+  const pathToProjectId = new Map(
+    projects
+      .filter((p): p is typeof p & { thumbnail_path: string } => !!p.thumbnail_path)
+      .map((p) => [p.thumbnail_path, p.id]),
+  );
+
+  const paths = [...pathToProjectId.keys()];
+
+  const { data } = await client.storage
+    .from(THUMBNAIL_BUCKET)
+    .createSignedUrls(paths, THUMBNAIL_URL_EXPIRY_SECONDS);
+
+  if (data) {
+    for (const entry of data) {
+      if (entry.signedUrl && entry.path) {
+        const projectId = pathToProjectId.get(entry.path);
+        if (projectId) {
+          urlMap.set(projectId, entry.signedUrl);
+        }
+      }
+    }
+  }
+
+  return urlMap;
 }

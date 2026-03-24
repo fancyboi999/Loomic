@@ -118,6 +118,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     createAgentRunMetadataService({ getAdminClient });
   const agentPersistenceService =
     options.agentPersistenceService ?? createAgentPersistenceService(env);
+  const settingsService =
+    options.settingsService ?? createSettingsService({ createUserClient });
+  const uploadService =
+    options.uploadService ?? createUploadService({ createUserClient });
   const agentRuns = createAgentRunService({
     agentPersistenceService,
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
@@ -129,10 +133,6 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       : { eventDelayMs: options.mockEventDelayMs }),
     env,
   });
-  const settingsService =
-    options.settingsService ?? createSettingsService({ createUserClient });
-  const uploadService =
-    options.uploadService ?? createUploadService({ createUserClient });
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -201,7 +201,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     uploadService,
     viewerService,
   });
-  void registerGenerateRoutes(app, { auth });
+  void registerGenerateRoutes(app, { auth, uploadService, viewerService });
 
   return app;
 }

@@ -12,6 +12,7 @@ import {
   fetchViewer,
   fetchProjects,
   createProject,
+  deleteProject,
   ApiAuthError,
 } from "../../lib/server-api";
 import { Button } from "../../components/ui/button";
@@ -93,6 +94,12 @@ export default function ProjectsPage() {
     }
   }
 
+  async function handleDelete(projectId: string) {
+    if (!accessToken) return;
+    await deleteProject(accessToken, projectId);
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+  }
+
   if (authLoading || (!user && !loadError)) return null;
 
   if (loadError) {
@@ -124,6 +131,7 @@ export default function ProjectsPage() {
           projects={projects}
           highlightId={highlightId}
           onCreateClick={() => setDialogOpen(true)}
+          onDelete={handleDelete}
         />
         <CreateProjectDialog
           open={dialogOpen}
