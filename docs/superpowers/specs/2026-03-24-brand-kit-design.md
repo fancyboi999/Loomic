@@ -18,6 +18,7 @@ UI 以 Lovart Brand Kit 页面为参考进行像素级视觉还原，使用 Loom
 - 字体 section：字体名称/标签卡片展示（文本编辑部分）
 - Brand Kit CRUD API + 数据库 schema
 - Kit 与 Project 关联
+- 主侧栏增加 Brand Kit 入口
 
 ### Phase 2（OSS 就绪后）
 
@@ -37,10 +38,14 @@ UI 以 Lovart Brand Kit 页面为参考进行像素级视觉还原，使用 Loom
 | 路由 | `/brand-kit` 顶级路由 | 独立编辑器式页面，不嵌套 |
 | 设计指南存储 | `brand_kits.guidance_text` 字段 | 每 Kit 唯一，不需要当 asset 管理 |
 | "从文件中提取" | 独立 HTTP endpoint + 异步任务轮询 | 一次性操作，不走 Agent runtime |
+| Shared contracts | 独立文件 `brand-kit-contracts.ts`，从 `index.ts` re-export | 功能模块足够大，独立文件更清晰；同时包含 entity schema 和 HTTP request/response schema |
 
 ## Database Schema
 
 ```sql
+-- 资产类型枚举
+CREATE TYPE public.brand_kit_asset_type AS ENUM ('color', 'font', 'logo', 'image');
+
 -- brand_kits: Kit 主表
 CREATE TABLE public.brand_kits (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -57,18 +62,36 @@ CREATE TABLE public.brand_kits (
 CREATE TABLE public.brand_kit_assets (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   kit_id        UUID NOT NULL REFERENCES public.brand_kits(id) ON DELETE CASCADE,
-  asset_type    TEXT NOT NULL,                 -- 'color' | 'font' | 'logo' | 'image'
+  asset_type    public.brand_kit_asset_type NOT NULL,
   display_name  TEXT NOT NULL DEFAULT '',
-  role          TEXT,                          -- 'primary' | 'secondary' | 'title' | 'body' etc.
+  role          TEXT,
   sort_order    INT NOT NULL DEFAULT 0,
   text_content  TEXT,                          -- color: '#F0F0F0', font: family name
   file_url      TEXT,                          -- file URL (Phase 2)
   metadata      JSONB DEFAULT '{}',
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- projects 表增加关联
 ALTER TABLE public.projects ADD COLUMN brand_kit_id UUID REFERENCES public.brand_kits(id) ON DELETE SET NULL;
+
+-- updated_at 自动更新触发器
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER brand_kits_updated_at
+  BEFORE UPDATE ON public.brand_kits
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TRIGGER brand_kit_assets_updated_at
+  BEFORE UPDATE ON public.brand_kit_assets
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- 索引
 CREATE INDEX idx_brand_kits_user ON public.brand_kits(user_id);
@@ -92,14 +115,135 @@ CREATE UNIQUE INDEX idx_brand_kits_default
   ON public.brand_kits(user_id) WHERE is_default = true;
 ```
 
+### is_default 切换逻辑
+
+设置 Kit 为 default 时，必须原子性地取消旧 default：
+
+```sql
+-- 在一个事务中执行：
+UPDATE public.brand_kits SET is_default = false WHERE user_id = $1 AND is_default = true;
+UPDATE public.brand_kits SET is_default = true WHERE id = $2 AND user_id = $1;
+```
+
+服务端在 `BrandKitService.setDefault()` 中使用 Supabase transaction (rpc) 或顺序执行两条 update（RLS 允许用户更新自己的行）。
+
 ### Asset Type 存储约定
 
 | asset_type | display_name | text_content | file_url | metadata |
 |------------|-------------|-------------|---------|----------|
-| `color` | "Cloud" | "#F0F0F0" | null | `{}` |
+| `color` | "Cloud" | "#F0F0F0" (6位 hex，大写归一化) | null | `{}` |
 | `font` | "Feature Display" | font family name | .ttf URL (Phase2) | `{weight, style}` |
 | `logo` | "Primary Logo" | null | .png URL (Phase2) | `{width, height}` |
 | `image` | "AI Art Style" | null | .png URL (Phase2) | `{width, height}` |
+
+**颜色 hex 值规范：** 前端统一归一化为 6 位大写 hex（不接受 3 位简写或 alpha 通道），存储时不含 `#` 前缀（存 `F0F0F0`），展示时前端加 `#`。
+
+## Shared Contracts (Zod Schemas)
+
+文件：`packages/shared/src/brand-kit-contracts.ts`，从 `packages/shared/src/index.ts` re-export。
+
+```typescript
+import { z } from "zod";
+
+// === Entity Schemas ===
+
+export const brandKitAssetTypeSchema = z.enum(["color", "font", "logo", "image"]);
+export type BrandKitAssetType = z.infer<typeof brandKitAssetTypeSchema>;
+
+export const brandKitAssetSchema = z.object({
+  id: z.string().min(1),
+  asset_type: brandKitAssetTypeSchema,
+  display_name: z.string(),
+  role: z.string().nullable(),
+  sort_order: z.number().int(),
+  text_content: z.string().nullable(),
+  file_url: z.string().nullable(),
+  metadata: z.record(z.unknown()).default({}),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
+});
+export type BrandKitAsset = z.infer<typeof brandKitAssetSchema>;
+
+export const brandKitSummarySchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  is_default: z.boolean(),
+  cover_url: z.string().nullable(),
+  asset_counts: z.object({
+    color: z.number().int(),
+    font: z.number().int(),
+    logo: z.number().int(),
+    image: z.number().int(),
+  }),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
+});
+export type BrandKitSummary = z.infer<typeof brandKitSummarySchema>;
+
+export const brandKitDetailSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  is_default: z.boolean(),
+  guidance_text: z.string().nullable(),
+  cover_url: z.string().nullable(),
+  assets: z.array(brandKitAssetSchema),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
+});
+export type BrandKitDetail = z.infer<typeof brandKitDetailSchema>;
+
+// === Request Schemas ===
+
+export const brandKitCreateRequestSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+});
+export type BrandKitCreateRequest = z.infer<typeof brandKitCreateRequestSchema>;
+
+export const brandKitUpdateRequestSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  guidance_text: z.string().max(5000).nullable().optional(),
+  is_default: z.boolean().optional(),
+});
+export type BrandKitUpdateRequest = z.infer<typeof brandKitUpdateRequestSchema>;
+
+export const brandKitAssetCreateRequestSchema = z.object({
+  asset_type: brandKitAssetTypeSchema,
+  display_name: z.string().min(1).max(100),
+  text_content: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
+});
+export type BrandKitAssetCreateRequest = z.infer<typeof brandKitAssetCreateRequestSchema>;
+
+export const brandKitAssetUpdateRequestSchema = z.object({
+  display_name: z.string().min(1).max(100).optional(),
+  text_content: z.string().nullable().optional(),
+  role: z.string().nullable().optional(),
+  sort_order: z.number().int().optional(),
+});
+export type BrandKitAssetUpdateRequest = z.infer<typeof brandKitAssetUpdateRequestSchema>;
+
+// === Response Schemas ===
+
+export const brandKitListResponseSchema = z.object({
+  brandKits: z.array(brandKitSummarySchema),
+});
+
+export const brandKitDetailResponseSchema = brandKitDetailSchema;
+
+export const brandKitAssetResponseSchema = brandKitAssetSchema;
+```
+
+### Error Codes
+
+在 `packages/shared/src/http.ts` 的 `applicationErrorCodeSchema` 中新增：
+
+```typescript
+"brand_kit_not_found"
+"brand_kit_create_failed"
+"brand_kit_update_failed"
+"brand_kit_asset_not_found"
+"brand_kit_asset_create_failed"
+```
 
 ## API Design
 
@@ -109,7 +253,7 @@ Base path: `/api/brand-kits`. Auth: Bearer token (existing pattern).
 
 ```
 GET    /api/brand-kits                        → 用户所有 Kit 列表
-POST   /api/brand-kits                        → 创建 Kit { name }
+POST   /api/brand-kits                        → 创建 Kit { name? }
 GET    /api/brand-kits/:kitId                 → Kit 详情 + 所有 assets
 PATCH  /api/brand-kits/:kitId                 → 更新 Kit { name?, guidance_text?, is_default? }
 DELETE /api/brand-kits/:kitId                 → 删除 Kit (级联删除 assets)
@@ -118,30 +262,35 @@ DELETE /api/brand-kits/:kitId                 → 删除 Kit (级联删除 asset
 ### Asset CRUD
 
 ```
-POST   /api/brand-kits/:kitId/assets          → 添加资产 { asset_type, display_name, text_content?, role? }
-PATCH  /api/brand-kits/:kitId/assets/:assetId → 更新资产 { display_name?, text_content?, role?, sort_order? }
+POST   /api/brand-kits/:kitId/assets          → 添加资产
+PATCH  /api/brand-kits/:kitId/assets/:assetId → 更新资产
 DELETE /api/brand-kits/:kitId/assets/:assetId → 删除资产
 ```
 
 ### Project 关联
 
+新增 `PATCH /api/projects/:projectId` endpoint（目前不存在该方法，需新建）：
+
 ```
-PATCH  /api/projects/:projectId               → 扩展现有接口 { brand_kit_id }
+PATCH  /api/projects/:projectId               → { brand_kit_id } (新 endpoint)
 ```
+
+同时扩展 `projectCreateRequestSchema` 增加可选 `brand_kit_id` 字段，创建项目时可直接关联。
 
 ### 响应格式
 
 **GET /api/brand-kits:**
 ```json
 {
-  "items": [
+  "brandKits": [
     {
       "id": "uuid",
       "name": "My Brand",
       "is_default": true,
       "cover_url": null,
       "asset_counts": { "color": 4, "font": 2, "logo": 0, "image": 0 },
-      "created_at": "2026-03-24T12:00:00Z"
+      "created_at": "2026-03-24T12:00:00Z",
+      "updated_at": "2026-03-24T12:30:00Z"
     }
   ]
 }
@@ -154,29 +303,35 @@ PATCH  /api/projects/:projectId               → 扩展现有接口 { brand_kit
   "name": "My Brand",
   "is_default": true,
   "guidance_text": "...",
+  "cover_url": null,
   "assets": [
     {
       "id": "uuid",
       "asset_type": "color",
       "display_name": "Cloud",
       "role": "primary",
-      "text_content": "#F0F0F0",
-      "sort_order": 0
+      "text_content": "F0F0F0",
+      "file_url": null,
+      "sort_order": 0,
+      "metadata": {},
+      "created_at": "2026-03-24T12:00:00Z",
+      "updated_at": "2026-03-24T12:00:00Z"
     }
   ],
-  "created_at": "2026-03-24T12:00:00Z"
+  "created_at": "2026-03-24T12:00:00Z",
+  "updated_at": "2026-03-24T12:30:00Z"
 }
 ```
 
-All schemas defined as Zod in `@loomic/shared`.
-
 ## Frontend Architecture
 
-### Route
+### Route & Navigation
 
 ```
 /brand-kit → Brand Kit 编辑器 (全屏独立布局)
 ```
+
+**入口点：** 在现有 `project-sidebar.tsx` 中增加 Brand Kit 导航链接（位于 Projects 下方），使用画笔/调色板图标。点击导航到 `/brand-kit`。
 
 ### Component Tree
 
@@ -218,14 +373,23 @@ app/brand-kit/page.tsx
 | 添加颜色 | "+" → Popover (react-colorful + name + hex input) → POST asset |
 | 编辑颜色 | 色块点击 → 同上 Popover → PATCH asset |
 | 删除资产 | hover 更多菜单 → DELETE asset |
-| "套用至新专案" | Switch → PATCH kit is_default |
-| 设计指南编辑 | textarea blur → PATCH kit guidance_text (debounce) |
+| "套用至新专案" | Switch → PATCH kit is_default（服务端原子切换） |
+| 设计指南编辑 | textarea input debounce 1s + flush on blur → PATCH kit guidance_text |
 | 新建 Kit | POST → 自动选中 |
 | 切换 Kit | 侧栏点击 → 加载详情 |
+
+### Empty State
+
+用户无 Kit 时：侧栏显示空状态插图 + "创建你的第一个品牌套件" 引导文案，编辑区显示居中的创建按钮。
 
 ### Phase 2 占位
 
 Logo / 字体文件 / 图像的 "+" 按钮在 Phase 1 中渲染但 disabled，显示占位状态。"从文件中提取"按钮同样 disabled。
+
+### Known Limitations (Phase 1)
+
+- 无并发编辑保护（同一用户多 tab 可能冲突，Phase 1 可接受）
+- 无批量资产排序 endpoint（排序需逐个 PATCH，后续可加 batch reorder）
 
 ## Style Token Mapping
 
@@ -261,10 +425,12 @@ lo-body-xs                → text-xs (12px)
 Base UI Popover 包裹，内部结构:
 - 名称输入框 (placeholder: "为颜色命名")
 - react-colorful `HexColorPicker` (saturation panel + hue slider)
-- 色块预览 (32x32) + hex 输入框 (# + 6位)
+- 色块预览 (32x32) + hex 输入框 (# + 6位，归一化为大写)
 - "取消" + "新增/保存" 按钮
 
 Popover 容器: `w-[260px] rounded-2xl border shadow-lg p-3`
+
+Hex 输入校验：仅接受 `[0-9A-Fa-f]{6}`，拒绝 3 位简写和 alpha 通道。
 
 ## File Structure (New Files)
 
@@ -273,7 +439,7 @@ Popover 容器: `w-[260px] rounded-2xl border shadow-lg p-3`
 supabase/migrations/YYYYMMDDHHmmss_create_brand_kits.sql
 
 # Shared contracts
-packages/shared/src/brand-kit-contracts.ts
+packages/shared/src/brand-kit-contracts.ts   (entity + request/response schemas, re-export from index.ts)
 
 # Server
 apps/server/src/features/brand-kit/brand-kit-service.ts
