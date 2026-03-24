@@ -6,7 +6,9 @@ import { createDeepAgent } from "deepagents";
 
 import type { ServerEnv } from "../config/env.js";
 import { createAgentBackendFactory } from "./backends/index.js";
-import { createPhaseATools } from "./tools/index.js";
+import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
+import { createImageSubAgent, createVideoSubAgent } from "./sub-agents.js";
+import { createMainAgentTools } from "./tools/index.js";
 
 export type LoomicAgent = Pick<
   ReturnType<typeof createDeepAgent>,
@@ -15,17 +17,16 @@ export type LoomicAgent = Pick<
 
 export type LoomicAgentFactory = (options: {
   checkpointer?: BaseCheckpointSaver;
+  createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   store?: BaseStore;
 }) => LoomicAgent;
 
-const DEFAULT_SYSTEM_PROMPT =
-  "You are Loomic's Phase A workspace agent. Use project_search when the user asks to inspect workspace content. Keep responses concise and factual.";
-
 export function createLoomicDeepAgent(options: {
   backendFactory?: BackendFactory;
   checkpointer?: BaseCheckpointSaver;
+  createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   store?: BaseStore;
@@ -41,14 +42,23 @@ export function createLoomicDeepAgent(options: {
       ? createStreamingChatModel(modelSpec)
       : modelSpec;
 
+  const createUserClient =
+    options.createUserClient ??
+    ((_accessToken: string): never => {
+      throw new Error(
+        "inspect_canvas is unavailable: no createUserClient was provided to createLoomicDeepAgent.",
+      );
+    });
+
   return createDeepAgent({
     backend: backendFactory,
     ...(options.checkpointer ? { checkpointer: options.checkpointer } : {}),
     model: resolvedModel,
-    name: "loomic-phase-a",
+    name: "loomic",
     ...(options.store ? { store: options.store } : {}),
-    systemPrompt: DEFAULT_SYSTEM_PROMPT,
-    tools: createPhaseATools(backendFactory),
+    subagents: [createImageSubAgent(), createVideoSubAgent()],
+    systemPrompt: LOOMIC_SYSTEM_PROMPT,
+    tools: createMainAgentTools(backendFactory, { createUserClient }),
   });
 }
 

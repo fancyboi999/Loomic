@@ -30,6 +30,52 @@ describe("@loomic/server deep-agent config", () => {
     ).toBe("openai:az_sre/gpt-5.4");
   });
 
+  it("accepts an optional createUserClient dependency", () => {
+    const targetEnv: NodeJS.ProcessEnv = {};
+    applyOpenAICompatEnv(
+      {
+        openAIApiBase: "https://proxy.example.com/v1",
+        openAIApiKey: "proxy-key",
+      },
+      targetEnv,
+    );
+
+    const originalApiKey = process.env.OPENAI_API_KEY;
+    const originalBaseUrl = process.env.OPENAI_BASE_URL;
+    process.env.OPENAI_API_KEY = targetEnv.OPENAI_API_KEY;
+    process.env.OPENAI_BASE_URL = targetEnv.OPENAI_BASE_URL;
+
+    try {
+      const mockCreateUserClient = (_accessToken: string) => ({});
+      const agent = createLoomicDeepAgent({
+        createUserClient: mockCreateUserClient,
+        env: {
+          agentBackendMode: "state",
+          agentModel: "az_sre/gpt-5.4",
+          openAIApiBase: "https://proxy.example.com/v1",
+          openAIApiKey: "proxy-key",
+          port: 3001,
+          version: "0.0.0-test",
+          webOrigin: "http://localhost:3000",
+        },
+      });
+
+      expect(agent).toBeDefined();
+    } finally {
+      if (originalApiKey === undefined) {
+        process.env.OPENAI_API_KEY = undefined;
+      } else {
+        process.env.OPENAI_API_KEY = originalApiKey;
+      }
+
+      if (originalBaseUrl === undefined) {
+        process.env.OPENAI_BASE_URL = undefined;
+      } else {
+        process.env.OPENAI_BASE_URL = originalBaseUrl;
+      }
+    }
+  });
+
   it("still creates a default deep agent after applying OpenAI-compatible env", () => {
     const targetEnv: NodeJS.ProcessEnv = {};
 
