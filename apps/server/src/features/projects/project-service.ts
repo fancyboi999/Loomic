@@ -14,10 +14,16 @@ import type {
 
 const PROJECT_QUERY_FAILED_MESSAGE = "Unable to load projects.";
 const PROJECT_CREATE_FAILED_MESSAGE = "Unable to create project.";
+const PROJECT_DELETE_FAILED_MESSAGE = "Unable to delete project.";
+const PROJECT_NOT_FOUND_MESSAGE = "Project not found.";
 const PROJECT_SLUG_TAKEN_MESSAGE =
   "Project slug is already taken in this workspace.";
 
 export type ProjectService = {
+  archiveProject(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<void>;
   createProject(
     user: AuthenticatedUser,
     input: ProjectCreateRequest,
@@ -29,12 +35,16 @@ export class ProjectServiceError extends Error {
   readonly statusCode: number;
   readonly code:
     | "project_create_failed"
+    | "project_delete_failed"
+    | "project_not_found"
     | "project_query_failed"
     | "project_slug_taken";
 
   constructor(
     code:
       | "project_create_failed"
+      | "project_delete_failed"
+      | "project_not_found"
       | "project_query_failed"
       | "project_slug_taken",
     message: string,
@@ -51,6 +61,45 @@ export function createProjectService(options: {
   viewerService: ViewerService;
 }): ProjectService {
   return {
+    async archiveProject(user, projectId) {
+      const client = options.createUserClient(user.accessToken);
+
+      const { data: existing, error: findError } = await client
+        .from("projects")
+        .select("id")
+        .eq("id", projectId)
+        .is("archived_at", null)
+        .maybeSingle();
+
+      if (findError) {
+        throw new ProjectServiceError(
+          "project_delete_failed",
+          PROJECT_DELETE_FAILED_MESSAGE,
+          500,
+        );
+      }
+
+      if (!existing) {
+        throw new ProjectServiceError(
+          "project_not_found",
+          PROJECT_NOT_FOUND_MESSAGE,
+          404,
+        );
+      }
+
+      const { error: updateError } = await client
+        .from("projects")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", projectId);
+
+      if (updateError) {
+        throw new ProjectServiceError(
+          "project_delete_failed",
+          PROJECT_DELETE_FAILED_MESSAGE,
+          500,
+        );
+      }
+    },
     async createProject(user, input) {
       await ensureFoundation(options.viewerService, user, "project_create_failed");
 

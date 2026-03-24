@@ -43,6 +43,29 @@ export async function registerProjectRoutes(
     }
   });
 
+  app.delete("/api/projects/:projectId", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+
+      if (!user) {
+        return reply.code(401).send(
+          unauthenticatedErrorResponseSchema.parse({
+            error: {
+              code: "unauthorized",
+              message: "Missing or invalid bearer token.",
+            },
+          }),
+        );
+      }
+
+      const { projectId } = request.params as { projectId: string };
+      await options.projectService.archiveProject(user, projectId);
+      return reply.code(204).send();
+    } catch (error) {
+      return sendProjectError(error, reply, "application_error");
+    }
+  });
+
   app.post("/api/projects", async (request, reply) => {
     try {
       const user = await options.auth.authenticate(request);

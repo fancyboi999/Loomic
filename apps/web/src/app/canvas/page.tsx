@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
 import type { ImageArtifact } from "@loomic/shared";
+import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
@@ -126,6 +127,18 @@ function CanvasPageContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
+      {/* Logo — top-left, navigates back to projects (like Lovart) */}
+      <Link
+        href="/projects"
+        className="absolute top-3 left-3 z-20 flex items-center gap-2 rounded-xl bg-white/80 backdrop-blur-sm pl-1 pr-3 py-1 shadow-sm border border-black/[0.06] hover:bg-white transition-colors"
+      >
+        <span className="flex size-7 items-center justify-center rounded-lg bg-[#0C0C0D] text-white text-xs font-bold">
+          L
+        </span>
+        <span className="text-sm font-semibold text-[#0E1014] tracking-tight">
+          Loomic
+        </span>
+      </Link>
       <div className="flex-1 relative min-w-0">
         <CanvasEditor
           canvasId={canvasData.id}
