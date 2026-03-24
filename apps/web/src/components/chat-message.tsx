@@ -24,7 +24,7 @@ export function ChatMessage({
     const text = contentBlocks[0]?.type === "text" ? contentBlocks[0].text : "";
     return (
       <div className="flex w-full justify-end pl-10">
-        <div className="whitespace-pre-wrap text-sm leading-[1.6] text-[#2F3640]">
+        <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#363636]">
           {text}
         </div>
       </div>
