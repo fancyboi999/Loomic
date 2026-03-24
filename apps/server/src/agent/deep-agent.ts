@@ -16,6 +16,7 @@ export type LoomicAgent = Pick<
 >;
 
 export type LoomicAgentFactory = (options: {
+  canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
@@ -25,6 +26,7 @@ export type LoomicAgentFactory = (options: {
 
 export function createLoomicDeepAgent(options: {
   backendFactory?: BackendFactory;
+  canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
@@ -32,7 +34,8 @@ export function createLoomicDeepAgent(options: {
   store?: BaseStore;
 }): LoomicAgent {
   const backendFactory =
-    options.backendFactory ?? createAgentBackendFactory(options.env);
+    options.backendFactory ??
+    createAgentBackendFactory(options.env, options.canvasId);
 
   applyOpenAICompatEnv(options.env);
 

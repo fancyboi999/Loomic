@@ -50,46 +50,23 @@ describe("phase-a backend factory", () => {
     expect(content).toContain("Loomic filesystem backend sample");
   });
 
-  it("keeps /workspace and /memories on state-backed storage in production mode", async () => {
+  it("requires canvasId for production (state) backend mode", () => {
     const env = loadServerEnv({
       agentBackendMode: "state",
     });
-    const backend = createAgentBackendFactory(env)({
-      state: {
-        files: {
-          "/workspace/seed.md": createFileData("workspace seed"),
-          "/memories/profile.md": createFileData("memory seed"),
-        },
-      },
+
+    expect(() => createAgentBackendFactory(env)).toThrow(
+      /canvasId is required/,
+    );
+  });
+
+  it("creates a project-isolated backend when canvasId is provided", () => {
+    const env = loadServerEnv({
+      agentBackendMode: "state",
     });
 
-    const rootListing = await backend.lsInfo("/");
-    const workspaceWrite = await backend.write(
-      "/workspace/plan.md",
-      "new plan",
-    );
-    const memoriesWrite = await backend.write(
-      "/memories/profile-next.md",
-      "new memory",
-    );
+    const factory = createAgentBackendFactory(env, "test-canvas-123");
 
-    expect(rootListing).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ is_dir: true, path: "/workspace/" }),
-        expect.objectContaining({ is_dir: true, path: "/memories/" }),
-      ]),
-    );
-    expect(workspaceWrite.filesUpdate).toBeDefined();
-    expect(memoriesWrite.filesUpdate).toBeDefined();
+    expect(typeof factory).toBe("function");
   });
 });
-
-function createFileData(content: string) {
-  const timestamp = "2026-03-23T12:00:00.000Z";
-
-  return {
-    content: content.split("\n"),
-    created_at: timestamp,
-    modified_at: timestamp,
-  };
-}

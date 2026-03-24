@@ -8,11 +8,19 @@ type AgentBackendEnv = Pick<ServerEnv, "agentBackendMode" | "agentFilesRoot">;
 
 export function createAgentBackendFactory(
   env: AgentBackendEnv,
+  canvasId?: string,
 ): BackendFactory {
   if (env.agentBackendMode === "filesystem") {
     const developmentBackend = createDevelopmentBackend(env);
     return () => developmentBackend;
   }
 
-  return createProductionBackendFactory();
+  if (!canvasId) {
+    throw new Error(
+      "canvasId is required for production (state) backend mode. " +
+        "Each agent run must be scoped to a project.",
+    );
+  }
+
+  return createProductionBackendFactory(canvasId);
 }
