@@ -70,6 +70,7 @@ export const projectSummarySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
   description: z.string().nullable(),
+  thumbnailUrl: z.string().nullable().optional(),
   workspace: workspaceSummarySchema,
   primaryCanvas: canvasSummarySchema,
   createdAt: timestampSchema,

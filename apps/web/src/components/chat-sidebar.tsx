@@ -23,6 +23,7 @@ import {
 import { streamEvents } from "../lib/stream-events";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
+import { ChatSkills } from "./chat-skills";
 import { SessionSelector } from "./session-selector";
 
 type Message = {
@@ -500,17 +501,7 @@ export function ChatSidebar({
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E3E3] border-t-[#2F3640]" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <svg className="h-10 w-10 text-[#E3E3E3]" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  fillOpacity={0.9}
-                  d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
-                />
-              </svg>
-              <p className="text-sm text-[#A4A9B2]">
-                Start a conversation
-              </p>
-            </div>
+            <ChatSkills onSend={handleSend} />
           ) : (
             messages.map((msg) => (
               <ChatMessage

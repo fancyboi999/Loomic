@@ -1,7 +1,10 @@
 import { z } from "zod";
 import type { SubAgent } from "deepagents";
 
-import { createImageGenerateTool } from "./tools/image-generate.js";
+import {
+  createImageGenerateTool,
+  type PersistImageFn,
+} from "./tools/image-generate.js";
 import { createVideoGenerateTool } from "./tools/video-generate.js";
 
 const imageGenerateResponseSchema = z.object({
@@ -16,7 +19,9 @@ const imageGenerateResponseSchema = z.object({
     .describe("Where to place the image on the canvas"),
 });
 
-export function createImageSubAgent(): SubAgent {
+export function createImageSubAgent(deps?: {
+  persistImage?: PersistImageFn;
+}): SubAgent {
   return {
     name: "image_generate",
     description:
@@ -28,7 +33,7 @@ When canvas context is provided in the task description (element positions, boun
 If no canvas context is provided, use x: 0, y: 0 as default placement.
 
 After calling generate_image, construct your response with the returned URL and calculated placement.`,
-    tools: [createImageGenerateTool()],
+    tools: [createImageGenerateTool(deps)],
     responseFormat: imageGenerateResponseSchema,
   };
 }

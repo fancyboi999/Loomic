@@ -120,6 +120,20 @@ export async function createProject(
   return (await response.json()) as ProjectCreateResponse;
 }
 
+export async function deleteProject(
+  accessToken: string,
+  projectId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/projects/${projectId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
 // --- Canvas API ---
 
 export async function fetchCanvas(
@@ -145,6 +159,24 @@ export async function saveCanvas(
       method: "PUT",
       headers: authJsonHeaders(accessToken),
       body: JSON.stringify({ content }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function uploadThumbnail(
+  accessToken: string,
+  projectId: string,
+  blob: Blob,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", blob, "thumbnail.webp");
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/projects/${projectId}/thumbnail`,
+    {
+      method: "PUT",
+      headers: authHeaders(accessToken),
+      body: formData,
     },
   );
   if (!response.ok) return handleErrorResponse(response);

@@ -4,9 +4,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
 import type { ImageArtifact } from "@loomic/shared";
+import Link from "next/link";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
+import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
 
@@ -19,6 +21,7 @@ function CanvasPageContent() {
   const [canvasData, setCanvasData] = useState<{
     id: string;
     name: string;
+    projectId: string;
     content: {
       elements: Record<string, unknown>[];
       appState: Record<string, unknown>;
@@ -30,6 +33,7 @@ function CanvasPageContent() {
   const [chatOpen, setChatOpen] = useState(true);
 
   const excalidrawApiRef = useRef<any>(null);
+  const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
 
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
@@ -42,6 +46,7 @@ function CanvasPageContent() {
 
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
+    setExcalidrawApi(api);
   }, []);
 
   const handleImageGenerated = useCallback((artifact: ImageArtifact) => {
@@ -73,6 +78,7 @@ function CanvasPageContent() {
         setCanvasData({
           id: c.id,
           name: c.name,
+          projectId: c.projectId,
           content: {
             elements: c.content.elements ?? [],
             appState: c.content.appState ?? {},
@@ -123,14 +129,31 @@ function CanvasPageContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
+      {/* Logo — top-left, navigates back to projects (like Lovart) */}
+      <Link
+        href="/projects"
+        className="absolute top-3 left-3 z-20 flex items-center gap-2 rounded-xl bg-white/80 backdrop-blur-sm pl-1 pr-3 py-1 shadow-sm border border-black/[0.06] hover:bg-white transition-colors"
+      >
+        <span className="flex size-7 items-center justify-center rounded-lg bg-[#0C0C0D] text-white text-xs font-bold">
+          L
+        </span>
+        <span className="text-sm font-semibold text-[#0E1014] tracking-tight">
+          Loomic
+        </span>
+      </Link>
       <div className="flex-1 relative min-w-0">
         <CanvasEditor
           canvasId={canvasData.id}
+          projectId={canvasData.projectId}
           accessToken={accessToken}
           initialContent={canvasData.content}
           onApiReady={handleApiReady}
         />
       </div>
+      <CanvasEmptyHint
+        excalidrawApi={excalidrawApi}
+        onOpenChat={() => setChatOpen(true)}
+      />
       <ChatSidebar
         accessToken={accessToken}
         canvasId={canvasData.id}

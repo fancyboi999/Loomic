@@ -7,7 +7,11 @@ import { Separator } from "./ui/separator";
 
 interface ProjectSidebarProps {
   workspace: { name: string; type: string } | null;
-  projects: Array<{ id: string; name: string }>;
+  projects: Array<{
+    id: string;
+    name: string;
+    primaryCanvas: { id: string };
+  }>;
 }
 
 export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
@@ -59,12 +63,16 @@ export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
           </div>
           <div className="space-y-0.5">
             {recentProjects.map((project) => (
-              <div
+              <button
+                type="button"
                 key={project.id}
-                className="text-sm text-muted-foreground px-2 py-1 rounded hover:bg-neutral-100 cursor-pointer truncate"
+                onClick={() =>
+                  router.push(`/canvas?id=${project.primaryCanvas.id}`)
+                }
+                className="block w-full text-left text-sm text-muted-foreground px-2 py-1 rounded hover:bg-neutral-100 cursor-pointer truncate"
               >
                 {project.name}
-              </div>
+              </button>
             ))}
           </div>
         </>
