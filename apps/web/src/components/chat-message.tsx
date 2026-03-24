@@ -40,11 +40,11 @@ export function ChatMessage({
     }
   }
 
-  // Show thinking indicator when streaming but no text content has arrived yet
-  const hasTextContent = contentBlocks.some(
-    (b) => b.type === "text" && b.text.length > 0,
+  // Show thinking indicator when streaming but no content has arrived yet
+  const hasContent = contentBlocks.some(
+    (b) => (b.type === "text" && b.text.length > 0) || b.type === "tool",
   );
-  const showThinking = isStreaming && !hasTextContent;
+  const showThinking = isStreaming && !hasContent;
 
   return (
     <div className="flex w-full flex-col gap-2 pr-10">
