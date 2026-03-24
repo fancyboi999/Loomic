@@ -1,6 +1,8 @@
 "use client";
 
 import type { ContentBlock, ToolArtifact, ToolBlock } from "@loomic/shared";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export type { ContentBlock, ToolArtifact };
 
@@ -70,9 +72,11 @@ export function ChatMessage({
           return (
             <div
               key={idx}
-              className="whitespace-pre-wrap text-sm leading-[1.6] text-[#2F3640]"
+              className="markdown-content text-sm leading-[1.6] text-[#2F3640]"
             >
-              {block.text}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {block.text}
+              </ReactMarkdown>
               {isStreaming && idx === lastTextIdx && (
                 <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-[#2F3640] animate-pulse rounded-full" />
               )}
