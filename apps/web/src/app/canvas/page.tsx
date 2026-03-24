@@ -1,11 +1,13 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
+import type { ImageArtifact } from "@loomic/shared";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
+import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
 
 function CanvasPageContent() {
@@ -26,12 +28,26 @@ function CanvasPageContent() {
   const [pageLoading, setPageLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
 
+  const excalidrawApiRef = useRef<any>(null);
+
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
   const routerRef = useRef(router);
   routerRef.current = router;
 
   const accessToken = session?.access_token;
+
+  const handleApiReady = useCallback((api: any) => {
+    excalidrawApiRef.current = api;
+  }, []);
+
+  const handleImageGenerated = useCallback((artifact: ImageArtifact) => {
+    const api = excalidrawApiRef.current;
+    if (!api) return;
+    insertImageOnCanvas(api, artifact).catch((err) => {
+      console.warn("Failed to insert image on canvas:", err);
+    });
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -93,6 +109,7 @@ function CanvasPageContent() {
           canvasId={canvasData.id}
           accessToken={accessToken}
           initialContent={canvasData.content}
+          onApiReady={handleApiReady}
         />
       </div>
       <ChatSidebar
@@ -100,6 +117,7 @@ function CanvasPageContent() {
         canvasId={canvasData.id}
         open={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}
+        onImageGenerated={handleImageGenerated}
       />
     </div>
   );
