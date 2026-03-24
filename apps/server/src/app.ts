@@ -121,6 +121,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     agentPersistenceService,
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
     agentRunMetadataService,
+    createUserClient,
     ...(options.agentModel ? { model: options.agentModel } : {}),
     ...(options.mockEventDelayMs === undefined
       ? {}
