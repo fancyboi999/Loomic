@@ -184,6 +184,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ? `openai:${run.modelOverride}`
           : options.model;
         agent = resolvedAgentFactory({
+          ...(run.canvasId ? { canvasId: run.canvasId } : {}),
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
           env: options.env,
           ...(resolvedModel ? { model: resolvedModel } : {}),
