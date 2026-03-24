@@ -28,7 +28,7 @@ const imageGenerateSchema = z.object({
   prompt: z.string().min(1).describe("Detailed image generation prompt"),
   model: z
     .enum(REPLICATE_IMAGE_MODELS)
-    .default("google/nano-banana-pro")
+    .default("black-forest-labs/flux-kontext-pro")
     .describe("Replicate model to use for generation"),
   aspectRatio: z
     .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
