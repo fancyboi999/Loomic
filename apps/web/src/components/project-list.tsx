@@ -41,15 +41,15 @@ export function ProjectList({
             onClick={() =>
               router.push(`/canvas?id=${project.primaryCanvas.id}`)
             }
-            className={`aspect-[286/208] rounded-lg bg-white cursor-pointer transition-shadow hover:shadow-md overflow-hidden flex flex-col${
+            className={`rounded-lg bg-white cursor-pointer transition-shadow hover:shadow-md overflow-hidden${
               highlightId === project.id ? " ring-2 ring-neutral-300" : ""
             }`}
           >
             {/* Thumbnail placeholder */}
             <div className="aspect-[395/227] rounded-lg bg-[#F5F5F5] overflow-hidden" />
             {/* Info */}
-            <div className="py-2">
-              <div className="text-sm font-medium truncate mt-2 px-1 text-[#0E1014]">
+            <div className="px-1 py-2">
+              <div className="text-sm font-medium truncate text-[#0E1014]">
                 {project.name}
               </div>
               <div className="text-[11px] text-[#919191] px-1">
