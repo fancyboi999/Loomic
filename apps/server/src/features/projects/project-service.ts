@@ -245,8 +245,19 @@ export function createProjectService(options: {
 
     async saveThumbnail(user, projectId, buffer, mimeType) {
       const client = options.createUserClient(user.accessToken);
+
+      // Resolve workspace_id — RLS requires first path segment to be the workspace UUID
+      const { data: proj } = await client
+        .from("projects")
+        .select("workspace_id")
+        .eq("id", projectId)
+        .single();
+      if (!proj) {
+        throw new ProjectServiceError("project_create_failed", "Project not found.", 404);
+      }
+
       const ext = mimeType === "image/webp" ? "webp" : "png";
-      const objectPath = `thumbnails/${projectId}.${ext}`;
+      const objectPath = `${proj.workspace_id}/${projectId}/thumbnail.${ext}`;
 
       const { error: uploadError } = await client.storage
         .from(THUMBNAIL_BUCKET)

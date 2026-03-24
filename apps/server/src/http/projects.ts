@@ -142,6 +142,7 @@ export async function registerProjectRoutes(
 
         return reply.code(200).send(result);
       } catch (error) {
+        request.log.error({ err: error }, "thumbnail upload error");
         return sendProjectError(error, reply, "project_create_failed");
       }
     },

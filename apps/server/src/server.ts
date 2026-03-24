@@ -1,3 +1,8 @@
+import { bootstrap } from "global-agent";
+
+// Enable HTTP proxy for all outbound requests if http_proxy / https_proxy is set
+bootstrap();
+
 import { buildApp } from "./app.js";
 import { loadServerEnv } from "./config/env.js";
 

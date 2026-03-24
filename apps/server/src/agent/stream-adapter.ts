@@ -157,9 +157,15 @@ export async function* adaptDeepAgentStream(
         seenCompletedToolCalls.add(toolCallId);
 
         const output = evt.data?.output;
+        // Sub-agent inner tools (e.g. generate_image inside image_generate
+        // sub-agent) emit duplicate artifacts that the parent "task" tool
+        // will re-emit with placement info. Skip artifacts for known inner
+        // tool names to avoid showing duplicates in chat.
+        const isInnerSubAgentTool = toolName === "generate_image" || toolName === "generate_video";
+        const extractedArtifacts = isInnerSubAgentTool ? undefined : extractArtifacts(output);
         yield {
           outputSummary: summarizeOutput(output),
-          artifacts: extractArtifacts(output),
+          artifacts: extractedArtifacts,
           runId: options.runId,
           timestamp: now(),
           toolCallId,
@@ -203,6 +209,28 @@ function canceledEvent(runId: string, now: () => string): StreamEvent {
   };
 }
 
+/**
+ * LangChain sub-agent tools return a Command object whose real payload
+ * lives inside update.messages[0].kwargs.content (a JSON string).
+ * Unwrap it so extractArtifacts can find url/placement at the top level.
+ */
+function unwrapCommandOutput(
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  if (record.lg_name !== "Command") return record;
+  try {
+    const messages = (record.update as any)?.messages;
+    if (!Array.isArray(messages) || messages.length === 0) return record;
+    const content = messages[0]?.kwargs?.content ?? messages[0]?.content;
+    if (typeof content !== "string") return record;
+    const inner = JSON.parse(content);
+    if (inner && typeof inner === "object") return inner as Record<string, unknown>;
+  } catch {
+    // fall through
+  }
+  return record;
+}
+
 function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
   let text = "";
   if (ToolMessageClass.isInstance(output)) {
@@ -216,8 +244,12 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
   const parsed = tryParseJson(text);
   if (!parsed || typeof parsed !== "object") return undefined;
 
+  // If this is a LangChain Command object (from sub-agent), dig into
+  // update.messages[0].kwargs.content to find the real structured response.
+  const unwrapped = unwrapCommandOutput(parsed as Record<string, unknown>);
+
   const artifacts: ToolArtifact[] = [];
-  const record = parsed as Record<string, unknown>;
+  const record = unwrapped;
 
   // New format: sub-agent structured response with url + placement
   if (typeof record.url === "string" && record.url.length > 0) {
