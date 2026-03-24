@@ -27,6 +27,7 @@ type RuntimeRunStatus =
   | "running";
 
 type RuntimeRunRecord = RunCreateRequest & {
+  accessToken?: string;
   consumed: boolean;
   controller: AbortController;
   modelOverride?: string;
@@ -39,6 +40,7 @@ type CreateAgentRuntimeOptions = {
   agentPersistenceService?: AgentPersistenceService;
   agentFactory?: LoomicAgentFactory;
   agentRunMetadataService?: AgentRunMetadataService;
+  createUserClient?: (accessToken: string) => unknown;
   env: ServerEnv;
   eventDelayMs?: number;
   model?: BaseLanguageModel | string;
@@ -54,6 +56,16 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
   const runIdFactory =
     options.runIdFactory ??
     (() => randomUUID());
+
+  const resolvedAgentFactory: LoomicAgentFactory =
+    options.agentFactory ??
+    ((agentOptions) =>
+      createLoomicDeepAgent({
+        ...agentOptions,
+        ...(options.createUserClient
+          ? { createUserClient: options.createUserClient }
+          : {}),
+      }));
 
   return {
     cancelRun(runId: string): RunCancelResponse | null {
@@ -75,12 +87,13 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
     createRun(
       input: RunCreateRequest,
-      runOptions?: { model?: string; threadId?: string },
+      runOptions?: { accessToken?: string; model?: string; threadId?: string },
     ): RunCreateResponse {
       const runId = runIdFactory();
 
       runs.set(runId, {
         ...input,
+        ...(runOptions?.accessToken ? { accessToken: runOptions.accessToken } : {}),
         consumed: false,
         controller: new AbortController(),
         ...(runOptions?.model ? { modelOverride: runOptions.model } : {}),
@@ -170,7 +183,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         const resolvedModel = run.modelOverride
           ? `openai:${run.modelOverride}`
           : options.model;
-        agent = (options.agentFactory ?? defaultAgentFactory)({
+        agent = resolvedAgentFactory({
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
           env: options.env,
           ...(resolvedModel ? { model: resolvedModel } : {}),
@@ -196,10 +209,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             ],
           },
           {
-            ...(run.threadId
+            ...(run.threadId || run.canvasId || run.accessToken
               ? {
                   configurable: {
-                    thread_id: run.threadId,
+                    ...(run.threadId ? { thread_id: run.threadId } : {}),
+                    ...(run.canvasId ? { canvas_id: run.canvasId } : {}),
+                    ...(run.accessToken ? { access_token: run.accessToken } : {}),
                   },
                 }
               : {}),
@@ -259,19 +274,6 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
   };
 }
 
-function defaultAgentFactory(options: {
-  checkpointer?: Parameters<LoomicAgentFactory>[0]["checkpointer"];
-  env: ServerEnv;
-  model?: BaseLanguageModel | string;
-  store?: Parameters<LoomicAgentFactory>[0]["store"];
-}) {
-  return createLoomicDeepAgent({
-    ...(options.checkpointer ? { checkpointer: options.checkpointer } : {}),
-    env: options.env,
-    ...(options.model ? { model: options.model } : {}),
-    ...(options.store ? { store: options.store } : {}),
-  });
-}
 
 function isTerminalEvent(event: StreamEvent) {
   return (
