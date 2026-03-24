@@ -34,12 +34,28 @@ export const toolStartedEventSchema = z.object({
   timestamp: timestampSchema,
 });
 
+export const imageArtifactSchema = z.object({
+  type: z.literal("image"),
+  url: z.string(),
+  mimeType: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
+export const toolArtifactSchema = z.discriminatedUnion("type", [
+  imageArtifactSchema,
+]);
+
+export type ImageArtifact = z.infer<typeof imageArtifactSchema>;
+export type ToolArtifact = z.infer<typeof toolArtifactSchema>;
+
 export const toolCompletedEventSchema = z.object({
   type: z.literal("tool.completed"),
   runId: runIdSchema,
   toolCallId: toolCallIdSchema,
   toolName: z.string().min(1),
   outputSummary: z.string().optional(),
+  artifacts: z.array(toolArtifactSchema).optional(),
   timestamp: timestampSchema,
 });
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { toolArtifactSchema } from "./events.js";
+
 export const identifierSchema = z.string().min(1);
 export const timestampSchema = z.string().datetime({ offset: true });
 
@@ -106,6 +108,7 @@ export const chatToolActivitySchema = z.object({
   toolName: z.string().min(1),
   status: z.enum(["running", "completed"]),
   outputSummary: z.string().optional(),
+  artifacts: z.array(toolArtifactSchema).optional(),
 });
 
 export const chatSessionSummarySchema = z.object({
