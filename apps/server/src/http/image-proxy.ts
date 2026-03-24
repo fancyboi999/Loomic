@@ -14,11 +14,12 @@ export function registerImageProxyRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: "Missing url parameter" });
     }
 
-    // Only allow proxying from known image CDNs
+    // Only allow proxying from known image CDNs and Supabase Storage
     const allowed = [
       "replicate.delivery",
       "replicate.com",
       "pbxt.replicate.delivery",
+      "supabase.co",
     ];
 
     let parsedUrl: URL;

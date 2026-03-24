@@ -11,6 +11,7 @@ import type {
 
 import type { ServerEnv } from "../config/env.js";
 import type { AgentRunMetadataService } from "../features/agent-runs/agent-run-service.js";
+import type { UserSupabaseClient } from "../supabase/user.js";
 import {
   type LoomicAgent,
   type LoomicAgentFactory,
@@ -183,11 +184,53 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         const resolvedModel = run.modelOverride
           ? `openai:${run.modelOverride}`
           : options.model;
+
+        // Build persistImage closure using the user's Supabase client.
+        // Client creation is deferred into the closure so it only runs
+        // when an image is actually generated (avoids throwing in tests
+        // that don't configure Supabase env vars).
+        let persistImage: ((url: string, mime: string, prompt: string) => Promise<string>) | undefined;
+        if (options.createUserClient && run.accessToken) {
+          const createClient = options.createUserClient;
+          const accessToken = run.accessToken;
+          persistImage = async (sourceUrl, mimeType, prompt) => {
+            const client = createClient(accessToken) as UserSupabaseClient;
+            const response = await fetch(sourceUrl);
+            if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const ext = mimeType === "image/webp" ? "webp" : "png";
+            const slug = prompt.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+            const fileName = `gen-${slug}-${Date.now()}.${ext}`;
+
+            const { data: ws } = await client
+              .from("workspaces")
+              .select("id")
+              .eq("type", "personal")
+              .limit(1)
+              .single();
+            const workspaceId = ws?.id ?? "default";
+            const objectPath = `${workspaceId}/${Date.now()}-${fileName}`;
+
+            const { error: uploadError } = await client.storage
+              .from("project-assets")
+              .upload(objectPath, buffer, { contentType: mimeType, upsert: false });
+            if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+            const { data: urlData, error: urlError } = await client.storage
+              .from("project-assets")
+              .createSignedUrl(objectPath, 3600);
+            if (urlError || !urlData?.signedUrl) throw new Error("Signed URL failed");
+
+            return urlData.signedUrl;
+          };
+        }
+
         agent = resolvedAgentFactory({
           ...(run.canvasId ? { canvasId: run.canvasId } : {}),
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
           env: options.env,
           ...(resolvedModel ? { model: resolvedModel } : {}),
+          ...(persistImage ? { persistImage } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
       } catch (error) {
