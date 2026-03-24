@@ -1,5 +1,7 @@
 import type { ImageArtifact } from "@loomic/shared";
 
+import { getServerBaseUrl } from "./env";
+
 /**
  * Scale dimensions to fit within maxSize while preserving aspect ratio.
  */
@@ -81,9 +83,12 @@ export function createExcalidrawImageElement(opts: {
 
 /**
  * Fetch an image URL and convert it to a data URL string.
+ * Routes through the server proxy to bypass browser CORS restrictions.
  */
 export async function fetchAsDataURL(url: string): Promise<string> {
-  const response = await fetch(url);
+  const proxyUrl = `${getServerBaseUrl()}/api/proxy-image?url=${encodeURIComponent(url)}`;
+
+  const response = await fetch(proxyUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.status}`);
   }
