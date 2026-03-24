@@ -133,6 +133,149 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ]);
   });
 
+  it("extracts image artifacts from generate_image tool output", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "generate_image",
+        data: { input: { prompt: "a sunset over mountains" } },
+        run_id: "tool_run_img",
+        metadata: { tool_call_id: "tool_call_img" },
+      },
+      {
+        event: "on_tool_end",
+        name: "generate_image",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Generated a sunset image",
+              imageUrl: "https://cdn.example.com/sunset.png",
+              mimeType: "image/png",
+              width: 1024,
+              height: 1024,
+            }),
+            name: "generate_image",
+            tool_call_id: "tool_call_img",
+          }),
+        },
+        run_id: "tool_run_img",
+        metadata: { tool_call_id: "tool_call_img" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "generate_image",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.artifacts).toEqual([
+      {
+        type: "image",
+        url: "https://cdn.example.com/sunset.png",
+        mimeType: "image/png",
+        width: 1024,
+        height: 1024,
+      },
+    ]);
+  });
+
+  it("does not produce artifacts for non-image tool output", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "project_search",
+        data: { input: { query: "test" } },
+        run_id: "tool_run_search",
+        metadata: { tool_call_id: "tool_call_search" },
+      },
+      {
+        event: "on_tool_end",
+        name: "project_search",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              matchCount: 5,
+              summary: "Found 5 results",
+            }),
+            name: "project_search",
+            tool_call_id: "tool_call_search",
+          }),
+        },
+        run_id: "tool_run_search",
+        metadata: { tool_call_id: "tool_call_search" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "project_search",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.artifacts).toBeUndefined();
+  });
+
+  it("does not produce artifacts for failed image generation", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "generate_image",
+        data: { input: { prompt: "a sunset" } },
+        run_id: "tool_run_fail",
+        metadata: { tool_call_id: "tool_call_fail" },
+      },
+      {
+        event: "on_tool_end",
+        name: "generate_image",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Image generation failed",
+              error: "Rate limit exceeded",
+            }),
+            name: "generate_image",
+            tool_call_id: "tool_call_fail",
+          }),
+        },
+        run_id: "tool_run_fail",
+        metadata: { tool_call_id: "tool_call_fail" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "generate_image",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.artifacts).toBeUndefined();
+  });
+
   it("emits run.failed when the underlying stream raises", async () => {
     const events = await collectEvents(
       adaptDeepAgentStream({
