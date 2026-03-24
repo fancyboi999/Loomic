@@ -20,6 +20,7 @@ type CanvasEditorProps = {
     elements: Record<string, unknown>[];
     appState: Record<string, unknown>;
   };
+  onApiReady?: (api: any) => void;
 };
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -28,6 +29,7 @@ export function CanvasEditor({
   canvasId,
   accessToken,
   initialContent,
+  onApiReady,
 }: CanvasEditorProps) {
   const { resolvedTheme } = useTheme();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +72,7 @@ export function CanvasEditor({
           appState: initialContent.appState as any,
         }}
         onChange={handleChange}
+        {...(onApiReady ? { excalidrawAPI: onApiReady } : {})}
       />
     </div>
   );
