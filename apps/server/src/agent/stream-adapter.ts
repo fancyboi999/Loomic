@@ -219,17 +219,37 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
   const artifacts: ToolArtifact[] = [];
   const record = parsed as Record<string, unknown>;
 
-  const candidate = {
-    type: "image" as const,
-    url: record.imageUrl,
-    mimeType: record.mimeType,
-    width: record.width,
-    height: record.height,
-  };
+  // New format: sub-agent structured response with url + placement
+  if (typeof record.url === "string" && record.url.length > 0) {
+    const candidate: Record<string, unknown> = {
+      type: "image" as const,
+      url: record.url,
+      mimeType: (record.mimeType as string) ?? "image/png",
+      width: (record.placement as any)?.width ?? 512,
+      height: (record.placement as any)?.height ?? 512,
+    };
+    if (record.placement && typeof record.placement === "object") {
+      candidate.placement = record.placement;
+    }
+    const result = imageArtifactSchema.safeParse(candidate);
+    if (result.success) {
+      artifacts.push(result.data);
+    }
+  }
 
-  const result = imageArtifactSchema.safeParse(candidate);
-  if (result.success) {
-    artifacts.push(result.data);
+  // Legacy format: direct tool response with imageUrl
+  if (artifacts.length === 0 && typeof record.imageUrl === "string") {
+    const candidate = {
+      type: "image" as const,
+      url: record.imageUrl,
+      mimeType: record.mimeType,
+      width: record.width,
+      height: record.height,
+    };
+    const result = imageArtifactSchema.safeParse(candidate);
+    if (result.success) {
+      artifacts.push(result.data);
+    }
   }
 
   return artifacts.length > 0 ? artifacts : undefined;
