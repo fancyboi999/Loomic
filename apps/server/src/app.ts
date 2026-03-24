@@ -19,6 +19,10 @@ import {
   type CanvasService,
 } from "./features/canvas/canvas-service.js";
 import {
+  createBrandKitService,
+  type BrandKitService,
+} from "./features/brand-kit/brand-kit-service.js";
+import {
   createProjectService,
   type ProjectService,
 } from "./features/projects/project-service.js";
@@ -43,6 +47,7 @@ import {
   type UploadService,
 } from "./features/uploads/upload-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
+import { registerBrandKitRoutes } from "./http/brand-kits.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerChatRoutes } from "./http/chat.js";
 import { registerGenerateRoutes } from "./http/generate.js";
@@ -68,6 +73,7 @@ export type BuildAppOptions = {
   agentPersistenceService?: AgentPersistenceService;
   agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
+  brandKitService?: BrandKitService;
   canvasService?: CanvasService;
   chatService?: ChatService;
   env?: Partial<ServerEnv>;
@@ -107,6 +113,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const projectService =
     options.projectService ??
     createProjectService({ createUserClient, viewerService });
+  const brandKitService =
+    options.brandKitService ?? createBrandKitService({ createUserClient });
   const canvasService =
     options.canvasService ?? createCanvasService({ createUserClient });
   const threadService =
@@ -177,6 +185,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     auth,
     createUserClient,
     viewerService,
+  });
+  void registerBrandKitRoutes(app, {
+    auth,
+    brandKitService,
   });
   void registerProjectRoutes(app, {
     auth,
