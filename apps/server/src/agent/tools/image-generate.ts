@@ -3,12 +3,44 @@ import { z } from "zod";
 
 import { generateImage } from "../../generation/image-generation.js";
 
+/**
+ * Replicate model IDs available for image generation.
+ * Aligned with Lovart's supported model lineup.
+ */
+export const REPLICATE_IMAGE_MODELS = [
+  // Google
+  "google/nano-banana-pro",
+  "google/nano-banana-2",
+  "google/nano-banana",
+  "google/imagen-4",
+  // Flux (Black Forest Labs)
+  "black-forest-labs/flux-kontext-max",
+  "black-forest-labs/flux-kontext-pro",
+  // Bytedance
+  "bytedance/seedream-5-lite",
+  "bytedance/seedream-4.5",
+  "bytedance/seedream-4",
+  // Recraft
+  "recraft-ai/recraft-v3",
+] as const;
+
 const imageGenerateSchema = z.object({
   prompt: z.string().min(1).describe("Detailed image generation prompt"),
-  provider: z.string().describe("Provider: openai, replicate, or volces"),
-  model: z.string().describe("Model identifier"),
-  aspectRatio: z.enum(["1:1", "16:9", "9:16", "4:3", "3:4"]).optional().default("1:1"),
-  inputImages: z.array(z.string().url()).optional().describe("Reference images for img2img"),
+  model: z
+    .enum(REPLICATE_IMAGE_MODELS)
+    .default("google/nano-banana-pro")
+    .describe("Replicate model to use for generation"),
+  aspectRatio: z
+    .enum(["1:1", "16:9", "9:16", "4:3", "3:4"])
+    .optional()
+    .default("1:1")
+    .describe("Aspect ratio of the generated image"),
+  inputImages: z
+    .array(z.string().url())
+    .optional()
+    .describe(
+      "Reference images for editing/transformation. Google models accept up to 14, Flux models accept 1.",
+    ),
 });
 
 type ImageGenerateInput = z.infer<typeof imageGenerateSchema>;
@@ -26,7 +58,7 @@ export async function runImageGenerate(
   input: ImageGenerateInput,
 ): Promise<ImageGenerateResult> {
   try {
-    const result = await generateImage(input.provider, {
+    const result = await generateImage("replicate", {
       prompt: input.prompt,
       model: input.model,
       aspectRatio: input.aspectRatio,
@@ -34,7 +66,7 @@ export async function runImageGenerate(
     });
 
     return {
-      summary: `Generated image (${result.width}x${result.height}) via ${input.provider}/${input.model}`,
+      summary: `Generated image (${result.width}x${result.height}) via replicate/${input.model}`,
       imageUrl: result.url,
       mimeType: result.mimeType,
       width: result.width,
@@ -57,7 +89,7 @@ export function createImageGenerateTool() {
     {
       name: "generate_image",
       description:
-        "Generate an image using AI. Supports multiple providers (openai, replicate, volces) and models. Returns the generated image URL.",
+        "Generate an image using AI via Replicate. Available models: Nano Banana Pro (Google, best quality), Nano Banana 2 (Google, fast), Imagen 4 (Google flagship), Flux Kontext Pro/Max (image editing), Seedream 5/4.5/4 (Bytedance), Recraft V3 (design-focused). Returns the generated image URL.",
       schema: imageGenerateSchema,
     },
   );

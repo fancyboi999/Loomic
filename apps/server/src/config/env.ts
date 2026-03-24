@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 export const DEFAULT_AGENT_BACKEND_MODE = "state";
-export const DEFAULT_AGENT_MODEL = "gpt-4.1-mini";
+export const DEFAULT_AGENT_MODEL = "gpt-5.4-mini";
 export const DEFAULT_SERVER_PORT = 3001;
 export const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
 

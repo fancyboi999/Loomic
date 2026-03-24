@@ -11,10 +11,17 @@ import {
 
 import type { StreamEvent } from "@loomic/shared";
 
-type DeepAgentChunk =
-  | ["messages", [AIMessage | AIMessageChunk | ToolMessage, unknown]]
-  | ["tools", Record<string, unknown>]
-  | ["updates", Record<string, unknown>];
+/**
+ * Shape of a LangChain v2 stream event from `streamEvents()`.
+ */
+type LangChainStreamEvent = {
+  event: string;
+  name?: string;
+  data?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  run_id?: string;
+  tags?: string[];
+};
 
 type AdaptDeepAgentStreamOptions = {
   conversationId: string;
@@ -22,7 +29,7 @@ type AdaptDeepAgentStreamOptions = {
   runId: string;
   sessionId: string;
   signal?: AbortSignal;
-  stream: AsyncIterable<DeepAgentChunk | unknown>;
+  stream: AsyncIterable<LangChainStreamEvent | unknown>;
 };
 
 export async function* adaptDeepAgentStream(
@@ -46,166 +53,112 @@ export async function* adaptDeepAgentStream(
   }
 
   try {
-    for await (const chunk of options.stream) {
+    for await (const rawEvent of options.stream) {
       if (options.signal?.aborted) {
         yield canceledEvent(options.runId, now);
         return;
       }
 
-      if (isMessagesChunk(chunk)) {
-        const [message] = chunk[1];
+      if (!isStreamEvent(rawEvent)) {
+        continue;
+      }
+
+      const evt = rawEvent;
+
+      // Per-token streaming from the chat model
+      if (evt.event === "on_chat_model_stream") {
+        const chunk = evt.data?.chunk;
+        if (!chunk) continue;
+
+        // Skip chunks that are tool calls (no text to emit)
+        if (
+          AIMessageChunkClass.isInstance(chunk) ||
+          AIMessageClass.isInstance(chunk)
+        ) {
+          const msg = chunk as AIMessageChunk | AIMessage;
+          if ((msg.tool_calls?.length ?? 0) > 0) continue;
+        }
+
+        const delta = extractChunkText(chunk);
+        if (!delta) continue;
+
+        yield {
+          delta,
+          messageId:
+            (chunk as { id?: string }).id ?? `message_${options.runId}`,
+          runId: options.runId,
+          timestamp: now(),
+          type: "message.delta",
+        };
+        continue;
+      }
+
+      // Fallback: complete message from non-streaming model (on_chat_model_end)
+      if (evt.event === "on_chat_model_end") {
+        const output = evt.data?.output;
+        if (!output) continue;
 
         if (
-          AIMessageClass.isInstance(message) ||
-          AIMessageChunkClass.isInstance(message)
+          AIMessageClass.isInstance(output) ||
+          AIMessageChunkClass.isInstance(output)
         ) {
-          for (const toolCall of message.tool_calls ?? []) {
-            if (!toolCall.id || !toolCall.name) {
-              continue;
-            }
+          const msg = output as AIMessage | AIMessageChunk;
 
-            if (seenStartedToolCalls.has(toolCall.id)) {
-              continue;
-            }
+          // Skip if this was a tool call message (tool lifecycle via on_tool_*)
+          if ((msg.tool_calls?.length ?? 0) > 0) continue;
 
-            seenStartedToolCalls.add(toolCall.id);
-            yield {
-              runId: options.runId,
-              timestamp: now(),
-              toolCallId: toolCall.id,
-              toolName: toolCall.name,
-              type: "tool.started",
-            };
-          }
-
-          if ((message.tool_calls?.length ?? 0) > 0) {
-            continue;
-          }
-
-          const delta = extractMessageText(message.content);
-          if (!delta) {
-            continue;
-          }
+          const delta = extractChunkText(msg);
+          if (!delta) continue;
 
           yield {
             delta,
-            messageId: message.id ?? `message_${options.runId}`,
+            messageId: msg.id ?? `message_${options.runId}`,
             runId: options.runId,
             timestamp: now(),
             type: "message.delta",
           };
         }
+        continue;
       }
 
-      if (isUpdatesChunk(chunk)) {
-        for (const message of extractUpdatedMessages(chunk[1])) {
-          if (AIMessageClass.isInstance(message)) {
-            for (const toolCall of message.tool_calls ?? []) {
-              if (!toolCall.id || !toolCall.name) {
-                continue;
-              }
+      // Tool execution started
+      if (evt.event === "on_tool_start") {
+        const toolName = evt.name ?? "unknown_tool";
+        // Use run_id as the tool call identifier for consistent start/end pairing
+        const toolCallId = readString(evt.run_id) ?? `tool_${Date.now()}`;
 
-              if (seenStartedToolCalls.has(toolCall.id)) {
-                continue;
-              }
+        if (seenStartedToolCalls.has(toolCallId)) continue;
+        seenStartedToolCalls.add(toolCallId);
 
-              seenStartedToolCalls.add(toolCall.id);
-              yield {
-                runId: options.runId,
-                timestamp: now(),
-                toolCallId: toolCall.id,
-                toolName: toolCall.name,
-                type: "tool.started",
-              };
-            }
-
-            if ((message.tool_calls?.length ?? 0) > 0) {
-              continue;
-            }
-
-            const delta = extractMessageText(message.content);
-            if (!delta) {
-              continue;
-            }
-
-            yield {
-              delta,
-              messageId: message.id ?? `message_${options.runId}`,
-              runId: options.runId,
-              timestamp: now(),
-              type: "message.delta",
-            };
-            continue;
-          }
-
-          if (!ToolMessageClass.isInstance(message)) {
-            continue;
-          }
-
-          if (seenCompletedToolCalls.has(message.tool_call_id)) {
-            continue;
-          }
-
-          seenCompletedToolCalls.add(message.tool_call_id);
-          yield {
-            outputSummary: summarizeToolMessage(message),
-            runId: options.runId,
-            timestamp: now(),
-            toolCallId: message.tool_call_id,
-            toolName: message.name ?? "unknown_tool",
-            type: "tool.completed",
-          };
-        }
+        yield {
+          runId: options.runId,
+          timestamp: now(),
+          toolCallId,
+          toolName,
+          type: "tool.started",
+        };
+        continue;
       }
 
-      if (isToolsChunk(chunk)) {
-        const payload = chunk[1];
+      // Tool execution completed
+      if (evt.event === "on_tool_end") {
+        const toolName = evt.name ?? "unknown_tool";
+        // Use run_id for consistent pairing with on_tool_start
+        const toolCallId = readString(evt.run_id) ?? `tool_${Date.now()}`;
 
-        if (payload.event === "on_tool_start") {
-          const toolCallId = readString(payload.toolCallId);
-          const toolName = readString(payload.name);
+        if (seenCompletedToolCalls.has(toolCallId)) continue;
+        seenCompletedToolCalls.add(toolCallId);
 
-          if (
-            !toolCallId ||
-            !toolName ||
-            seenStartedToolCalls.has(toolCallId)
-          ) {
-            continue;
-          }
-
-          seenStartedToolCalls.add(toolCallId);
-          yield {
-            runId: options.runId,
-            timestamp: now(),
-            toolCallId,
-            toolName,
-            type: "tool.started",
-          };
-          continue;
-        }
-
-        if (payload.event === "on_tool_end") {
-          const toolCallId = readString(payload.toolCallId);
-          const toolName = readString(payload.name);
-
-          if (
-            !toolCallId ||
-            !toolName ||
-            seenCompletedToolCalls.has(toolCallId)
-          ) {
-            continue;
-          }
-
-          seenCompletedToolCalls.add(toolCallId);
-          yield {
-            outputSummary: summarizeToolOutput(payload.output),
-            runId: options.runId,
-            timestamp: now(),
-            toolCallId,
-            toolName,
-            type: "tool.completed",
-          };
-        }
+        const output = evt.data?.output;
+        yield {
+          outputSummary: summarizeOutput(output),
+          runId: options.runId,
+          timestamp: now(),
+          toolCallId,
+          toolName,
+          type: "tool.completed",
+        };
+        continue;
       }
     }
   } catch (error) {
@@ -242,90 +195,75 @@ function canceledEvent(runId: string, now: () => string): StreamEvent {
   };
 }
 
-function extractMessageText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
+/**
+ * Extract text from a chat model stream chunk.
+ */
+function extractChunkText(chunk: unknown): string {
+  if (!chunk || typeof chunk !== "object") return "";
 
-  if (!Array.isArray(content)) {
-    return "";
-  }
+  // AIMessageChunk / AIMessage with string content
+  if ("content" in chunk) {
+    const content = (chunk as { content: unknown }).content;
+    if (typeof content === "string") return content;
 
-  return content
-    .map((part) => {
-      if (typeof part === "string") {
-        return part;
-      }
-
-      if (
-        part &&
-        typeof part === "object" &&
-        "text" in part &&
-        typeof part.text === "string"
-      ) {
-        return part.text;
-      }
-
-      return "";
-    })
-    .join("");
-}
-
-function extractUpdatedMessages(payload: Record<string, unknown>) {
-  const messages: unknown[] = [];
-
-  for (const value of Object.values(payload)) {
-    if (!value || typeof value !== "object" || !("messages" in value)) {
-      continue;
-    }
-
-    const entryMessages = value.messages;
-    if (Array.isArray(entryMessages)) {
-      messages.push(...entryMessages);
+    if (Array.isArray(content)) {
+      return content
+        .map((part) => {
+          if (typeof part === "string") return part;
+          if (
+            part &&
+            typeof part === "object" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            return part.text;
+          }
+          return "";
+        })
+        .join("");
     }
   }
 
-  return messages;
+  return "";
 }
 
-function summarizeToolMessage(message: ToolMessage) {
-  const parsed = tryParseJson(extractMessageText(message.content));
-  if (
-    parsed &&
-    typeof parsed === "object" &&
-    "summary" in parsed &&
-    typeof parsed.summary === "string"
-  ) {
-    return parsed.summary;
-  }
-
-  const textContent = extractMessageText(message.content);
-  return textContent || undefined;
-}
-
-function summarizeToolOutput(output: unknown) {
+function summarizeOutput(output: unknown): string | undefined {
   if (ToolMessageClass.isInstance(output)) {
-    return summarizeToolMessage(output);
+    const textContent = extractChunkText(output);
+    const parsed = tryParseJson(textContent);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "summary" in parsed &&
+      typeof parsed.summary === "string"
+    ) {
+      return parsed.summary;
+    }
+    return textContent || undefined;
   }
 
   if (output && typeof output === "object") {
-    const serializedOutput = JSON.stringify(output);
-    return summarizeToolMessage(
-      new ToolMessageClass({
-        content: serializedOutput,
-        tool_call_id: "tool_output",
-      }),
-    );
+    const serialized = JSON.stringify(output);
+    const parsed = tryParseJson(serialized);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "summary" in parsed &&
+      typeof parsed.summary === "string"
+    ) {
+      return parsed.summary;
+    }
+    return serialized.length > 200
+      ? `${serialized.slice(0, 197)}...`
+      : serialized;
   }
 
-  return extractMessageText(output) || undefined;
+  if (typeof output === "string") return output || undefined;
+  return undefined;
 }
 
 function tryParseJson(value: unknown) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
+  if (typeof value !== "string") return null;
   try {
     return JSON.parse(value);
   } catch {
@@ -341,39 +279,36 @@ function isAbortError(error: unknown) {
   );
 }
 
-function isMessagesChunk(
-  chunk: DeepAgentChunk | unknown,
-): chunk is ["messages", [AIMessage | AIMessageChunk | ToolMessage, unknown]] {
+function isStreamEvent(value: unknown): value is LangChainStreamEvent {
   return (
-    Array.isArray(chunk) &&
-    chunk[0] === "messages" &&
-    Array.isArray(chunk[1]) &&
-    chunk[1].length >= 1
-  );
-}
-
-function isUpdatesChunk(
-  chunk: DeepAgentChunk | unknown,
-): chunk is ["updates", Record<string, unknown>] {
-  return (
-    Array.isArray(chunk) &&
-    chunk[0] === "updates" &&
-    !!chunk[1] &&
-    typeof chunk[1] === "object"
-  );
-}
-
-function isToolsChunk(
-  chunk: DeepAgentChunk | unknown,
-): chunk is ["tools", Record<string, unknown>] {
-  return (
-    Array.isArray(chunk) &&
-    chunk[0] === "tools" &&
-    !!chunk[1] &&
-    typeof chunk[1] === "object"
+    value !== null &&
+    typeof value === "object" &&
+    "event" in value &&
+    typeof (value as { event: unknown }).event === "string"
   );
 }
 
 function readString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+
+/**
+ * Extract tool_call_id from streamEvents metadata or data.
+ * LangChain stores it in metadata.tool_call_id or data.input.tool_call_id.
+ */
+function extractToolCallId(evt: LangChainStreamEvent): string | undefined {
+  // Check metadata first (most reliable)
+  const metaId = readString(
+    (evt.metadata as Record<string, unknown> | undefined)?.tool_call_id,
+  );
+  if (metaId) return metaId;
+
+  // Check if the output is a ToolMessage with tool_call_id
+  if (evt.data?.output && ToolMessageClass.isInstance(evt.data.output)) {
+    const id = readString((evt.data.output as ToolMessage).tool_call_id);
+    if (id) return id;
+  }
+
+  return undefined;
 }

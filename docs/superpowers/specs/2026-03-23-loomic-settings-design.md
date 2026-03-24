@@ -81,7 +81,7 @@ Agent model configuration:
 ```sql
 CREATE TABLE public.workspace_settings (
   workspace_id uuid PRIMARY KEY REFERENCES public.workspaces(id) ON DELETE CASCADE,
-  default_model text NOT NULL DEFAULT 'gpt-4.1-mini',
+  default_model text NOT NULL DEFAULT 'gpt-5.4-mini',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -114,7 +114,7 @@ Response:
 ```json
 {
   "settings": {
-    "defaultModel": "gpt-4.1-mini"
+    "defaultModel": "gpt-5.4-mini"
   }
 }
 ```
@@ -138,7 +138,7 @@ Response:
 ```json
 {
   "models": [
-    { "id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "provider": "openai" },
+    { "id": "gpt-5.4-mini", "name": "GPT-4.1 Mini", "provider": "openai" },
     { "id": "gpt-4o", "name": "GPT-4o", "provider": "openai" }
   ]
 }

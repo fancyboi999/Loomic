@@ -9,14 +9,14 @@ import {
 describe("@loomic/server phase-a env", () => {
   it("loads explicit deep-agent runtime settings from env", () => {
     const env = loadServerEnv({}, {
-      LOOMIC_AGENT_MODEL: "gpt-4.1-mini",
+      LOOMIC_AGENT_MODEL: "gpt-5.4-mini",
       OPENAI_API_KEY: "test-key",
       OPENAI_API_BASE: "https://example.com/v1",
       LOOMIC_AGENT_BACKEND_MODE: "filesystem",
       LOOMIC_AGENT_FILES_ROOT: "/tmp/loomic-agent",
     } as NodeJS.ProcessEnv);
 
-    expect(env.agentModel).toBe("gpt-4.1-mini");
+    expect(env.agentModel).toBe("gpt-5.4-mini");
     expect(env.openAIApiKey).toBe("test-key");
     expect(env.openAIApiBase).toBe("https://example.com/v1");
     expect(env.agentBackendMode).toBe("filesystem");

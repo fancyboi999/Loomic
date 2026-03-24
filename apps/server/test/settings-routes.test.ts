@@ -46,7 +46,7 @@ describe("settings routes", () => {
       auth: createAuthStub(authUser),
       settingsService: {
         async getWorkspaceSettings() {
-          return { defaultModel: "gpt-4.1-mini" };
+          return { defaultModel: "gpt-5.4-mini" };
         },
         async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;
@@ -62,7 +62,7 @@ describe("settings routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(workspaceSettingsResponseSchema.parse(response.json())).toEqual({
-      settings: { defaultModel: "gpt-4.1-mini" },
+      settings: { defaultModel: "gpt-5.4-mini" },
     });
   });
 
@@ -74,7 +74,7 @@ describe("settings routes", () => {
       auth: createAuthStub(authUser),
       settingsService: {
         async getWorkspaceSettings() {
-          return { defaultModel: "gpt-4.1-mini" };
+          return { defaultModel: "gpt-5.4-mini" };
         },
         async updateWorkspaceSettings(_u: unknown, workspaceId: string, s: WorkspaceSettings) {
           updateCalls.push({ workspaceId, defaultModel: s.defaultModel });
@@ -133,7 +133,7 @@ describe("settings routes", () => {
       auth: createAuthStub(authUser),
       settingsService: {
         async getWorkspaceSettings() {
-          return { defaultModel: "gpt-4.1-mini" };
+          return { defaultModel: "gpt-5.4-mini" };
         },
         async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;
@@ -160,7 +160,7 @@ describe("settings routes", () => {
       auth: createAuthStub(null),
       settingsService: {
         async getWorkspaceSettings() {
-          return { defaultModel: "gpt-4.1-mini" };
+          return { defaultModel: "gpt-5.4-mini" };
         },
         async updateWorkspaceSettings(_u: unknown, _w: unknown, s: WorkspaceSettings) {
           return s;

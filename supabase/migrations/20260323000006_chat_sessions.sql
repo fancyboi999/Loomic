@@ -15,7 +15,7 @@ CREATE INDEX chat_sessions_canvas_id_idx ON public.chat_sessions(canvas_id);
 CREATE TRIGGER chat_sessions_updated_at
   BEFORE UPDATE ON public.chat_sessions
   FOR EACH ROW
-  EXECUTE FUNCTION moddatetime(updated_at);
+  EXECUTE FUNCTION extensions.moddatetime(updated_at);
 
 CREATE TABLE public.chat_messages (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),

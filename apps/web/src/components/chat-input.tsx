@@ -35,31 +35,41 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, []);
 
+  const hasContent = value.trim().length > 0;
+
   return (
-    <div className="border-t border-border p-3">
-      <div className="flex gap-2">
+    <div className="px-2 pb-2">
+      <div className="flex min-h-[100px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-2 transition-colors focus-within:border-[#C0C0C0]">
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
-          placeholder="Ask the AI..."
+          placeholder="Start with an idea, or type &quot;@&quot; to mention"
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          className="flex-1 resize-none bg-transparent px-1 text-sm leading-[1.8] text-[#141414] placeholder:text-[#A4A9B2] focus:outline-none disabled:opacity-50"
         />
-        <button
-          onClick={handleSubmit}
-          disabled={disabled || !value.trim()}
-          className="shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Send
-        </button>
+        <div className="flex items-center justify-end">
+          <button
+            onClick={handleSubmit}
+            disabled={disabled || !hasContent}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0C0C0D] text-white transition-opacity hover:opacity-80 disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+            >
+              <path d="M3 14V2l11 6z" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

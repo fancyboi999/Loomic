@@ -1,5 +1,7 @@
 "use client";
 
+import "@excalidraw/excalidraw/index.css";
+
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef } from "react";
@@ -60,7 +62,7 @@ export function CanvasEditor({
   }, []);
 
   return (
-    <div className="h-screen w-screen">
+    <div className="h-full w-full">
       <Excalidraw
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         initialData={{

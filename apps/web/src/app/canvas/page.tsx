@@ -87,8 +87,8 @@ function CanvasPageContent() {
   if (!canvasData || !accessToken) return null;
 
   return (
-    <div className="flex h-screen w-screen">
-      <div className="flex-1 relative">
+    <div className="flex h-screen w-screen overflow-hidden">
+      <div className="flex-1 relative min-w-0">
         <CanvasEditor
           canvasId={canvasData.id}
           accessToken={accessToken}

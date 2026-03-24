@@ -22,7 +22,7 @@
 
 1. SQL migration for `workspace_settings` table:
    - `workspace_id` uuid PK references workspaces(id) ON DELETE CASCADE
-   - `default_model` text NOT NULL DEFAULT 'gpt-4.1-mini'
+   - `default_model` text NOT NULL DEFAULT 'gpt-5.4-mini'
    - `created_at` timestamptz DEFAULT now()
    - `updated_at` timestamptz DEFAULT now()
    - RLS: members can SELECT, owner/admin can INSERT/UPDATE

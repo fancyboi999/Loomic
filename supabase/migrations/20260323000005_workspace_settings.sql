@@ -1,7 +1,7 @@
 -- Workspace-level settings (agent model, preferences)
 CREATE TABLE public.workspace_settings (
   workspace_id uuid PRIMARY KEY REFERENCES public.workspaces(id) ON DELETE CASCADE,
-  default_model text NOT NULL DEFAULT 'gpt-4.1-mini',
+  default_model text NOT NULL DEFAULT 'gpt-5.4-mini',
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -9,11 +9,14 @@ CREATE TABLE public.workspace_settings (
 COMMENT ON TABLE  public.workspace_settings IS 'Per-workspace configuration for agent defaults.';
 COMMENT ON COLUMN public.workspace_settings.default_model IS 'Default LLM model identifier for agent runs.';
 
--- updated_at trigger (reuses the existing moddatetime extension from foundation migration)
+-- Ensure moddatetime extension is available
+CREATE EXTENSION IF NOT EXISTS moddatetime WITH SCHEMA extensions;
+
+-- updated_at trigger
 CREATE TRIGGER workspace_settings_updated_at
   BEFORE UPDATE ON public.workspace_settings
   FOR EACH ROW
-  EXECUTE FUNCTION moddatetime(updated_at);
+  EXECUTE FUNCTION extensions.moddatetime(updated_at);
 
 -- RLS
 ALTER TABLE public.workspace_settings ENABLE ROW LEVEL SECURITY;

@@ -1,4 +1,5 @@
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
+import { ChatOpenAI } from "@langchain/openai";
 import type { BackendFactory } from "deepagents";
 import { createDeepAgent } from "deepagents";
 
@@ -6,7 +7,10 @@ import type { ServerEnv } from "../config/env.js";
 import { createAgentBackendFactory } from "./backends/index.js";
 import { createPhaseATools } from "./tools/index.js";
 
-export type LoomicAgent = Pick<ReturnType<typeof createDeepAgent>, "stream">;
+export type LoomicAgent = Pick<
+  ReturnType<typeof createDeepAgent>,
+  "stream" | "streamEvents"
+>;
 
 export type LoomicAgentFactory = (options: {
   env: ServerEnv;
@@ -24,16 +28,41 @@ export function createLoomicDeepAgent(options: {
   const backendFactory =
     options.backendFactory ?? createAgentBackendFactory(options.env);
 
-  if (!options.model) {
-    applyOpenAICompatEnv(options.env);
-  }
+  applyOpenAICompatEnv(options.env);
+
+  const modelSpec = options.model ?? createDefaultModelSpecifier(options.env);
+  const resolvedModel =
+    typeof modelSpec === "string"
+      ? createStreamingChatModel(modelSpec)
+      : modelSpec;
 
   return createDeepAgent({
     backend: backendFactory,
-    model: options.model ?? createDefaultModelSpecifier(options.env),
+    model: resolvedModel,
     name: "loomic-phase-a",
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     tools: createPhaseATools(backendFactory),
+  });
+}
+
+/**
+ * Create a streaming ChatOpenAI model.
+ *
+ * `streamUsage` is disabled because the one-api proxy mishandles
+ * `stream_options: { include_usage: true }` — it strips `delta.role`
+ * from streaming chunks, causing LangChain to create ChatMessageChunk
+ * (type "generic") instead of AIMessageChunk (type "ai"), which breaks
+ * deepagents middleware validation and loses tool_calls entirely.
+ */
+function createStreamingChatModel(specifier: string): ChatOpenAI {
+  const modelName = specifier.startsWith("openai:")
+    ? specifier.slice("openai:".length)
+    : specifier;
+
+  return new ChatOpenAI({
+    model: modelName,
+    streaming: true,
+    streamUsage: false,
   });
 }
 

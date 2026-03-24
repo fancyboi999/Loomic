@@ -4,6 +4,8 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
 import { createAgentRunService } from "./agent/runtime.js";
+import { registerImageProvider } from "./generation/providers/registry.js";
+import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
 import {
   createViewerService,
   type ViewerService,
@@ -62,6 +64,12 @@ export type BuildAppOptions = {
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const env = loadServerEnv(options.env);
+
+  // Register generation providers
+  if (env.replicateApiToken) {
+    registerImageProvider(new ReplicateImageProvider(env.replicateApiToken));
+  }
+
   const app = Fastify({
     logger: false,
   });

@@ -2,7 +2,7 @@ import type { WorkspaceSettings } from "@loomic/shared";
 
 import type { AuthenticatedUser, UserSupabaseClient } from "../../supabase/user.js";
 
-const DEFAULT_MODEL = "gpt-4.1-mini";
+const DEFAULT_MODEL = "gpt-5.4-mini";
 
 export class SettingsServiceError extends Error {
   readonly statusCode: number;

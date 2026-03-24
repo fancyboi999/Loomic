@@ -357,19 +357,25 @@ export function ChatSidebar({
     return (
       <button
         onClick={onToggle}
-        className="fixed right-4 top-4 z-50 rounded-lg bg-background border border-border px-3 py-2 text-sm shadow-md hover:bg-muted"
+        className="fixed right-4 top-4 z-50 inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3 py-2 text-xs font-medium shadow-lg hover:opacity-90 transition-opacity"
       >
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            fillOpacity={0.9}
+            d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
+          />
+        </svg>
         Chat
       </button>
     );
   }
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-background">
+    <div className="flex h-full w-[400px] shrink-0 flex-col bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-sm font-semibold shrink-0">Chat</h2>
+      <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
+        <div className="flex items-center gap-1 min-w-0">
+          <h2 className="text-sm font-semibold text-[#2F3640] shrink-0">Chat</h2>
           {!sessionsLoading && (
             <SessionSelector
               sessions={sessions}
@@ -382,7 +388,7 @@ export function ChatSidebar({
         </div>
         <button
           onClick={onToggle}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+          className="rounded-md p-1.5 text-[#A4A9B2] hover:bg-[#F5F5F5] hover:text-[#2F3640] transition-colors shrink-0"
         >
           <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
             <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
@@ -391,15 +397,21 @@ export function ChatSidebar({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
         {sessionsLoading ? (
           <div className="flex h-full items-center justify-center">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E3E3] border-t-[#2F3640]" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              Start a conversation with the AI assistant.
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <svg className="h-10 w-10 text-[#E3E3E3]" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                fillOpacity={0.9}
+                d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
+              />
+            </svg>
+            <p className="text-sm text-[#A4A9B2]">
+              Start a conversation
             </p>
           </div>
         ) : (

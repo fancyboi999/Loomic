@@ -1,51 +1,43 @@
 import { describe, expect, it } from "vitest";
 
-import { AIMessage, ToolMessage } from "langchain";
+import { AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 
 import { adaptDeepAgentStream } from "../src/agent/stream-adapter.js";
 
-describe("deep-agent stream adapter", () => {
-  it("maps deep-agent chunks onto Loomic SSE events", async () => {
+describe("deep-agent stream adapter (streamEvents v2)", () => {
+  it("maps streamEvents onto Loomic SSE events with token-level streaming", async () => {
     const stream = makeStream([
-      [
-        "updates",
-        {
-          model_request: {
-            messages: [
-              new AIMessage({
-                content: "",
-                id: "message_model_1",
-                tool_calls: [
-                  {
-                    args: {
-                      query: "foundation",
-                    },
-                    id: "tool_call_1",
-                    name: "project_search",
-                    type: "tool_call",
-                  },
-                ],
-              }),
+      // Token-level streaming from chat model
+      {
+        event: "on_chat_model_stream",
+        data: {
+          chunk: new AIMessageChunk({
+            content: "",
+            tool_calls: [
+              {
+                args: { query: "foundation" },
+                id: "tool_call_1",
+                name: "project_search",
+                type: "tool_call",
+              },
             ],
-          },
-        },
-      ],
-      [
-        "tools",
-        {
-          event: "on_tool_start",
-          input: JSON.stringify({
-            query: "foundation",
           }),
-          name: "project_search",
-          toolCallId: "tool_call_1",
         },
-      ],
-      [
-        "tools",
-        {
-          event: "on_tool_end",
-          name: "project_search",
+        run_id: "model_run_1",
+      },
+      // Tool starts
+      {
+        event: "on_tool_start",
+        name: "project_search",
+        data: { input: { query: "foundation" } },
+        run_id: "tool_run_1",
+        metadata: { tool_call_id: "tool_call_1" },
+      },
+      // Tool completes
+      {
+        event: "on_tool_end",
+        name: "project_search",
+        data: {
           output: new ToolMessage({
             content: JSON.stringify({
               matchCount: 2,
@@ -54,22 +46,31 @@ describe("deep-agent stream adapter", () => {
             name: "project_search",
             tool_call_id: "tool_call_1",
           }),
-          toolCallId: "tool_call_1",
         },
-      ],
-      [
-        "updates",
-        {
-          model_request: {
-            messages: [
-              new AIMessage({
-                content: "Found the Loomic foundation docs.",
-                id: "message_model_2",
-              }),
-            ],
-          },
+        run_id: "tool_run_1",
+        metadata: { tool_call_id: "tool_call_1" },
+      },
+      // Token-level streaming of final response
+      {
+        event: "on_chat_model_stream",
+        data: {
+          chunk: new AIMessageChunk({
+            content: "Found the ",
+            id: "message_model_2",
+          }),
         },
-      ],
+        run_id: "model_run_2",
+      },
+      {
+        event: "on_chat_model_stream",
+        data: {
+          chunk: new AIMessageChunk({
+            content: "Loomic foundation docs.",
+            id: "message_model_2",
+          }),
+        },
+        run_id: "model_run_2",
+      },
     ]);
 
     const events = await collectEvents(
@@ -84,19 +85,26 @@ describe("deep-agent stream adapter", () => {
 
     expect(events).toEqual([
       expect.objectContaining({ type: "run.started" }),
+      // tool.started from on_tool_start event (uses run_id as toolCallId)
       expect.objectContaining({
-        toolCallId: "tool_call_1",
+        toolCallId: "tool_run_1",
         toolName: "project_search",
         type: "tool.started",
       }),
       expect.objectContaining({
         outputSummary: "Matched 2 files",
-        toolCallId: "tool_call_1",
+        toolCallId: "tool_run_1",
         toolName: "project_search",
         type: "tool.completed",
       }),
+      // Token-level text deltas
       expect.objectContaining({
-        delta: "Found the Loomic foundation docs.",
+        delta: "Found the ",
+        messageId: "message_model_2",
+        type: "message.delta",
+      }),
+      expect.objectContaining({
+        delta: "Loomic foundation docs.",
         messageId: "message_model_2",
         type: "message.delta",
       }),
@@ -166,6 +174,6 @@ async function* makeStream(chunks: unknown[]) {
 }
 
 async function* failingStream(error: Error) {
-  yield null;
+  yield { event: "on_chain_start", data: {} };
   throw error;
 }

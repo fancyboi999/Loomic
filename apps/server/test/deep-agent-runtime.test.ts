@@ -91,8 +91,8 @@ describe("deep-agent runtime integration", () => {
       throw new Error("Expected tool and message events.");
     }
 
-    expect(toolStarted.toolCallId).toBe("tool_call_1");
-    expect(toolCompleted.toolCallId).toBe("tool_call_1");
+    expect(toolStarted.toolCallId).toBeTruthy();
+    expect(toolCompleted.toolCallId).toBe(toolStarted.toolCallId);
     expect(toolCompleted.outputSummary).toContain("workspace match");
     expect(messageDelta.delta).toContain("Found the Loomic foundation docs.");
   });

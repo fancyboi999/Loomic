@@ -11,7 +11,7 @@ describe("generate_image tool", () => {
 
   it("returns structured result on success", async () => {
     const mockProvider: ImageProvider = {
-      name: "openai",
+      name: "replicate",
       generate: async () => ({
         url: "https://example.com/img.png",
         mimeType: "image/png",
@@ -23,8 +23,7 @@ describe("generate_image tool", () => {
 
     const result = await runImageGenerate({
       prompt: "a cat",
-      provider: "openai",
-      model: "gpt-image-1",
+      model: "google/nano-banana-pro",
       aspectRatio: "1:1",
     });
 
@@ -35,15 +34,14 @@ describe("generate_image tool", () => {
 
   it("returns error message on generation failure", async () => {
     const mockProvider: ImageProvider = {
-      name: "openai",
+      name: "replicate",
       generate: async () => { throw new Error("API down"); },
     };
     registerImageProvider(mockProvider);
 
     const result = await runImageGenerate({
       prompt: "test",
-      provider: "openai",
-      model: "m",
+      model: "google/nano-banana-pro",
       aspectRatio: "1:1",
     });
 

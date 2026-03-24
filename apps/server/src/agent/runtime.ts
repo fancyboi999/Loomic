@@ -125,7 +125,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
       let stream: AsyncIterable<unknown>;
       try {
-        stream = await agent.stream(
+        stream = agent.streamEvents(
           {
             messages: [
               {
@@ -136,7 +136,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           },
           {
             signal: run.controller.signal,
-            streamMode: ["updates", "tools"],
+            version: "v2",
           },
         );
       } catch (error) {

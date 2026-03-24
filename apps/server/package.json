@@ -24,7 +24,7 @@
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
     "predev": "pnpm --filter @loomic/shared build",
-    "dev": "node --import tsx ./src/server.ts",
+    "dev": "node --env-file=../../.env.local --import tsx ./src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }

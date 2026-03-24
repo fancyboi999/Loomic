@@ -24,7 +24,7 @@ export default function SettingsPage() {
     displayName: string;
     email: string;
   } | null>(null);
-  const [defaultModel, setDefaultModel] = useState<string>("gpt-4.1-mini");
+  const [defaultModel, setDefaultModel] = useState<string>("gpt-5.4-mini");
   const [pageLoading, setPageLoading] = useState(true);
 
   const accessToken = session?.access_token;
