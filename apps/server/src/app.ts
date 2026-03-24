@@ -45,6 +45,7 @@ import {
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerChatRoutes } from "./http/chat.js";
+import { registerGenerateRoutes } from "./http/generate.js";
 import { registerHealthRoutes } from "./http/health.js";
 import { registerImageProxyRoute } from "./http/image-proxy.js";
 import { registerModelRoutes } from "./http/models.js";
@@ -200,6 +201,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     uploadService,
     viewerService,
   });
+  void registerGenerateRoutes(app, { auth });
 
   return app;
 }
