@@ -25,6 +25,7 @@ export const REPLICATE_IMAGE_MODELS = [
 ] as const;
 
 const imageGenerateSchema = z.object({
+  title: z.string().min(1).describe("Short descriptive title for the generated image, used as metadata so the image content is understood without re-analysis"),
   prompt: z.string().min(1).describe("Detailed image generation prompt"),
   model: z
     .enum(REPLICATE_IMAGE_MODELS)
@@ -36,10 +37,10 @@ const imageGenerateSchema = z.object({
     .default("1:1")
     .describe("Aspect ratio of the generated image"),
   inputImages: z
-    .array(z.string().url())
+    .array(z.string())
     .optional()
     .describe(
-      "Reference images for editing/transformation. Google models accept up to 14, Flux models accept 1.",
+      "Reference image URLs for editing/transformation. Google models accept up to 14, Flux models accept 1.",
     ),
 });
 
@@ -47,6 +48,7 @@ type ImageGenerateInput = z.infer<typeof imageGenerateSchema>;
 
 type ImageGenerateResult = {
   summary: string;
+  title?: string;
   imageUrl?: string;
   mimeType?: string;
   width?: number;
@@ -62,11 +64,12 @@ export async function runImageGenerate(
       prompt: input.prompt,
       model: input.model,
       aspectRatio: input.aspectRatio,
-      ...(input.inputImages ? { inputImages: input.inputImages } : {}),
+      ...(input.inputImages?.length ? { inputImages: input.inputImages } : {}),
     });
 
     return {
       summary: `Generated image (${result.width}x${result.height}) via replicate/${input.model}`,
+      title: input.title,
       imageUrl: result.url,
       mimeType: result.mimeType,
       width: result.width,

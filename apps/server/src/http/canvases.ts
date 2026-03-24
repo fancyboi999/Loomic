@@ -42,6 +42,7 @@ export async function registerCanvasRoutes(
 
   app.put<{ Params: { canvasId: string } }>(
     "/api/canvases/:canvasId",
+    { bodyLimit: 50 * 1024 * 1024 }, // 50 MB — canvas content includes base64 image data
     async (request, reply) => {
       try {
         const user = await options.auth.authenticate(request);
@@ -52,10 +53,19 @@ export async function registerCanvasRoutes(
           request.params.canvasId,
           payload.content,
         );
+        const bodySize = JSON.stringify(request.body).length;
+        request.log.info(
+          { canvasId: request.params.canvasId, bodyBytes: bodySize },
+          "canvas.save OK",
+        );
         return reply
           .code(200)
           .send(canvasSaveResponseSchema.parse({ ok: true }));
       } catch (error) {
+        request.log.error(
+          { canvasId: request.params.canvasId, err: error },
+          "canvas.save FAILED",
+        );
         return sendCanvasError(error, reply);
       }
     },

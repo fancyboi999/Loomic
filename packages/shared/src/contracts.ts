@@ -119,11 +119,31 @@ export const chatSessionSummarySchema = z.object({
   updatedAt: timestampSchema,
 });
 
+export const textBlockSchema = z.object({
+  type: z.literal("text"),
+  text: z.string(),
+});
+
+export const toolBlockSchema = z.object({
+  type: z.literal("tool"),
+  toolCallId: z.string().min(1),
+  toolName: z.string().min(1),
+  status: z.enum(["running", "completed"]),
+  outputSummary: z.string().optional(),
+  artifacts: z.array(toolArtifactSchema).optional(),
+});
+
+export const contentBlockSchema = z.discriminatedUnion("type", [
+  textBlockSchema,
+  toolBlockSchema,
+]);
+
 export const chatMessageSchema = z.object({
   id: identifierSchema,
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   toolActivities: z.array(chatToolActivitySchema).nullable().optional(),
+  contentBlocks: z.array(contentBlockSchema).nullable().optional(),
   createdAt: timestampSchema,
 });
 
@@ -131,6 +151,7 @@ export const chatMessageCreateRequestSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   toolActivities: z.array(chatToolActivitySchema).nullable().optional(),
+  contentBlocks: z.array(contentBlockSchema).nullable().optional(),
 });
 
 export const assetBucketSchema = z.enum(["project-assets", "user-avatars"]);
@@ -149,6 +170,9 @@ export const assetObjectSchema = z.object({
 export type AssetBucket = z.infer<typeof assetBucketSchema>;
 export type AssetObject = z.infer<typeof assetObjectSchema>;
 
+export type TextBlock = z.infer<typeof textBlockSchema>;
+export type ToolBlock = z.infer<typeof toolBlockSchema>;
+export type ContentBlock = z.infer<typeof contentBlockSchema>;
 export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type ChatMessageCreateRequest = z.infer<typeof chatMessageCreateRequestSchema>;

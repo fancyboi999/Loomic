@@ -9,6 +9,7 @@ export const placementSchema = z.object({
 
 export const imageArtifactSchema = z.object({
   type: z.literal("image"),
+  title: z.string().optional(),
   url: z.string(),
   mimeType: z.string(),
   width: z.number().int().positive(),

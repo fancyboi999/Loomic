@@ -5,8 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ChatMessage as ChatMessageData,
   ChatSessionSummary,
+  ContentBlock,
   ImageArtifact,
   StreamEvent,
+  TextBlock,
+  ToolBlock,
 } from "@loomic/shared";
 import {
   createRun,
@@ -19,14 +22,13 @@ import {
 } from "../lib/server-api";
 import { streamEvents } from "../lib/stream-events";
 import { ChatInput } from "./chat-input";
-import { ChatMessage, type ToolActivity } from "./chat-message";
+import { ChatMessage } from "./chat-message";
 import { SessionSelector } from "./session-selector";
 
 type Message = {
   id: string;
   role: "user" | "assistant";
-  content: string;
-  toolActivities?: ToolActivity[] | undefined;
+  contentBlocks: ContentBlock[];
 };
 
 type ChatSidebarProps = {
@@ -38,14 +40,35 @@ type ChatSidebarProps = {
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
-  return serverMessages.map((m) => ({
-    id: m.id,
-    role: m.role,
-    content: m.content,
-    ...(m.toolActivities
-      ? { toolActivities: m.toolActivities as ToolActivity[] }
-      : {}),
-  }));
+  return serverMessages.map((m) => {
+    // Prefer contentBlocks if present; otherwise synthesize from legacy fields
+    let blocks: ContentBlock[];
+    if (m.contentBlocks && m.contentBlocks.length > 0) {
+      blocks = m.contentBlocks;
+    } else {
+      blocks = [];
+      if (m.content) {
+        blocks.push({ type: "text", text: m.content });
+      }
+      if (m.toolActivities) {
+        for (const ta of m.toolActivities) {
+          blocks.push({
+            type: "tool",
+            toolCallId: ta.toolCallId,
+            toolName: ta.toolName,
+            status: ta.status as "running" | "completed",
+            ...(ta.outputSummary ? { outputSummary: ta.outputSummary } : {}),
+            ...(ta.artifacts ? { artifacts: ta.artifacts } : {}),
+          });
+        }
+      }
+    }
+    return {
+      id: m.id,
+      role: m.role,
+      contentBlocks: blocks,
+    };
+  });
 }
 
 export function ChatSidebar({
@@ -157,8 +180,8 @@ export function ChatSidebar({
           sessionId,
         );
         setMessages(mapServerMessages(msgRes.messages));
-      } catch {
-        // Messages will remain empty
+      } catch (err) {
+        console.error("[chat] Failed to load session messages:", err);
       }
     },
     [streaming],
@@ -218,65 +241,82 @@ export function ChatSidebar({
       switch (event.type) {
         case "message.delta":
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: m.content + event.delta }
-                : m,
-            ),
+            prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              const blocks = [...m.contentBlocks];
+              const last = blocks[blocks.length - 1];
+              if (last && last.type === "text") {
+                blocks[blocks.length - 1] = {
+                  ...last,
+                  text: last.text + event.delta,
+                };
+              } else {
+                blocks.push({ type: "text", text: event.delta });
+              }
+              return { ...m, contentBlocks: blocks };
+            }),
           );
           break;
 
         case "tool.started":
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    toolActivities: [
-                      ...(m.toolActivities ?? []),
-                      {
-                        toolCallId: event.toolCallId,
-                        toolName: event.toolName,
-                        status: "running" as const,
-                      },
-                    ],
-                  }
-                : m,
-            ),
+            prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              const newBlock: ToolBlock = {
+                type: "tool",
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                status: "running",
+              };
+              return {
+                ...m,
+                contentBlocks: [...m.contentBlocks, newBlock],
+              };
+            }),
           );
           break;
 
         case "tool.completed":
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    toolActivities: m.toolActivities?.map((t) =>
-                      t.toolCallId === event.toolCallId
-                        ? {
-                            ...t,
-                            status: "completed" as const,
-                            outputSummary: event.outputSummary,
-                            ...(event.artifacts
-                              ? { artifacts: event.artifacts }
-                              : {}),
-                          }
-                        : t,
-                    ),
+            prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              return {
+                ...m,
+                contentBlocks: m.contentBlocks.map((block) => {
+                  if (
+                    block.type === "tool" &&
+                    block.toolCallId === event.toolCallId
+                  ) {
+                    return {
+                      ...block,
+                      status: "completed" as const,
+                      outputSummary: event.outputSummary,
+                      ...(event.artifacts
+                        ? { artifacts: event.artifacts }
+                        : {}),
+                    };
                   }
-                : m,
-            ),
+                  return block;
+                }),
+              };
+            }),
           );
           break;
 
         case "run.failed":
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId && !m.content
-                ? { ...m, content: `Error: ${event.error.message}` }
-                : m,
-            ),
+            prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              const hasText = m.contentBlocks.some((b) => b.type === "text");
+              if (hasText) return m;
+              return {
+                ...m,
+                contentBlocks: [
+                  ...m.contentBlocks,
+                  { type: "text" as const, text: `Error: ${event.error.message}` },
+                ],
+              };
+            }),
           );
           break;
       }
@@ -295,15 +335,16 @@ export function ChatSidebar({
       const userMsg: Message = {
         id: `user-${Date.now()}`,
         role: "user",
-        content: text,
+        contentBlocks: [{ type: "text", text }],
       };
       setMessages((prev) => [...prev, userMsg]);
 
-      // Persist user message (fire-and-forget)
-      void saveMessage(accessTokenRef.current, currentSessionId, {
+      // Persist user message (fire-and-forget with error logging)
+      saveMessage(accessTokenRef.current, currentSessionId, {
         role: "user",
         content: text,
-      });
+        contentBlocks: [{ type: "text", text }],
+      }).catch((err) => console.error("[chat] Failed to save user message:", err));
 
       // Auto-title from first user message
       if (isFirstMessage) {
@@ -324,7 +365,7 @@ export function ChatSidebar({
       const assistantId = `assistant-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "" },
+        { id: assistantId, role: "assistant", contentBlocks: [] },
       ]);
       setStreaming(true);
       abortRef.current = false;
@@ -342,62 +383,59 @@ export function ChatSidebar({
           },
         );
 
-        let assistantContent = "";
-        let assistantTools: ToolActivity[] | undefined;
-
         for await (const event of streamEvents(run.runId)) {
           if (abortRef.current) break;
           handleStreamEvent(event, assistantId);
 
-          if (event.type === "message.delta") {
-            assistantContent += event.delta;
-          }
-          if (event.type === "tool.started") {
-            assistantTools ??= [];
-            assistantTools.push({
-              toolCallId: event.toolCallId,
-              toolName: event.toolName,
-              status: "running",
-            });
-          }
-          if (event.type === "tool.completed" && assistantTools) {
-            const tool = assistantTools.find(
-              (t) => t.toolCallId === event.toolCallId,
-            );
-            if (tool) {
-              tool.status = "completed";
-              tool.outputSummary = event.outputSummary;
-              if (event.artifacts) {
-                tool.artifacts = event.artifacts;
-              }
-            }
-
-            // Fire canvas insertion callback for image artifacts
-            if (event.artifacts && onImageGenerated) {
-              for (const artifact of event.artifacts) {
-                if (artifact.type === "image") {
-                  onImageGenerated(artifact as ImageArtifact);
-                }
+          // Fire canvas insertion callback for image artifacts.
+          // Only use artifacts that include placement (from the sub-agent
+          // response). Inner tool results (generate_image) lack placement
+          // and would cause a duplicate insertion at viewport center.
+          if (
+            event.type === "tool.completed" &&
+            event.artifacts &&
+            onImageGenerated
+          ) {
+            for (const artifact of event.artifacts) {
+              if (artifact.type === "image" && artifact.placement) {
+                onImageGenerated(artifact as ImageArtifact);
               }
             }
           }
         }
 
-        // Persist assistant message (fire-and-forget)
-        if (assistantContent) {
-          void saveMessage(accessTokenRef.current, currentSessionId, {
+        // Derive flat content + full blocks from the final message state
+        const finalMsg = messagesRef.current.find(
+          (m) => m.id === assistantId,
+        );
+        const finalBlocks = finalMsg?.contentBlocks ?? [];
+        const flatContent = finalBlocks
+          .filter((b): b is TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("");
+
+        // Persist assistant message (fire-and-forget with error logging)
+        if (flatContent || finalBlocks.length > 0) {
+          saveMessage(accessTokenRef.current, currentSessionId, {
             role: "assistant",
-            content: assistantContent,
-            ...(assistantTools ? { toolActivities: assistantTools } : {}),
-          });
+            content: flatContent,
+            contentBlocks: finalBlocks,
+          }).catch((err) => console.error("[chat] Failed to save assistant message:", err));
         }
       } catch {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: m.content || "Failed to get response." }
-              : m,
-          ),
+          prev.map((m) => {
+            if (m.id !== assistantId) return m;
+            const hasText = m.contentBlocks.some((b) => b.type === "text");
+            if (hasText) return m;
+            return {
+              ...m,
+              contentBlocks: [
+                ...m.contentBlocks,
+                { type: "text" as const, text: "Failed to get response." },
+              ],
+            };
+          }),
         );
       } finally {
         setStreaming(false);
@@ -427,7 +465,7 @@ export function ChatSidebar({
     <div className="flex h-full shrink-0" style={{ width: sidebarWidth }}>
       {/* Resize handle */}
       <div
-        className="w-1 cursor-col-resize hover:bg-[#E3E3E3] active:bg-[#D0D0D0] transition-colors shrink-0"
+        className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-[#D7DCE3] to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-[#BBC3CD] hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-[#9EA8B5] active:shadow-[1px_0_16px_rgba(15,23,42,0.14)]"
         onMouseDown={handleMouseDown}
       />
       <div className="flex flex-1 flex-col bg-white min-w-0">
@@ -478,8 +516,7 @@ export function ChatSidebar({
               <ChatMessage
                 key={msg.id}
                 role={msg.role}
-                content={msg.content}
-                toolActivities={msg.toolActivities}
+                contentBlocks={msg.contentBlocks}
                 isStreaming={
                   streaming &&
                   msg.role === "assistant" &&

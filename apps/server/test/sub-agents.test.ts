@@ -21,6 +21,6 @@ describe("sub-agent definitions", () => {
 
   it("image sub-agent tool is named generate_image", () => {
     const subAgent = createImageSubAgent();
-    expect(subAgent.tools![0].name).toBe("generate_image");
+    expect(subAgent.tools![0]!.name).toBe("generate_image");
   });
 });

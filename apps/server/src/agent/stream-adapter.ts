@@ -228,6 +228,9 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
       width: (record.placement as any)?.width ?? 512,
       height: (record.placement as any)?.height ?? 512,
     };
+    if (typeof record.title === "string" && record.title.length > 0) {
+      candidate.title = record.title;
+    }
     if (record.placement && typeof record.placement === "object") {
       candidate.placement = record.placement;
     }
@@ -239,13 +242,16 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
 
   // Legacy format: direct tool response with imageUrl
   if (artifacts.length === 0 && typeof record.imageUrl === "string") {
-    const candidate = {
+    const candidate: Record<string, unknown> = {
       type: "image" as const,
       url: record.imageUrl,
       mimeType: record.mimeType,
       width: record.width,
       height: record.height,
     };
+    if (typeof record.title === "string" && record.title.length > 0) {
+      candidate.title = record.title;
+    }
     const result = imageArtifactSchema.safeParse(candidate);
     if (result.success) {
       artifacts.push(result.data);

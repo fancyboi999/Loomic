@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { type ModelInfo, modelListResponseSchema } from "@loomic/shared";
 
 const AVAILABLE_MODELS: ModelInfo[] = [
-  { id: "az_sre/gpt-5.4", name: "AZ SRE GPT-5.4", provider: "openai" },
+  { id: "wanjie/claude-sonnet-4-6", name: "Claude Sonnet 4.6", provider: "anthropic" },
   { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", provider: "openai" },
   { id: "gpt-4.1", name: "GPT-4.1", provider: "openai" },
   { id: "gpt-4o", name: "GPT-4o", provider: "openai" },

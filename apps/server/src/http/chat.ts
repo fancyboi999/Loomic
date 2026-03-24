@@ -126,10 +126,18 @@ export async function registerChatRoutes(
           request.params.sessionId,
         );
 
+        request.log.info(
+          { sessionId: request.params.sessionId, count: messages.length },
+          "chat.listMessages OK",
+        );
         return reply
           .code(200)
           .send(messageListResponseSchema.parse({ messages }));
       } catch (error) {
+        request.log.error(
+          { sessionId: request.params.sessionId, err: error },
+          "chat.listMessages FAILED",
+        );
         return sendChatError(error, reply);
       }
     },
@@ -150,10 +158,18 @@ export async function registerChatRoutes(
           input,
         );
 
+        request.log.info(
+          { sessionId: request.params.sessionId, role: input.role, messageId: message.id },
+          "chat.createMessage OK",
+        );
         return reply
           .code(201)
           .send(messageCreateResponseSchema.parse({ message }));
       } catch (error) {
+        request.log.error(
+          { sessionId: request.params.sessionId, err: error },
+          "chat.createMessage FAILED",
+        );
         return sendChatError(error, reply);
       }
     },

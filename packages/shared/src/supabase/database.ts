@@ -19,6 +19,7 @@ export type Database = {
           role: string
           content: string
           tool_activities: Json | null
+          content_blocks: Json | null
           created_at: string
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           role: string
           content?: string
           tool_activities?: Json | null
+          content_blocks?: Json | null
           created_at?: string
         }
         Update: {
@@ -35,6 +37,7 @@ export type Database = {
           role?: string
           content?: string
           tool_activities?: Json | null
+          content_blocks?: Json | null
           created_at?: string
         }
         Relationships: [

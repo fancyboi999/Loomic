@@ -87,7 +87,7 @@ export function SessionSelector({
               <DropdownMenuItem
                 key={s.id}
                 className="group flex items-center justify-between gap-2"
-                onSelect={() => onSelect(s.id)}
+                onClick={() => onSelect(s.id)}
               >
                 <span className={`truncate ${s.id === activeSessionId ? "font-medium" : ""}`}>
                   {s.title}

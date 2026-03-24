@@ -88,7 +88,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   }
 
   const app = Fastify({
-    logger: false,
+    logger: { level: "info" },
   });
   void app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
