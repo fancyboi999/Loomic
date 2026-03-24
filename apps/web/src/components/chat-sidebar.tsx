@@ -72,6 +72,35 @@ export function ChatSidebar({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  const [sidebarWidth, setSidebarWidth] = useState(400);
+  const isResizing = useRef(false);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!isResizing.current) return;
+        const delta = startX - moveEvent.clientX;
+        const newWidth = Math.min(600, Math.max(300, startWidth + delta));
+        setSidebarWidth(newWidth);
+      };
+
+      const handleMouseUp = () => {
+        isResizing.current = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [sidebarWidth],
+  );
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -389,69 +418,76 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex h-full w-[400px] shrink-0 flex-col bg-white">
-      {/* Header */}
-      <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
-        <div className="flex items-center gap-1 min-w-0">
-          <h2 className="text-sm font-semibold text-[#2F3640] shrink-0">Chat</h2>
-          {!sessionsLoading && (
-            <SessionSelector
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onSelect={handleSelectSession}
-              onNewChat={handleNewChat}
-              onDelete={handleDeleteSession}
-            />
-          )}
-        </div>
-        <button
-          onClick={onToggle}
-          className="rounded-md p-1.5 text-[#A4A9B2] hover:bg-[#F5F5F5] hover:text-[#2F3640] transition-colors shrink-0"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
-        {sessionsLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E3E3] border-t-[#2F3640]" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <svg className="h-10 w-10 text-[#E3E3E3]" viewBox="0 0 24 24" fill="currentColor">
-              <path
-                fillOpacity={0.9}
-                d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
+    <div className="flex h-full shrink-0" style={{ width: sidebarWidth }}>
+      {/* Resize handle */}
+      <div
+        className="w-1 cursor-col-resize hover:bg-[#E3E3E3] active:bg-[#D0D0D0] transition-colors shrink-0"
+        onMouseDown={handleMouseDown}
+      />
+      <div className="flex flex-1 flex-col bg-white min-w-0">
+        {/* Header */}
+        <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <h2 className="text-sm font-semibold text-[#2F3640] shrink-0">Chat</h2>
+            {!sessionsLoading && (
+              <SessionSelector
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSelect={handleSelectSession}
+                onNewChat={handleNewChat}
+                onDelete={handleDeleteSession}
               />
-            </svg>
-            <p className="text-sm text-[#A4A9B2]">
-              Start a conversation
-            </p>
+            )}
           </div>
-        ) : (
-          messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              role={msg.role}
-              content={msg.content}
-              toolActivities={msg.toolActivities}
-              isStreaming={
-                streaming &&
-                msg.role === "assistant" &&
-                msg === messages[messages.length - 1]
-              }
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          <button
+            onClick={onToggle}
+            className="rounded-md p-1.5 text-[#A4A9B2] hover:bg-[#F5F5F5] hover:text-[#2F3640] transition-colors shrink-0"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+            </svg>
+          </button>
+        </div>
 
-      {/* Input */}
-      <ChatInput onSend={handleSend} disabled={streaming || sessionsLoading} />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
+          {sessionsLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E3E3] border-t-[#2F3640]" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <svg className="h-10 w-10 text-[#E3E3E3]" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  fillOpacity={0.9}
+                  d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
+                />
+              </svg>
+              <p className="text-sm text-[#A4A9B2]">
+                Start a conversation
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                role={msg.role}
+                content={msg.content}
+                toolActivities={msg.toolActivities}
+                isStreaming={
+                  streaming &&
+                  msg.role === "assistant" &&
+                  msg === messages[messages.length - 1]
+                }
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <ChatInput onSend={handleSend} disabled={streaming || sessionsLoading} />
+      </div>
     </div>
   );
 }
