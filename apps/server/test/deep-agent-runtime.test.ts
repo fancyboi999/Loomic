@@ -334,6 +334,42 @@ describe("deep-agent runtime integration", () => {
     );
   });
 
+  it("passes canvasId and accessToken into agent configurable", async () => {
+    const capturedConfigs: Array<Record<string, unknown>> = [];
+
+    const server = await startServer({
+      createAgent: () =>
+        createEmptyAgent((config) => {
+          capturedConfigs.push(config as Record<string, unknown>);
+        }),
+    });
+
+    const createResponse = await fetch(`${server.baseUrl}/api/agent/runs`, {
+      body: JSON.stringify({
+        canvasId: "canvas-abc",
+        conversationId: "conversation_123",
+        prompt: "test canvas context",
+        sessionId: "session_123",
+      }),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+    const createdRun = runCreateResponseSchema.parse(await createResponse.json());
+    const eventsResponse = await fetch(
+      `${server.baseUrl}/api/agent/runs/${createdRun.runId}/events`,
+    );
+    await collectSseEvents(eventsResponse);
+
+    expect(capturedConfigs.length).toBeGreaterThan(0);
+    expect(capturedConfigs[0]).toMatchObject({
+      configurable: expect.objectContaining({
+        canvas_id: "canvas-abc",
+      }),
+    });
+  });
+
   it("emits run.failed when threaded persistence initialization fails", async () => {
     const authUser = stubUser();
 
