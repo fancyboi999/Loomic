@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { toolArtifactSchema } from "./events.js";
+import { toolArtifactSchema } from "./artifacts.js";
 
 export const identifierSchema = z.string().min(1);
 export const timestampSchema = z.string().datetime({ offset: true });

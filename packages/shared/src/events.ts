@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { toolArtifactSchema } from "./artifacts.js";
 import {
   conversationIdSchema,
   messageIdSchema,
@@ -9,6 +10,9 @@ import {
   toolCallIdSchema,
 } from "./contracts.js";
 import { loomicErrorSchema } from "./errors.js";
+
+export { imageArtifactSchema, toolArtifactSchema } from "./artifacts.js";
+export type { ImageArtifact, ToolArtifact } from "./artifacts.js";
 
 export const runStartedEventSchema = z.object({
   type: z.literal("run.started"),
@@ -33,21 +37,6 @@ export const toolStartedEventSchema = z.object({
   toolName: z.string().min(1),
   timestamp: timestampSchema,
 });
-
-export const imageArtifactSchema = z.object({
-  type: z.literal("image"),
-  url: z.string(),
-  mimeType: z.string(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-});
-
-export const toolArtifactSchema = z.discriminatedUnion("type", [
-  imageArtifactSchema,
-]);
-
-export type ImageArtifact = z.infer<typeof imageArtifactSchema>;
-export type ToolArtifact = z.infer<typeof toolArtifactSchema>;
 
 export const toolCompletedEventSchema = z.object({
   type: z.literal("tool.completed"),
