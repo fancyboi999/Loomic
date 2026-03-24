@@ -14,6 +14,7 @@
 **/.next/
 /out/
 apps/web/out/
+supabase/.temp/
 
 # production
 /build
