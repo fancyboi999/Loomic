@@ -1,10 +1,19 @@
 "use client";
 
+type ToolArtifact = {
+  type: "image";
+  url: string;
+  mimeType: string;
+  width: number;
+  height: number;
+};
+
 type ToolActivity = {
   toolCallId: string;
   toolName: string;
   status: "running" | "completed";
   outputSummary?: string | undefined;
+  artifacts?: ToolArtifact[] | undefined;
 };
 
 type ChatMessageProps = {
@@ -14,7 +23,7 @@ type ChatMessageProps = {
   isStreaming?: boolean | undefined;
 };
 
-export type { ToolActivity };
+export type { ToolActivity, ToolArtifact };
 
 export function ChatMessage({
   role,
@@ -49,28 +58,38 @@ export function ChatMessage({
           {toolActivities && toolActivities.length > 0 && (
             <div className="space-y-1">
               {toolActivities.map((tool) => (
-                <div
-                  key={tool.toolCallId}
-                  className="flex items-center gap-1.5 text-[11px] text-[#A4A9B2]"
-                >
-                  {tool.status === "running" ? (
-                    <div className="h-3 w-3 animate-spin rounded-full border border-[#A4A9B2]/40 border-t-[#A4A9B2]" />
-                  ) : (
-                    <svg
-                      className="h-3 w-3 text-green-500"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                    >
-                      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-                    </svg>
-                  )}
-                  <span className="font-medium">
-                    {formatToolName(tool.toolName)}
-                  </span>
-                  {tool.outputSummary && (
-                    <span className="truncate opacity-60">
-                      — {tool.outputSummary}
+                <div key={tool.toolCallId} className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#A4A9B2]">
+                    {tool.status === "running" ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border border-[#A4A9B2]/40 border-t-[#A4A9B2]" />
+                    ) : (
+                      <svg
+                        className="h-3 w-3 text-green-500"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                      >
+                        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+                      </svg>
+                    )}
+                    <span className="font-medium">
+                      {formatToolName(tool.toolName)}
                     </span>
+                    {tool.outputSummary && (
+                      <span className="truncate opacity-60">
+                        — {tool.outputSummary}
+                      </span>
+                    )}
+                  </div>
+                  {tool.artifacts?.map((artifact) =>
+                    artifact.type === "image" ? (
+                      <img
+                        key={artifact.url}
+                        src={artifact.url}
+                        alt="Generated image"
+                        className="max-w-[200px] rounded-md border border-[#E3E3E3]"
+                        loading="lazy"
+                      />
+                    ) : null,
                   )}
                 </div>
               ))}
