@@ -5,6 +5,7 @@ import type { ChatSessionSummary } from "@loomic/shared";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -79,31 +80,33 @@ export function SessionSelector({
           </svg>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="bottom" align="start" sideOffset={6} className="min-w-[220px]">
-          <DropdownMenuLabel>Conversations</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {sessions.map((s) => (
-            <DropdownMenuItem
-              key={s.id}
-              className="group flex items-center justify-between gap-2"
-              onSelect={() => onSelect(s.id)}
-            >
-              <span className={`truncate ${s.id === activeSessionId ? "font-medium" : ""}`}>
-                {s.title}
-              </span>
-              {sessions.length > 1 && (
-                <button
-                  type="button"
-                  className="hidden group-focus:flex group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(s.id);
-                  }}
-                >
-                  <TrashIcon className="h-3 w-3" />
-                </button>
-              )}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Conversations</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {sessions.map((s) => (
+              <DropdownMenuItem
+                key={s.id}
+                className="group flex items-center justify-between gap-2"
+                onSelect={() => onSelect(s.id)}
+              >
+                <span className={`truncate ${s.id === activeSessionId ? "font-medium" : ""}`}>
+                  {s.title}
+                </span>
+                {sessions.length > 1 && (
+                  <button
+                    type="button"
+                    className="hidden group-focus:flex group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(s.id);
+                    }}
+                  >
+                    <TrashIcon className="h-3 w-3" />
+                  </button>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 

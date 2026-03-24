@@ -127,7 +127,7 @@ export async function fetchCanvas(
 export async function saveCanvas(
   accessToken: string,
   canvasId: string,
-  content: { elements: Record<string, unknown>[]; appState: Record<string, unknown> },
+  content: { elements: Record<string, unknown>[]; appState: Record<string, unknown>; files: Record<string, Record<string, unknown>> },
 ): Promise<void> {
   const response = await fetch(
     `${getServerBaseUrl()}/api/canvases/${canvasId}`,

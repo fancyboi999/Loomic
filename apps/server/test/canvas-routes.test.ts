@@ -59,7 +59,7 @@ describe("canvas routes", () => {
         id: "canvas-1",
         name: "Main Canvas",
         projectId: "project-1",
-        content: { elements: [], appState: {} },
+        content: { elements: [], appState: {}, files: {} },
       },
     });
   });

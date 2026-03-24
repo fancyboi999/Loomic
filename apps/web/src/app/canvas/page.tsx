@@ -22,6 +22,7 @@ function CanvasPageContent() {
     content: {
       elements: Record<string, unknown>[];
       appState: Record<string, unknown>;
+      files: Record<string, Record<string, unknown>>;
     };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,8 @@ function CanvasPageContent() {
   routerRef.current = router;
 
   const accessToken = session?.access_token;
+  const accessTokenRef = useRef(accessToken);
+  accessTokenRef.current = accessToken;
 
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
@@ -49,18 +52,34 @@ function CanvasPageContent() {
     });
   }, []);
 
+  // Only re-fetch when canvasId changes or on initial auth resolution.
+  // Token refreshes (e.g. tab switch back) should NOT trigger a reload.
+  const hasAuthed = !authLoading && !!user && !!accessToken;
+  const hasAuthedRef = useRef(false);
+  if (hasAuthed) hasAuthedRef.current = true;
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       routerRef.current.replace("/login");
       return;
     }
-    if (!canvasId || !accessToken) return;
+    const token = accessTokenRef.current;
+    if (!canvasId || !token) return;
 
     setPageLoading(true);
-    fetchCanvas(accessToken, canvasId)
+    fetchCanvas(token, canvasId)
       .then((data) => {
-        setCanvasData(data.canvas);
+        const c = data.canvas;
+        setCanvasData({
+          id: c.id,
+          name: c.name,
+          content: {
+            elements: c.content.elements ?? [],
+            appState: c.content.appState ?? {},
+            files: (c.content as any).files ?? {},
+          },
+        });
         setPageLoading(false);
       })
       .catch((err) => {
@@ -71,7 +90,8 @@ function CanvasPageContent() {
         setError("Failed to load canvas.");
         setPageLoading(false);
       });
-  }, [authLoading, user, accessToken, canvasId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, canvasId]);
 
   if (!canvasId) {
     return (

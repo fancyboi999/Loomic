@@ -78,6 +78,7 @@ export const projectSummarySchema = z.object({
 export const canvasContentSchema = z.object({
   elements: z.array(z.record(z.unknown())).default([]),
   appState: z.record(z.unknown()).default({}),
+  files: z.record(z.record(z.unknown())).default({}),
 });
 
 export const canvasDetailSchema = z.object({
