@@ -47,6 +47,13 @@ export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
       </div>
       <button
         type="button"
+        onClick={() => router.push("/brand-kit")}
+        className="block w-full text-left text-sm text-muted-foreground px-2 py-1.5 rounded hover:bg-neutral-100 cursor-pointer"
+      >
+        Brand Kit
+      </button>
+      <button
+        type="button"
         onClick={() => router.push("/settings")}
         className="block w-full text-left text-sm text-muted-foreground px-2 py-1.5 rounded hover:bg-neutral-100 cursor-pointer"
       >
