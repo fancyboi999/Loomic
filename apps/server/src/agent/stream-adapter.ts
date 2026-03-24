@@ -9,7 +9,8 @@ import {
   ToolMessage as ToolMessageClass,
 } from "@langchain/core/messages";
 
-import type { StreamEvent } from "@loomic/shared";
+import { imageArtifactSchema } from "@loomic/shared";
+import type { StreamEvent, ToolArtifact } from "@loomic/shared";
 
 /**
  * Shape of a LangChain v2 stream event from `streamEvents()`.
@@ -152,6 +153,7 @@ export async function* adaptDeepAgentStream(
         const output = evt.data?.output;
         yield {
           outputSummary: summarizeOutput(output),
+          artifacts: extractArtifacts(output),
           runId: options.runId,
           timestamp: now(),
           toolCallId,
@@ -193,6 +195,38 @@ function canceledEvent(runId: string, now: () => string): StreamEvent {
     timestamp: now(),
     type: "run.canceled",
   };
+}
+
+function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
+  let text = "";
+  if (ToolMessageClass.isInstance(output)) {
+    text = extractChunkText(output);
+  } else if (typeof output === "string") {
+    text = output;
+  } else if (output && typeof output === "object") {
+    text = JSON.stringify(output);
+  }
+
+  const parsed = tryParseJson(text);
+  if (!parsed || typeof parsed !== "object") return undefined;
+
+  const artifacts: ToolArtifact[] = [];
+  const record = parsed as Record<string, unknown>;
+
+  const candidate = {
+    type: "image" as const,
+    url: record.imageUrl,
+    mimeType: record.mimeType,
+    width: record.width,
+    height: record.height,
+  };
+
+  const result = imageArtifactSchema.safeParse(candidate);
+  if (result.success) {
+    artifacts.push(result.data);
+  }
+
+  return artifacts.length > 0 ? artifacts : undefined;
 }
 
 /**
