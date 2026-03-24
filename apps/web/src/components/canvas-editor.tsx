@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { saveCanvas } from "../lib/server-api";
+import { CanvasAIToolbar } from "./canvas-ai-toolbar";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
@@ -87,7 +88,7 @@ export function CanvasEditor({
   }, []);
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full relative">
       <Excalidraw
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         initialData={{
@@ -98,6 +99,12 @@ export function CanvasEditor({
         onChange={handleChange}
         excalidrawAPI={handleExcalidrawApi}
       />
+      {excalidrawApi && (
+        <CanvasAIToolbar
+          accessToken={accessToken}
+          excalidrawApi={excalidrawApi}
+        />
+      )}
     </div>
   );
 }
