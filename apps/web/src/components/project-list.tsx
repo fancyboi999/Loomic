@@ -118,8 +118,17 @@ export function ProjectList({
               </div>
             )}
 
-            {/* Thumbnail placeholder */}
-            <div className="aspect-[395/227] rounded-lg bg-[#F5F5F5] overflow-hidden" />
+            {/* Thumbnail */}
+            <div className="aspect-[395/227] rounded-lg bg-[#F5F5F5] overflow-hidden">
+              {project.thumbnailUrl && (
+                <img
+                  src={project.thumbnailUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              )}
+            </div>
             {/* Info */}
             <div className="px-1 py-2">
               <div className="text-sm font-medium truncate text-[#0E1014]">

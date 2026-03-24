@@ -260,6 +260,7 @@ export type Database = {
           id: string
           name: string
           slug: string
+          thumbnail_path: string | null
           updated_at: string
           workspace_id: string
         }
@@ -271,6 +272,7 @@ export type Database = {
           id?: string
           name: string
           slug: string
+          thumbnail_path?: string | null
           updated_at?: string
           workspace_id: string
         }
@@ -282,6 +284,7 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          thumbnail_path?: string | null
           updated_at?: string
           workspace_id?: string
         }

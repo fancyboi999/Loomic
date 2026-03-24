@@ -21,6 +21,7 @@ function CanvasPageContent() {
   const [canvasData, setCanvasData] = useState<{
     id: string;
     name: string;
+    projectId: string;
     content: {
       elements: Record<string, unknown>[];
       appState: Record<string, unknown>;
@@ -77,6 +78,7 @@ function CanvasPageContent() {
         setCanvasData({
           id: c.id,
           name: c.name,
+          projectId: c.projectId,
           content: {
             elements: c.content.elements ?? [],
             appState: c.content.appState ?? {},
@@ -142,6 +144,7 @@ function CanvasPageContent() {
       <div className="flex-1 relative min-w-0">
         <CanvasEditor
           canvasId={canvasData.id}
+          projectId={canvasData.projectId}
           accessToken={accessToken}
           initialContent={canvasData.content}
           onApiReady={handleApiReady}

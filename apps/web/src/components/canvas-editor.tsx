@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { saveCanvas } from "../lib/server-api";
+import { saveCanvas, uploadThumbnail } from "../lib/server-api";
 import { CanvasAIToolbar } from "./canvas-ai-toolbar";
 
 const Excalidraw = dynamic(
@@ -16,6 +16,7 @@ const Excalidraw = dynamic(
 
 type CanvasEditorProps = {
   canvasId: string;
+  projectId: string;
   accessToken: string;
   initialContent: {
     elements: Record<string, unknown>[];
@@ -26,15 +27,19 @@ type CanvasEditorProps = {
 };
 
 const SAVE_DEBOUNCE_MS = 1500;
+const THUMBNAIL_DEBOUNCE_MS = 10_000;
+const THUMBNAIL_MAX_SIZE = 400;
 
 export function CanvasEditor({
   canvasId,
+  projectId,
   accessToken,
   initialContent,
   onApiReady,
 }: CanvasEditorProps) {
   const { resolvedTheme } = useTheme();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thumbnailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
@@ -77,13 +82,39 @@ export function CanvasEditor({
           console.error,
         );
       }, SAVE_DEBOUNCE_MS);
+
+      // Debounced thumbnail generation — runs less frequently than save
+      if (thumbnailTimerRef.current) clearTimeout(thumbnailTimerRef.current);
+      thumbnailTimerRef.current = setTimeout(async () => {
+        if (!excalidrawApi) return;
+        try {
+          const { exportToBlob } = await import("@excalidraw/excalidraw");
+          const sceneElements = excalidrawApi.getSceneElements();
+          const sceneFiles = excalidrawApi.getFiles();
+          if (!sceneElements.length) return;
+
+          const blob = await exportToBlob({
+            elements: sceneElements,
+            appState: { exportBackground: true },
+            files: sceneFiles,
+            mimeType: "image/webp",
+            quality: 0.8,
+            maxWidthOrHeight: THUMBNAIL_MAX_SIZE,
+          });
+
+          await uploadThumbnail(accessTokenRef.current, projectId, blob);
+        } catch {
+          // Thumbnail is non-critical — silently ignore failures
+        }
+      }, THUMBNAIL_DEBOUNCE_MS);
     },
-    [canvasId, excalidrawApi],
+    [canvasId, projectId, excalidrawApi],
   );
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (thumbnailTimerRef.current) clearTimeout(thumbnailTimerRef.current);
     };
   }, []);
 
