@@ -7,6 +7,7 @@ import type {
 } from "@loomic/shared";
 
 import { buildApp } from "../src/app.js";
+import { createChatService } from "../src/features/chat/chat-service.js";
 import type { AuthenticatedUser } from "../src/supabase/user.js";
 
 const appsUnderTest = new Set<Awaited<ReturnType<typeof buildApp>>>();
@@ -77,6 +78,52 @@ describe("chat routes", () => {
     expect(response.statusCode).toBe(201);
     const body = response.json() as { session: ChatSessionSummary };
     expect(body.session.title).toBe("My Chat");
+  });
+
+  it("createSession persists a generated thread_id for new sessions", async () => {
+    const insertedRows: Record<string, unknown>[] = [];
+    const service = createChatService({
+      createUserClient() {
+        return {
+          from() {
+            return {
+              insert(row: Record<string, unknown>) {
+                insertedRows.push(row);
+                return {
+                  select() {
+                    return {
+                      async single() {
+                        return {
+                          data: {
+                            id: "session-1",
+                            title: "New Chat",
+                            updated_at: "2026-03-24T00:00:00.000Z",
+                          },
+                          error: null,
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        } as never;
+      },
+      threadService: {
+        createThreadId() {
+          return "thread-123";
+        },
+      },
+    });
+
+    await service.createSession(stubUser(), "canvas-1");
+
+    expect(insertedRows[0]).toMatchObject({
+      canvas_id: "canvas-1",
+      created_by: "user-1",
+      thread_id: "thread-123",
+    });
   });
 
   it("GET /api/sessions/:sessionId/messages returns messages", async () => {

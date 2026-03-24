@@ -23,6 +23,14 @@ import {
   type ChatService,
 } from "./features/chat/chat-service.js";
 import {
+  createThreadService,
+  type ThreadService,
+} from "./features/chat/thread-service.js";
+import {
+  createAgentRunMetadataService,
+  type AgentRunMetadataService,
+} from "./features/agent-runs/agent-run-service.js";
+import {
   createSettingsService,
   type SettingsService,
 } from "./features/settings/settings-service.js";
@@ -52,6 +60,7 @@ import {
 export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
   agentModel?: BaseLanguageModel | string;
+  agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
   canvasService?: CanvasService;
   chatService?: ChatService;
@@ -60,6 +69,7 @@ export type BuildAppOptions = {
   mockEventDelayMs?: number;
   projectService?: ProjectService;
   settingsService?: SettingsService;
+  threadService?: ThreadService;
   viewerService?: ViewerService;
 };
 
@@ -101,8 +111,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     createProjectService({ createUserClient, viewerService });
   const canvasService =
     options.canvasService ?? createCanvasService({ createUserClient });
+  const threadService =
+    options.threadService ?? createThreadService({ createUserClient });
   const chatService =
-    options.chatService ?? createChatService({ createUserClient });
+    options.chatService ?? createChatService({ createUserClient, threadService });
+  const agentRunMetadataService =
+    options.agentRunMetadataService ??
+    createAgentRunMetadataService({ getAdminClient });
   const settingsService =
     options.settingsService ?? createSettingsService({ createUserClient });
   const uploadService =
@@ -140,8 +155,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerHealthRoutes(app, env);
   void registerImageProxyRoute(app);
   void registerRunRoutes(app, agentRuns, {
+    agentRunMetadataService,
     auth,
     settingsService,
+    threadService,
     viewerService,
   });
   void registerSseRoutes(app, agentRuns, env);
