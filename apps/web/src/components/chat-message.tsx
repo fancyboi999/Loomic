@@ -40,8 +40,31 @@ export function ChatMessage({
     }
   }
 
+  // Show thinking indicator when streaming but no text content has arrived yet
+  const hasTextContent = contentBlocks.some(
+    (b) => b.type === "text" && b.text.length > 0,
+  );
+  const showThinking = isStreaming && !hasTextContent;
+
   return (
     <div className="flex w-full flex-col gap-2 pr-10">
+      {showThinking && (
+        <div className="flex items-center gap-1 text-sm text-[#A4A9B2]">
+          <span>思考中</span>
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "0ms" }}
+          />
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "150ms" }}
+          />
+          <span
+            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            style={{ animationDelay: "300ms" }}
+          />
+        </div>
+      )}
       {contentBlocks.map((block, idx) => {
         if (block.type === "text") {
           return (
