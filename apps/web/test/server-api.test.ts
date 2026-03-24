@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import {
+  createRun,
   fetchViewer,
   fetchProjects,
   createProject,
@@ -32,6 +33,68 @@ describe("authenticated server API", () => {
       }),
     );
     expect(result.profile.id).toBe("u1");
+  });
+
+  it("createRun sends bearer auth when access token is provided", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        runId: "run_123",
+        sessionId: "session_123",
+        conversationId: "conversation_123",
+        status: "accepted",
+      }),
+    });
+
+    await createRun(
+      {
+        sessionId: "session_123",
+        conversationId: "conversation_123",
+        prompt: "Hello",
+      },
+      { accessToken: "token_abc" },
+    );
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3001/api/agent/runs",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer token_abc",
+          "content-type": "application/json",
+        },
+      }),
+    );
+  });
+
+  it("createRun keeps demo calls unauthenticated by default", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({
+        runId: "run_123",
+        sessionId: "session_123",
+        conversationId: "conversation_123",
+        status: "accepted",
+      }),
+    });
+
+    await createRun({
+      sessionId: "session_123",
+      conversationId: "conversation_123",
+      prompt: "Hello",
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3001/api/agent/runs",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
   });
 
   it("createProject sends POST with bearer token and handles 201", async () => {

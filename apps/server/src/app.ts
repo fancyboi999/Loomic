@@ -3,6 +3,10 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
+import {
+  createAgentPersistenceService,
+  type AgentPersistenceService,
+} from "./agent/persistence/index.js";
 import { createAgentRunService } from "./agent/runtime.js";
 import { registerImageProvider } from "./generation/providers/registry.js";
 import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
@@ -22,6 +26,14 @@ import {
   createChatService,
   type ChatService,
 } from "./features/chat/chat-service.js";
+import {
+  createThreadService,
+  type ThreadService,
+} from "./features/chat/thread-service.js";
+import {
+  createAgentRunMetadataService,
+  type AgentRunMetadataService,
+} from "./features/agent-runs/agent-run-service.js";
 import {
   createSettingsService,
   type SettingsService,
@@ -52,6 +64,8 @@ import {
 export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
   agentModel?: BaseLanguageModel | string;
+  agentPersistenceService?: AgentPersistenceService;
+  agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
   canvasService?: CanvasService;
   chatService?: ChatService;
@@ -60,6 +74,7 @@ export type BuildAppOptions = {
   mockEventDelayMs?: number;
   projectService?: ProjectService;
   settingsService?: SettingsService;
+  threadService?: ThreadService;
   viewerService?: ViewerService;
 };
 
@@ -77,14 +92,6 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
-  const agentRuns = createAgentRunService({
-    ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
-    ...(options.agentModel ? { model: options.agentModel } : {}),
-    ...(options.mockEventDelayMs === undefined
-      ? {}
-      : { eventDelayMs: options.mockEventDelayMs }),
-    env,
-  });
   const auth = options.auth ?? createSupabaseRequestAuthenticator(env);
   const createUserClient = createUserSupabaseClientFactory(env);
   let adminClient:
@@ -101,8 +108,25 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     createProjectService({ createUserClient, viewerService });
   const canvasService =
     options.canvasService ?? createCanvasService({ createUserClient });
+  const threadService =
+    options.threadService ?? createThreadService({ createUserClient });
   const chatService =
-    options.chatService ?? createChatService({ createUserClient });
+    options.chatService ?? createChatService({ createUserClient, threadService });
+  const agentRunMetadataService =
+    options.agentRunMetadataService ??
+    createAgentRunMetadataService({ getAdminClient });
+  const agentPersistenceService =
+    options.agentPersistenceService ?? createAgentPersistenceService(env);
+  const agentRuns = createAgentRunService({
+    agentPersistenceService,
+    ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
+    agentRunMetadataService,
+    ...(options.agentModel ? { model: options.agentModel } : {}),
+    ...(options.mockEventDelayMs === undefined
+      ? {}
+      : { eventDelayMs: options.mockEventDelayMs }),
+    env,
+  });
   const settingsService =
     options.settingsService ?? createSettingsService({ createUserClient });
   const uploadService =
@@ -140,8 +164,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerHealthRoutes(app, env);
   void registerImageProxyRoute(app);
   void registerRunRoutes(app, agentRuns, {
+    agentRunMetadataService,
     auth,
     settingsService,
+    threadService,
     viewerService,
   });
   void registerSseRoutes(app, agentRuns, env);

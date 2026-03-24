@@ -38,6 +38,7 @@ export async function* adaptDeepAgentStream(
 ): AsyncGenerator<StreamEvent> {
   const now = options.now ?? (() => new Date().toISOString());
   const seenCompletedToolCalls = new Set<string>();
+  const seenStreamedMessageIds = new Set<string>();
   const seenStartedToolCalls = new Set<string>();
 
   yield {
@@ -83,10 +84,13 @@ export async function* adaptDeepAgentStream(
         const delta = extractChunkText(chunk);
         if (!delta) continue;
 
+        const messageId =
+          (chunk as { id?: string }).id ?? `message_${options.runId}`;
+        seenStreamedMessageIds.add(messageId);
+
         yield {
           delta,
-          messageId:
-            (chunk as { id?: string }).id ?? `message_${options.runId}`,
+          messageId,
           runId: options.runId,
           timestamp: now(),
           type: "message.delta",
@@ -104,16 +108,18 @@ export async function* adaptDeepAgentStream(
           AIMessageChunkClass.isInstance(output)
         ) {
           const msg = output as AIMessage | AIMessageChunk;
+          const messageId = msg.id ?? `message_${options.runId}`;
 
           // Skip if this was a tool call message (tool lifecycle via on_tool_*)
           if ((msg.tool_calls?.length ?? 0) > 0) continue;
+          if (seenStreamedMessageIds.has(messageId)) continue;
 
           const delta = extractChunkText(msg);
           if (!delta) continue;
 
           yield {
             delta,
-            messageId: msg.id ?? `message_${options.runId}`,
+            messageId,
             runId: options.runId,
             timestamp: now(),
             type: "message.delta",

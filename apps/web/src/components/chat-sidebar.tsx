@@ -330,11 +330,16 @@ export function ChatSidebar({
       abortRef.current = false;
 
       try {
-        const run = await createRun({
-          sessionId: `session-${canvasId}`,
-          conversationId: canvasId,
-          prompt: text,
-        });
+        const run = await createRun(
+          {
+            sessionId: currentSessionId,
+            conversationId: canvasId,
+            prompt: text,
+          },
+          {
+            accessToken: accessTokenRef.current,
+          },
+        );
 
         let assistantContent = "";
         let assistantTools: ToolActivity[] | undefined;

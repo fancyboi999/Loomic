@@ -91,7 +91,7 @@ describe("createCanvasService", () => {
         service.saveCanvasContent(
           user,
           "canvas-1",
-          { elements: [], appState: {} },
+          { elements: [], appState: {}, files: {} },
         ),
       ).resolves.toBeUndefined();
     });
@@ -109,7 +109,7 @@ describe("createCanvasService", () => {
         service.saveCanvasContent(
           user,
           "canvas-1",
-          { elements: [], appState: {} },
+          { elements: [], appState: {}, files: {} },
         ),
       ).rejects.toMatchObject({
         code: "canvas_save_failed",

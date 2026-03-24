@@ -179,6 +179,15 @@ describe("settings routes", () => {
     expect(body.models[0]).toHaveProperty("id");
     expect(body.models[0]).toHaveProperty("name");
     expect(body.models[0]).toHaveProperty("provider");
+    expect(body.models).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "az_sre/gpt-5.4",
+          name: "AZ SRE GPT-5.4",
+          provider: "openai",
+        }),
+      ]),
+    );
   });
 });
 

@@ -53,6 +53,7 @@ export type Database = {
           canvas_id: string
           title: string
           created_by: string | null
+          thread_id: string | null
           created_at: string
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           canvas_id: string
           title?: string
           created_by?: string | null
+          thread_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -69,6 +71,7 @@ export type Database = {
           canvas_id?: string
           title?: string
           created_by?: string | null
+          thread_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -78,6 +81,50 @@ export type Database = {
             columns: ["canvas_id"]
             isOneToOne: false
             referencedRelation: "canvases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          id: string
+          session_id: string
+          thread_id: string
+          status: string
+          model: string | null
+          created_at: string
+          completed_at: string | null
+          error_code: string | null
+          error_message: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          thread_id: string
+          status: string
+          model?: string | null
+          created_at?: string
+          completed_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          thread_id?: string
+          status?: string
+          model?: string | null
+          created_at?: string
+          completed_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -357,6 +404,163 @@ export type Database = {
     Enums: {
       workspace_member_role: "owner" | "admin" | "member"
       workspace_type: "personal" | "team"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  langgraph: {
+    Tables: {
+      checkpoint_migrations: {
+        Row: {
+          v: number
+        }
+        Insert: {
+          v: number
+        }
+        Update: {
+          v?: number
+        }
+        Relationships: []
+      }
+      checkpoints: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          parent_checkpoint_id: string | null
+          type: string | null
+          checkpoint: Json
+          metadata: Json
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          parent_checkpoint_id?: string | null
+          type?: string | null
+          checkpoint: Json
+          metadata?: Json
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          parent_checkpoint_id?: string | null
+          type?: string | null
+          checkpoint?: Json
+          metadata?: Json
+        }
+        Relationships: []
+      }
+      checkpoint_blobs: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          channel: string
+          version: string
+          type: string
+          blob: string | null
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          channel: string
+          version: string
+          type: string
+          blob?: string | null
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          channel?: string
+          version?: string
+          type?: string
+          blob?: string | null
+        }
+        Relationships: []
+      }
+      checkpoint_writes: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          type: string | null
+          blob: string
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          type?: string | null
+          blob: string
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          task_id?: string
+          idx?: number
+          channel?: string
+          type?: string | null
+          blob?: string
+        }
+        Relationships: []
+      }
+      store_migrations: {
+        Row: {
+          v: number
+        }
+        Insert: {
+          v: number
+        }
+        Update: {
+          v?: number
+        }
+        Relationships: []
+      }
+      store: {
+        Row: {
+          namespace_path: string
+          key: string
+          value: Json
+          created_at: string | null
+          updated_at: string | null
+          expires_at: string | null
+        }
+        Insert: {
+          namespace_path: string
+          key: string
+          value: Json
+          created_at?: string | null
+          updated_at?: string | null
+          expires_at?: string | null
+        }
+        Update: {
+          namespace_path?: string
+          key?: string
+          value?: Json
+          created_at?: string | null
+          updated_at?: string | null
+          expires_at?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never

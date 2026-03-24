@@ -40,10 +40,20 @@ export class ApiApplicationError extends Error {
 
 // --- Existing ---
 
-export async function createRun(payload: RunCreateRequest) {
+export async function createRun(
+  payload: RunCreateRequest,
+  options?: { accessToken?: string },
+) {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (options?.accessToken) {
+    headers.Authorization = `Bearer ${options.accessToken}`;
+  }
+
   const response = await fetch(`${getServerBaseUrl()}/api/agent/runs`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
 

@@ -6,6 +6,7 @@ import type {
 } from "@loomic/shared";
 
 import type { AuthenticatedUser, UserSupabaseClient } from "../../supabase/user.js";
+import type { ThreadService } from "./thread-service.js";
 
 export class ChatServiceError extends Error {
   readonly statusCode: number;
@@ -54,6 +55,7 @@ export type ChatService = {
 
 export function createChatService(options: {
   createUserClient: (accessToken: string) => UserSupabaseClient;
+  threadService: Pick<ThreadService, "createThreadId">;
 }): ChatService {
   return {
     async listSessions(user, canvasId) {
@@ -82,6 +84,7 @@ export function createChatService(options: {
         .insert({
           canvas_id: canvasId,
           created_by: user.id,
+          thread_id: options.threadService.createThreadId(),
           ...(title ? { title } : {}),
         })
         .select("id, title, updated_at")

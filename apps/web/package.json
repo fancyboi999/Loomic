@@ -36,6 +36,6 @@
     "build": "next build",
     "dev": "next dev -p 3000",
     "test": "vitest run test",
-    "typecheck": "next typegen && node -e \"const { existsSync } = require('node:fs'); const required = ['.next/types/app/layout.ts', '.next/types/app/page.ts']; const startedAt = Date.now(); (function waitForTypes() { if (required.every((file) => existsSync(file))) { return; } if (Date.now() - startedAt > 3000) { console.error('Next.js route types did not materialize in time.'); process.exit(1); } setTimeout(waitForTypes, 50); })();\" && tsc -p tsconfig.json --noEmit"
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit"
   }
 }
