@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ChatMessage as ChatMessageData,
   ChatSessionSummary,
+  ImageArtifact,
   StreamEvent,
 } from "@loomic/shared";
 import {
@@ -33,6 +34,7 @@ type ChatSidebarProps = {
   canvasId: string;
   open: boolean;
   onToggle: () => void;
+  onImageGenerated?: (artifact: ImageArtifact) => void;
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -51,6 +53,7 @@ export function ChatSidebar({
   canvasId,
   open,
   onToggle,
+  onImageGenerated,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -226,6 +229,9 @@ export function ChatSidebar({
                             ...t,
                             status: "completed" as const,
                             outputSummary: event.outputSummary,
+                            ...(event.artifacts
+                              ? { artifacts: event.artifacts }
+                              : {}),
                           }
                         : t,
                     ),
@@ -326,6 +332,18 @@ export function ChatSidebar({
             if (tool) {
               tool.status = "completed";
               tool.outputSummary = event.outputSummary;
+              if (event.artifacts) {
+                (tool as any).artifacts = event.artifacts;
+              }
+            }
+
+            // Fire canvas insertion callback for image artifacts
+            if (event.artifacts && onImageGenerated) {
+              for (const artifact of event.artifacts) {
+                if (artifact.type === "image") {
+                  onImageGenerated(artifact as ImageArtifact);
+                }
+              }
             }
           }
         }
@@ -350,7 +368,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent],
+    [streaming, canvasId, handleStreamEvent, onImageGenerated],
   );
 
   if (!open) {
