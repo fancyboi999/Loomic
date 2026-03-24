@@ -131,15 +131,33 @@ export async function insertImageOnCanvas(
     },
   ]);
 
-  const scaled = scaleToFit(artifact.width, artifact.height, 600);
-  const center = getViewportCenter(api.getAppState());
+  let x: number;
+  let y: number;
+  let width: number;
+  let height: number;
+
+  if (artifact.placement) {
+    // Agent-controlled placement
+    x = artifact.placement.x;
+    y = artifact.placement.y;
+    width = artifact.placement.width;
+    height = artifact.placement.height;
+  } else {
+    // Fallback: viewport center
+    const scaled = scaleToFit(artifact.width, artifact.height, 600);
+    const center = getViewportCenter(api.getAppState());
+    x = center.x - scaled.width / 2;
+    y = center.y - scaled.height / 2;
+    width = scaled.width;
+    height = scaled.height;
+  }
 
   const element = createExcalidrawImageElement({
     fileId,
-    x: center.x - scaled.width / 2,
-    y: center.y - scaled.height / 2,
-    width: scaled.width,
-    height: scaled.height,
+    x,
+    y,
+    width,
+    height,
   });
 
   api.updateScene({

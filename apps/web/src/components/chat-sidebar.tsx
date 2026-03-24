@@ -335,6 +335,7 @@ export function ChatSidebar({
             sessionId: currentSessionId,
             conversationId: canvasId,
             prompt: text,
+            canvasId,
           },
           {
             accessToken: accessTokenRef.current,
