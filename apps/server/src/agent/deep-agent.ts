@@ -1,3 +1,4 @@
+import type { BaseCheckpointSaver, BaseStore } from "@langchain/langgraph-checkpoint";
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { ChatOpenAI } from "@langchain/openai";
 import type { BackendFactory } from "deepagents";
@@ -13,8 +14,10 @@ export type LoomicAgent = Pick<
 >;
 
 export type LoomicAgentFactory = (options: {
+  checkpointer?: BaseCheckpointSaver;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
+  store?: BaseStore;
 }) => LoomicAgent;
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -22,8 +25,10 @@ const DEFAULT_SYSTEM_PROMPT =
 
 export function createLoomicDeepAgent(options: {
   backendFactory?: BackendFactory;
+  checkpointer?: BaseCheckpointSaver;
   env: ServerEnv;
   model?: BaseLanguageModel | string;
+  store?: BaseStore;
 }): LoomicAgent {
   const backendFactory =
     options.backendFactory ?? createAgentBackendFactory(options.env);
@@ -38,8 +43,10 @@ export function createLoomicDeepAgent(options: {
 
   return createDeepAgent({
     backend: backendFactory,
+    ...(options.checkpointer ? { checkpointer: options.checkpointer } : {}),
     model: resolvedModel,
     name: "loomic-phase-a",
+    ...(options.store ? { store: options.store } : {}),
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     tools: createPhaseATools(backendFactory),
   });

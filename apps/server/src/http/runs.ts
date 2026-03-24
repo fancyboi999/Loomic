@@ -76,7 +76,10 @@ export async function registerRunRoutes(
       }
 
       const response = runCreateResponseSchema.parse(
-        agentRuns.createRun(payload, model ? { model } : undefined),
+        agentRuns.createRun(payload, {
+          ...(model ? { model } : {}),
+          ...(sessionThread ? { threadId: sessionThread.threadId } : {}),
+        }),
       );
 
       if (sessionThread && options.agentRunMetadataService) {

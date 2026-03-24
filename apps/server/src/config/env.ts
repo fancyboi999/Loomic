@@ -16,6 +16,7 @@ export type ServerEnv = {
   port: number;
   replicateApiToken?: string;
   supabaseAnonKey?: string;
+  supabaseDbUrl?: string;
   supabaseProjectId?: string;
   supabaseServiceRoleKey?: string;
   supabaseUrl?: string;
@@ -41,6 +42,8 @@ export function loadServerEnv(
   const supabaseAnonKey =
     overrides.supabaseAnonKey ??
     normalizeOptionalString(source.SUPABASE_ANON_KEY);
+  const supabaseDbUrl =
+    overrides.supabaseDbUrl ?? normalizeOptionalString(source.SUPABASE_DB_URL);
   const supabaseServiceRoleKey =
     overrides.supabaseServiceRoleKey ??
     normalizeOptionalString(source.SUPABASE_SERVICE_ROLE_KEY);
@@ -71,6 +74,7 @@ export function loadServerEnv(
     ...(openAIApiKey ? { openAIApiKey } : {}),
     ...(supabaseUrl ? { supabaseUrl } : {}),
     ...(supabaseAnonKey ? { supabaseAnonKey } : {}),
+    ...(supabaseDbUrl ? { supabaseDbUrl } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
     ...(supabaseProjectId ? { supabaseProjectId } : {}),
     ...(replicateApiToken ? { replicateApiToken } : {}),

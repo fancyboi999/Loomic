@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { BaseChatModel as BaseChatModelClass } from "@langchain/core/language_models/chat_models";
@@ -8,6 +8,9 @@ import { runCreateResponseSchema, streamEventSchema } from "@loomic/shared";
 import { AIMessage, type BaseMessage } from "langchain";
 
 import type { LoomicAgentFactory } from "../src/agent/deep-agent.js";
+import type { AgentPersistenceService } from "../src/agent/persistence/index.js";
+import type { AgentRunMetadataService } from "../src/features/agent-runs/agent-run-service.js";
+import type { ThreadService } from "../src/features/chat/thread-service.js";
 import { buildApp } from "../src/app.js";
 
 const appsUnderTest = new Set<Awaited<ReturnType<typeof buildApp>>>();
@@ -190,14 +193,208 @@ describe("deep-agent runtime integration", () => {
     expect(failedEvent.error.code).toBe("run_failed");
     expect(failedEvent.error.message).toBe("agent factory exploded");
   });
+
+  it("passes the stable thread_id and injected persistence into runtime-backed agent creation", async () => {
+    const capturedAgentOptions: Array<{
+      checkpointer?: unknown;
+      store?: unknown;
+    }> = [];
+    const capturedConfigs: Array<Record<string, unknown>> = [];
+    const checkpointer = { kind: "checkpointer" };
+    const store = { kind: "store" };
+    const persistenceService = {
+      getPersistence: vi.fn().mockResolvedValue({ checkpointer, store }),
+    } satisfies AgentPersistenceService;
+    const authUser = stubUser();
+
+    const server = await startServer({
+      agentPersistenceService: persistenceService,
+      agentRunMetadataService: createAgentRunMetadataServiceStub({}),
+      auth: createAuthStub(authUser),
+      createAgent: (options) => {
+        capturedAgentOptions.push({
+          checkpointer: options.checkpointer,
+          store: options.store,
+        });
+        return createEmptyAgent((config) => {
+          capturedConfigs.push(config as Record<string, unknown>);
+        });
+      },
+      threadService: createThreadServiceStub({
+        sessionId: "session_123",
+        threadId: "thread_stable",
+      }),
+    });
+
+    for (let index = 0; index < 2; index += 1) {
+      const createResponse = await fetch(`${server.baseUrl}/api/agent/runs`, {
+        body: JSON.stringify({
+          conversationId: "conversation_123",
+          prompt: `Prompt ${index + 1}`,
+          sessionId: "session_123",
+        }),
+        headers: {
+          authorization: `Bearer ${authUser.accessToken}`,
+          "content-type": "application/json",
+        },
+        method: "POST",
+      });
+      const createdRun = runCreateResponseSchema.parse(
+        await createResponse.json(),
+      );
+      const eventsResponse = await fetch(
+        `${server.baseUrl}/api/agent/runs/${createdRun.runId}/events`,
+      );
+      await collectSseEvents(eventsResponse);
+    }
+
+    expect(capturedAgentOptions).toEqual([
+      { checkpointer, store },
+      { checkpointer, store },
+    ]);
+    expect(capturedConfigs).toEqual([
+      expect.objectContaining({
+        configurable: {
+          thread_id: "thread_stable",
+        },
+      }),
+      expect.objectContaining({
+        configurable: {
+          thread_id: "thread_stable",
+        },
+      }),
+    ]);
+  });
+
+  it("updates persisted run metadata when a threaded run completes", async () => {
+    const persistedUpdates: Array<{ runId: string; status: string }> = [];
+    const authUser = stubUser();
+
+    const server = await startServer({
+      agentPersistenceService: {
+        async getPersistence() {
+          return {
+            checkpointer: {} as never,
+            store: {} as never,
+          };
+        },
+      },
+      agentRunMetadataService: createAgentRunMetadataServiceStub({
+        onUpdate(input) {
+          persistedUpdates.push({
+            runId: input.runId,
+            status: input.status,
+          });
+        },
+      }),
+      auth: createAuthStub(authUser),
+      createAgent: () =>
+        createRawEventAgent([
+          {
+            data: {
+              output: new AIMessage({
+                content: "Persist status",
+                id: "message_1",
+              }),
+            },
+            event: "on_chat_model_end",
+          },
+        ]),
+      mockEventDelayMs: 5,
+      threadService: createThreadServiceStub({
+        sessionId: "session_123",
+        threadId: "thread_stable",
+      }),
+    });
+
+    const createResponse = await fetch(`${server.baseUrl}/api/agent/runs`, {
+      body: JSON.stringify({
+        conversationId: "conversation_123",
+        prompt: "Persist status",
+        sessionId: "session_123",
+      }),
+      headers: {
+        authorization: `Bearer ${authUser.accessToken}`,
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+    const createdRun = runCreateResponseSchema.parse(await createResponse.json());
+    const eventsResponse = await fetch(
+      `${server.baseUrl}/api/agent/runs/${createdRun.runId}/events`,
+    );
+    const events = await collectSseEvents(eventsResponse);
+
+    expect(events.map((event) => event.type)).toContain("run.completed");
+    expect(persistedUpdates).toEqual(
+      expect.arrayContaining([
+        { runId: createdRun.runId, status: "running" },
+        { runId: createdRun.runId, status: "completed" },
+      ]),
+    );
+  });
+
+  it("emits run.failed when threaded persistence initialization fails", async () => {
+    const authUser = stubUser();
+
+    const server = await startServer({
+      agentPersistenceService: {
+        async getPersistence() {
+          throw new Error("persistence exploded");
+        },
+      },
+      agentRunMetadataService: createAgentRunMetadataServiceStub({}),
+      auth: createAuthStub(authUser),
+      threadService: createThreadServiceStub({
+        sessionId: "session_123",
+        threadId: "thread_stable",
+      }),
+    });
+
+    const createResponse = await fetch(`${server.baseUrl}/api/agent/runs`, {
+      body: JSON.stringify({
+        conversationId: "conversation_123",
+        prompt: "Persist status",
+        sessionId: "session_123",
+      }),
+      headers: {
+        authorization: `Bearer ${authUser.accessToken}`,
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
+    const createdRun = runCreateResponseSchema.parse(await createResponse.json());
+    const eventsResponse = await fetch(
+      `${server.baseUrl}/api/agent/runs/${createdRun.runId}/events`,
+    );
+    const events = await collectSseEvents(eventsResponse);
+    const failedEvent = events.at(-1);
+
+    if (!failedEvent || failedEvent.type !== "run.failed") {
+      throw new Error("Expected run.failed event.");
+    }
+
+    expect(failedEvent.error.message).toBe("persistence exploded");
+  });
 });
 
 async function startServer(options: {
+  agentPersistenceService?: AgentPersistenceService;
+  agentRunMetadataService?: AgentRunMetadataService;
   agentModel?: BaseChatModel;
+  auth?: { authenticate(request: { headers: { authorization?: string } }): Promise<ReturnType<typeof stubUser> | null> };
   createAgent?: LoomicAgentFactory;
   mockEventDelayMs?: number;
+  threadService?: ThreadService;
 }) {
   const app = buildApp({
+    ...(options.agentPersistenceService
+      ? { agentPersistenceService: options.agentPersistenceService }
+      : {}),
+    ...(options.agentRunMetadataService
+      ? { agentRunMetadataService: options.agentRunMetadataService }
+      : {}),
+    ...(options.auth ? { auth: options.auth } : {}),
     env: {
       port: 3001,
       version: "9.9.9-test",
@@ -208,6 +405,7 @@ async function startServer(options: {
     ...(options.mockEventDelayMs === undefined
       ? {}
       : { mockEventDelayMs: options.mockEventDelayMs }),
+    ...(options.threadService ? { threadService: options.threadService } : {}),
   });
   appsUnderTest.add(app);
 
@@ -222,6 +420,80 @@ async function startServer(options: {
     app,
     baseUrl: `http://127.0.0.1:${address.port}`,
   };
+}
+
+function stubUser() {
+  return {
+    accessToken: "runtime-test-token",
+    email: "user@example.com",
+    id: "user-1",
+    userMetadata: {},
+  };
+}
+
+function createAuthStub(user: ReturnType<typeof stubUser>) {
+  return {
+    async authenticate(request: { headers: { authorization?: string } }) {
+      return request.headers.authorization === `Bearer ${user.accessToken}`
+        ? user
+        : null;
+    },
+  };
+}
+
+function createThreadServiceStub(input: {
+  sessionId: string;
+  threadId: string;
+}): ThreadService {
+  return {
+    createThreadId() {
+      return input.threadId;
+    },
+    async resolveOwnedSessionThread() {
+      return input;
+    },
+  };
+}
+
+function createAgentRunMetadataServiceStub(options: {
+  onUpdate?: (input: { runId: string; status: string }) => void;
+}): AgentRunMetadataService {
+  return {
+    async createAcceptedRun() {},
+    async updateRun(input) {
+      options.onUpdate?.({
+        runId: input.runId,
+        status: input.status,
+      });
+    },
+  };
+}
+
+function createEmptyAgent(
+  onStreamEvents: (config: unknown) => void,
+): ReturnType<LoomicAgentFactory> {
+  return {
+    stream: undefined,
+    streamEvents(_input: unknown, config: unknown) {
+      onStreamEvents(config);
+      return (async function* () {})() as never;
+    },
+  } as unknown as ReturnType<LoomicAgentFactory>;
+}
+
+function createRawEventAgent(
+  events: Array<Record<string, unknown>>,
+): ReturnType<LoomicAgentFactory> {
+  return {
+    stream: undefined,
+    streamEvents() {
+      return (async function* () {
+        for (const event of events) {
+          yield event;
+        }
+      })() as never;
+    },
+  } as unknown as ReturnType<LoomicAgentFactory>;
 }
 
 async function collectSseEvents(

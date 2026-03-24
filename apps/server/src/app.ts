@@ -3,6 +3,10 @@ import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
+import {
+  createAgentPersistenceService,
+  type AgentPersistenceService,
+} from "./agent/persistence/index.js";
 import { createAgentRunService } from "./agent/runtime.js";
 import { registerImageProvider } from "./generation/providers/registry.js";
 import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
@@ -60,6 +64,7 @@ import {
 export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
   agentModel?: BaseLanguageModel | string;
+  agentPersistenceService?: AgentPersistenceService;
   agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
   canvasService?: CanvasService;
@@ -87,14 +92,6 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
-  const agentRuns = createAgentRunService({
-    ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
-    ...(options.agentModel ? { model: options.agentModel } : {}),
-    ...(options.mockEventDelayMs === undefined
-      ? {}
-      : { eventDelayMs: options.mockEventDelayMs }),
-    env,
-  });
   const auth = options.auth ?? createSupabaseRequestAuthenticator(env);
   const createUserClient = createUserSupabaseClientFactory(env);
   let adminClient:
@@ -118,6 +115,18 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const agentRunMetadataService =
     options.agentRunMetadataService ??
     createAgentRunMetadataService({ getAdminClient });
+  const agentPersistenceService =
+    options.agentPersistenceService ?? createAgentPersistenceService(env);
+  const agentRuns = createAgentRunService({
+    agentPersistenceService,
+    ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
+    agentRunMetadataService,
+    ...(options.agentModel ? { model: options.agentModel } : {}),
+    ...(options.mockEventDelayMs === undefined
+      ? {}
+      : { eventDelayMs: options.mockEventDelayMs }),
+    env,
+  });
   const settingsService =
     options.settingsService ?? createSettingsService({ createUserClient });
   const uploadService =
