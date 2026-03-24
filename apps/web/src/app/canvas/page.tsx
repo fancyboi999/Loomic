@@ -7,6 +7,7 @@ import type { ImageArtifact } from "@loomic/shared";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
+import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
 
@@ -30,6 +31,7 @@ function CanvasPageContent() {
   const [chatOpen, setChatOpen] = useState(true);
 
   const excalidrawApiRef = useRef<any>(null);
+  const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
 
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
@@ -42,6 +44,7 @@ function CanvasPageContent() {
 
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
+    setExcalidrawApi(api);
   }, []);
 
   const handleImageGenerated = useCallback((artifact: ImageArtifact) => {
@@ -131,6 +134,10 @@ function CanvasPageContent() {
           onApiReady={handleApiReady}
         />
       </div>
+      <CanvasEmptyHint
+        excalidrawApi={excalidrawApi}
+        onOpenChat={() => setChatOpen(true)}
+      />
       <ChatSidebar
         accessToken={accessToken}
         canvasId={canvasData.id}
