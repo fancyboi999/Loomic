@@ -53,6 +53,7 @@ export type Database = {
           canvas_id: string
           title: string
           created_by: string | null
+          thread_id: string | null
           created_at: string
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           canvas_id: string
           title?: string
           created_by?: string | null
+          thread_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -69,6 +71,7 @@ export type Database = {
           canvas_id?: string
           title?: string
           created_by?: string | null
+          thread_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -81,6 +84,153 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      agent_runs: {
+        Row: {
+          id: string
+          session_id: string
+          thread_id: string
+          status: string
+          model: string | null
+          created_at: string
+          completed_at: string | null
+          error_code: string | null
+          error_message: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          thread_id: string
+          status: string
+          model?: string | null
+          created_at?: string
+          completed_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          thread_id?: string
+          status?: string
+          model?: string | null
+          created_at?: string
+          completed_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_checkpoints: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          parent_checkpoint_id: string | null
+          payload: Json
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          parent_checkpoint_id?: string | null
+          payload: Json
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          parent_checkpoint_id?: string | null
+          payload?: Json
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_checkpoints_parent_fkey"
+            columns: ["thread_id", "checkpoint_ns", "parent_checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "agent_checkpoints"
+            referencedColumns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
+          },
+        ]
+      }
+      agent_checkpoint_writes: {
+        Row: {
+          thread_id: string
+          checkpoint_ns: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          value: Json
+          created_at: string
+        }
+        Insert: {
+          thread_id: string
+          checkpoint_ns?: string
+          checkpoint_id: string
+          task_id: string
+          idx: number
+          channel: string
+          value: Json
+          created_at?: string
+        }
+        Update: {
+          thread_id?: string
+          checkpoint_ns?: string
+          checkpoint_id?: string
+          task_id?: string
+          idx?: number
+          channel?: string
+          value?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_checkpoint_writes_checkpoint_fkey"
+            columns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "agent_checkpoints"
+            referencedColumns: ["thread_id", "checkpoint_ns", "checkpoint_id"]
+          },
+        ]
+      }
+      agent_store_items: {
+        Row: {
+          namespace: string[]
+          key: string
+          value: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          namespace: string[]
+          key: string
+          value: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          namespace?: string[]
+          key?: string
+          value?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       asset_objects: {
         Row: {

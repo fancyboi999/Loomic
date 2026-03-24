@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 import type { ZodType } from "zod";
 
 import {
+  type Database,
   errorCodeValues,
   healthResponseSchema,
   runCancelResponseSchema,
@@ -10,6 +13,11 @@ import {
   streamEventSchema,
 } from "./index.js";
 import * as sharedExports from "./index.js";
+
+const databaseTypeSource = readFileSync(
+  new URL("./supabase/database.ts", import.meta.url),
+  "utf8",
+);
 
 describe("@loomic/shared contracts", () => {
   it("shares the health response schema for server and web", () => {
@@ -39,6 +47,15 @@ describe("@loomic/shared contracts", () => {
 
     expect(request.sessionId).toBe("session_123");
     expect(response.status).toBe("accepted");
+  });
+
+  it("rejects run creation without a real sessionId", () => {
+    expect(() =>
+      runCreateRequestSchema.parse({
+        conversationId: "conversation_123",
+        prompt: "Create a new storyboard outline",
+      }),
+    ).toThrow();
   });
 
   it("shares a stable cancel response schema", () => {
@@ -381,7 +398,63 @@ describe("@loomic/shared contracts", () => {
       errorCodeValues,
     );
   });
+
+  it("keeps run creation response stable for clients while hiding checkpoint internals", () => {
+    const response = runCreateResponseSchema.parse({
+      runId: "run_123",
+      sessionId: "session_123",
+      conversationId: "conversation_123",
+      status: "accepted",
+      checkpointId: "checkpoint_123",
+      checkpointNamespace: "root",
+    });
+
+    expect(response).toEqual({
+      runId: "run_123",
+      sessionId: "session_123",
+      conversationId: "conversation_123",
+      status: "accepted",
+    });
+  });
+
+  it("tracks server-owned thread_id in shared Supabase typings", () => {
+    expect(databaseTypeSource).toMatch(/thread_id:\s*string \| null/);
+  });
+
+  it("declares shared agent_runs persistence typings", () => {
+    expect(databaseTypeSource).toMatch(/agent_runs:\s*{/);
+    expect(databaseTypeSource).toMatch(/session_id:\s*string/);
+    expect(databaseTypeSource).toMatch(/thread_id:\s*string/);
+  });
 });
+
+type AssertTrue<T extends true> = T;
+type Extends<T, U> = [T] extends [U] ? true : false;
+
+const chatSessionRowSupportsServerOwnedThreadId: AssertTrue<
+  Extends<
+    Database["public"]["Tables"]["chat_sessions"]["Row"],
+    { thread_id: string | null }
+  >
+> = true;
+
+const agentRunsRowTracksSessionAndThread: AssertTrue<
+  Extends<
+    Database["public"]["Tables"]["agent_runs"]["Row"],
+    {
+      session_id: string;
+      thread_id: string;
+      status: string;
+      created_at: string;
+      completed_at: string | null;
+      error_code: string | null;
+      error_message: string | null;
+    }
+  >
+> = true;
+
+void chatSessionRowSupportsServerOwnedThreadId;
+void agentRunsRowTracksSessionAndThread;
 
 function getExportedSchema(name: string): ZodType {
   const candidate = (sharedExports as Record<string, unknown>)[name];
