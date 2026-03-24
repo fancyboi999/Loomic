@@ -164,6 +164,24 @@ export async function saveCanvas(
   if (!response.ok) return handleErrorResponse(response);
 }
 
+export async function uploadThumbnail(
+  accessToken: string,
+  projectId: string,
+  blob: Blob,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", blob, "thumbnail.webp");
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/projects/${projectId}/thumbnail`,
+    {
+      method: "PUT",
+      headers: authHeaders(accessToken),
+      body: formData,
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
 // --- Settings API ---
 
 export async function updateProfile(
