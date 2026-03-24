@@ -46,10 +46,10 @@ export function ProjectList({
             }`}
           >
             {/* Thumbnail placeholder */}
-            <div className="flex-1 rounded-lg bg-[#F5F5F5] overflow-hidden" />
+            <div className="aspect-[395/227] rounded-lg bg-[#F5F5F5] overflow-hidden" />
             {/* Info */}
             <div className="py-2">
-              <div className="text-sm font-medium truncate px-1 text-[#0E1014]">
+              <div className="text-sm font-medium truncate mt-2 px-1 text-[#0E1014]">
                 {project.name}
               </div>
               <div className="text-[11px] text-[#919191] px-1">
