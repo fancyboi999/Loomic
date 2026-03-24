@@ -7,120 +7,46 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
-      chat_messages: {
-        Row: {
-          id: string
-          session_id: string
-          role: string
-          content: string
-          tool_activities: Json | null
-          content_blocks: Json | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          role: string
-          content?: string
-          tool_activities?: Json | null
-          content_blocks?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          role?: string
-          content?: string
-          tool_activities?: Json | null
-          content_blocks?: Json | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "chat_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_sessions: {
-        Row: {
-          id: string
-          canvas_id: string
-          title: string
-          created_by: string | null
-          thread_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          canvas_id: string
-          title?: string
-          created_by?: string | null
-          thread_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          canvas_id?: string
-          title?: string
-          created_by?: string | null
-          thread_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_sessions_canvas_id_fkey"
-            columns: ["canvas_id"]
-            isOneToOne: false
-            referencedRelation: "canvases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       agent_runs: {
         Row: {
-          id: string
-          session_id: string
-          thread_id: string
-          status: string
-          model: string | null
-          created_at: string
           completed_at: string | null
+          created_at: string
           error_code: string | null
           error_message: string | null
+          id: string
+          model: string | null
+          session_id: string
+          status: string
+          thread_id: string
         }
         Insert: {
-          id?: string
-          session_id: string
-          thread_id: string
-          status: string
-          model?: string | null
-          created_at?: string
           completed_at?: string | null
+          created_at?: string
           error_code?: string | null
           error_message?: string | null
+          id?: string
+          model?: string | null
+          session_id: string
+          status: string
+          thread_id: string
         }
         Update: {
-          id?: string
-          session_id?: string
-          thread_id?: string
-          status?: string
-          model?: string | null
-          created_at?: string
           completed_at?: string | null
+          created_at?: string
           error_code?: string | null
           error_message?: string | null
+          id?: string
+          model?: string | null
+          session_id?: string
+          status?: string
+          thread_id?: string
         }
         Relationships: [
           {
@@ -183,6 +109,89 @@ export type Database = {
           },
         ]
       }
+      brand_kit_assets: {
+        Row: {
+          asset_type: Database["public"]["Enums"]["brand_kit_asset_type"]
+          created_at: string
+          display_name: string
+          file_url: string | null
+          id: string
+          kit_id: string
+          metadata: Json | null
+          role: string | null
+          sort_order: number
+          text_content: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset_type: Database["public"]["Enums"]["brand_kit_asset_type"]
+          created_at?: string
+          display_name?: string
+          file_url?: string | null
+          id?: string
+          kit_id: string
+          metadata?: Json | null
+          role?: string | null
+          sort_order?: number
+          text_content?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset_type?: Database["public"]["Enums"]["brand_kit_asset_type"]
+          created_at?: string
+          display_name?: string
+          file_url?: string | null
+          id?: string
+          kit_id?: string
+          metadata?: Json | null
+          role?: string | null
+          sort_order?: number
+          text_content?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kit_assets_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "brand_kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_kits: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          guidance_text: string | null
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          guidance_text?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          guidance_text?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       canvases: {
         Row: {
           content: Json
@@ -224,6 +233,82 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          content: string
+          content_blocks: Json | null
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          tool_activities: Json | null
+        }
+        Insert: {
+          content?: string
+          content_blocks?: Json | null
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+          tool_activities?: Json | null
+        }
+        Update: {
+          content?: string
+          content_blocks?: Json | null
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          tool_activities?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          canvas_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          thread_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          canvas_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          thread_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          canvas_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          thread_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_canvas_id_fkey"
+            columns: ["canvas_id"]
+            isOneToOne: false
+            referencedRelation: "canvases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -254,6 +339,7 @@ export type Database = {
       projects: {
         Row: {
           archived_at: string | null
+          brand_kit_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -266,6 +352,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          brand_kit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -278,6 +365,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          brand_kit_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -289,6 +377,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_brand_kit_id_fkey"
+            columns: ["brand_kit_id"]
+            isOneToOne: false
+            referencedRelation: "brand_kits"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -329,22 +424,22 @@ export type Database = {
       }
       workspace_settings: {
         Row: {
-          workspace_id: string
-          default_model: string
           created_at: string
+          default_model: string
           updated_at: string
+          workspace_id: string
         }
         Insert: {
-          workspace_id: string
-          default_model?: string
           created_at?: string
+          default_model?: string
           updated_at?: string
+          workspace_id: string
         }
         Update: {
-          workspace_id?: string
-          default_model?: string
           created_at?: string
+          default_model?: string
           updated_at?: string
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -389,184 +484,24 @@ export type Database = {
     }
     Functions: {
       bootstrap_viewer: {
-        Args: {
-          p_user_id: string
-          p_email: string
-          p_user_meta: Json
-        }
+        Args: { p_email: string; p_user_id: string; p_user_meta: Json }
         Returns: string
       }
       create_project_with_canvas: {
         Args: {
-          p_workspace_id: string
+          p_canvas_name?: string
+          p_description?: string
           p_name: string
           p_slug: string
-          p_description: string | null
-          p_canvas_name: string
+          p_workspace_id: string
         }
         Returns: Json
       }
     }
     Enums: {
+      brand_kit_asset_type: "color" | "font" | "logo" | "image"
       workspace_member_role: "owner" | "admin" | "member"
       workspace_type: "personal" | "team"
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-  langgraph: {
-    Tables: {
-      checkpoint_migrations: {
-        Row: {
-          v: number
-        }
-        Insert: {
-          v: number
-        }
-        Update: {
-          v?: number
-        }
-        Relationships: []
-      }
-      checkpoints: {
-        Row: {
-          thread_id: string
-          checkpoint_ns: string
-          checkpoint_id: string
-          parent_checkpoint_id: string | null
-          type: string | null
-          checkpoint: Json
-          metadata: Json
-        }
-        Insert: {
-          thread_id: string
-          checkpoint_ns?: string
-          checkpoint_id: string
-          parent_checkpoint_id?: string | null
-          type?: string | null
-          checkpoint: Json
-          metadata?: Json
-        }
-        Update: {
-          thread_id?: string
-          checkpoint_ns?: string
-          checkpoint_id?: string
-          parent_checkpoint_id?: string | null
-          type?: string | null
-          checkpoint?: Json
-          metadata?: Json
-        }
-        Relationships: []
-      }
-      checkpoint_blobs: {
-        Row: {
-          thread_id: string
-          checkpoint_ns: string
-          channel: string
-          version: string
-          type: string
-          blob: string | null
-        }
-        Insert: {
-          thread_id: string
-          checkpoint_ns?: string
-          channel: string
-          version: string
-          type: string
-          blob?: string | null
-        }
-        Update: {
-          thread_id?: string
-          checkpoint_ns?: string
-          channel?: string
-          version?: string
-          type?: string
-          blob?: string | null
-        }
-        Relationships: []
-      }
-      checkpoint_writes: {
-        Row: {
-          thread_id: string
-          checkpoint_ns: string
-          checkpoint_id: string
-          task_id: string
-          idx: number
-          channel: string
-          type: string | null
-          blob: string
-        }
-        Insert: {
-          thread_id: string
-          checkpoint_ns?: string
-          checkpoint_id: string
-          task_id: string
-          idx: number
-          channel: string
-          type?: string | null
-          blob: string
-        }
-        Update: {
-          thread_id?: string
-          checkpoint_ns?: string
-          checkpoint_id?: string
-          task_id?: string
-          idx?: number
-          channel?: string
-          type?: string | null
-          blob?: string
-        }
-        Relationships: []
-      }
-      store_migrations: {
-        Row: {
-          v: number
-        }
-        Insert: {
-          v: number
-        }
-        Update: {
-          v?: number
-        }
-        Relationships: []
-      }
-      store: {
-        Row: {
-          namespace_path: string
-          key: string
-          value: Json
-          created_at: string | null
-          updated_at: string | null
-          expires_at: string | null
-        }
-        Insert: {
-          namespace_path: string
-          key: string
-          value: Json
-          created_at?: string | null
-          updated_at?: string | null
-          expires_at?: string | null
-        }
-        Update: {
-          namespace_path?: string
-          key?: string
-          value?: Json
-          created_at?: string | null
-          updated_at?: string | null
-          expires_at?: string | null
-        }
-        Relationships: []
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -694,6 +629,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      brand_kit_asset_type: ["color", "font", "logo", "image"],
       workspace_member_role: ["owner", "admin", "member"],
       workspace_type: ["personal", "team"],
     },
