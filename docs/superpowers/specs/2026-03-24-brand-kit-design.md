@@ -39,6 +39,7 @@ UI 以 Lovart Brand Kit 页面为参考进行像素级视觉还原，使用 Loom
 | 设计指南存储 | `brand_kits.guidance_text` 字段 | 每 Kit 唯一，不需要当 asset 管理 |
 | "从文件中提取" | 独立 HTTP endpoint + 异步任务轮询 | 一次性操作，不走 Agent runtime |
 | Shared contracts | 独立文件 `brand-kit-contracts.ts`，从 `index.ts` re-export | 功能模块足够大，独立文件更清晰；同时包含 entity schema 和 HTTP request/response schema |
+| RLS 隔离级别 | 用户级 (`auth.uid() = user_id`)，不走 workspace membership | Brand Kit 是用户个人资源，跨 workspace 可见。这与 projects 的 workspace-based RLS 不同，是刻意设计 |
 
 ## Database Schema
 
@@ -54,8 +55,8 @@ CREATE TABLE public.brand_kits (
   is_default    BOOLEAN NOT NULL DEFAULT false,
   guidance_text TEXT,
   cover_url     TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );
 
 -- brand_kit_assets: 统一资产表
@@ -66,25 +67,17 @@ CREATE TABLE public.brand_kit_assets (
   display_name  TEXT NOT NULL DEFAULT '',
   role          TEXT,
   sort_order    INT NOT NULL DEFAULT 0,
-  text_content  TEXT,                          -- color: '#F0F0F0', font: family name
+  text_content  TEXT,                          -- color: 'F0F0F0', font: family name
   file_url      TEXT,                          -- file URL (Phase 2)
   metadata      JSONB DEFAULT '{}',
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );
 
 -- projects 表增加关联
 ALTER TABLE public.projects ADD COLUMN brand_kit_id UUID REFERENCES public.brand_kits(id) ON DELETE SET NULL;
 
--- updated_at 自动更新触发器
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- updated_at 自动更新触发器 (复用 foundation migration 中已有的 public.set_updated_at() 函数)
 CREATE TRIGGER brand_kits_updated_at
   BEFORE UPDATE ON public.brand_kits
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -275,7 +268,15 @@ DELETE /api/brand-kits/:kitId/assets/:assetId → 删除资产
 PATCH  /api/projects/:projectId               → { brand_kit_id } (新 endpoint)
 ```
 
-同时扩展 `projectCreateRequestSchema` 增加可选 `brand_kit_id` 字段，创建项目时可直接关联。
+同时扩展 `projectCreateRequestSchema`（在 `packages/shared/src/http.ts`）增加可选 `brand_kit_id` 字段，创建项目时可直接关联。
+
+新增 project PATCH 请求 schema（在 `packages/shared/src/http.ts`）：
+
+```typescript
+export const projectUpdateRequestSchema = z.object({
+  brand_kit_id: z.string().uuid().nullable().optional(),
+});
+```
 
 ### 响应格式
 
