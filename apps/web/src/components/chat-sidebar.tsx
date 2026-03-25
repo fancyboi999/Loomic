@@ -38,6 +38,7 @@ type ChatSidebarProps = {
   open: boolean;
   onToggle: () => void;
   onImageGenerated?: (artifact: ImageArtifact) => void;
+  onCanvasSync?: () => void;
   initialPrompt?: string | undefined;
 };
 
@@ -81,6 +82,7 @@ export function ChatSidebar({
   open,
   onToggle,
   onImageGenerated,
+  onCanvasSync,
   initialPrompt,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -410,10 +412,14 @@ export function ChatSidebar({
             onImageGenerated
           ) {
             for (const artifact of event.artifacts) {
-              if (artifact.type === "image" && artifact.placement && !artifact.jobId) {
+              if (artifact.type === "image" && artifact.placement) {
                 onImageGenerated(artifact as ImageArtifact);
               }
             }
+          }
+
+          if (event.type === "canvas.sync" && onCanvasSync) {
+            onCanvasSync();
           }
         }
 
@@ -454,7 +460,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent, onImageGenerated],
+    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync],
   );
 
   // Auto-send initial prompt from Home page (once, after sessions load)
