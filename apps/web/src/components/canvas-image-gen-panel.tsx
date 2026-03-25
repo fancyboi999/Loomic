@@ -53,7 +53,7 @@ export function CanvasImageGenPanel({
   }, [prompt, loading, excalidrawApi]);
 
   return (
-    <div className="absolute bottom-16 left-1/2 translate-x-[220px] z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
+    <div className="w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#2F3640]">AI Image</h3>
         <button

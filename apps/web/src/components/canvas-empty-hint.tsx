@@ -81,13 +81,9 @@ export function CanvasEmptyHint({
   if (hasElements) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
+    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
       <p className="text-base text-[rgba(0,0,0,0.3)]">
-        {"输入你的想法开始创作，或按 "}
-        <kbd className="px-1.5 py-0.5 rounded bg-[rgba(0,0,0,0.06)] text-sm">
-          C
-        </kbd>
-        {" 开始对话"}
+        {"输入你的想法开始创作"}
       </p>
     </div>
   );
