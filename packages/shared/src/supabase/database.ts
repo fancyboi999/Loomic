@@ -109,6 +109,110 @@ export type Database = {
           },
         ]
       }
+      background_jobs: {
+        Row: {
+          attempt_count: number
+          canceled_at: string | null
+          canvas_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          error_code: string | null
+          error_message: string | null
+          failed_at: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["background_job_type"]
+          max_attempts: number
+          payload: Json
+          project_id: string | null
+          queue_name: string
+          result: Json | null
+          session_id: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["background_job_status"]
+          thread_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          canceled_at?: string | null
+          canvas_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          job_type: Database["public"]["Enums"]["background_job_type"]
+          max_attempts?: number
+          payload?: Json
+          project_id?: string | null
+          queue_name: string
+          result?: Json | null
+          session_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["background_job_status"]
+          thread_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          attempt_count?: number
+          canceled_at?: string | null
+          canvas_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["background_job_type"]
+          max_attempts?: number
+          payload?: Json
+          project_id?: string | null
+          queue_name?: string
+          result?: Json | null
+          session_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["background_job_status"]
+          thread_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "background_jobs_canvas_id_fkey"
+            columns: ["canvas_id"]
+            isOneToOne: false
+            referencedRelation: "canvases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "background_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "background_jobs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "background_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_kit_assets: {
         Row: {
           asset_type: Database["public"]["Enums"]["brand_kit_asset_type"]
@@ -499,6 +603,14 @@ export type Database = {
       }
     }
     Enums: {
+      background_job_status:
+        | "queued"
+        | "running"
+        | "succeeded"
+        | "failed"
+        | "canceled"
+        | "dead_letter"
+      background_job_type: "image_generation"
       brand_kit_asset_type: "color" | "font" | "logo" | "image"
       workspace_member_role: "owner" | "admin" | "member"
       workspace_type: "personal" | "team"
@@ -629,6 +741,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      background_job_status: [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "dead_letter",
+      ],
+      background_job_type: ["image_generation"],
       brand_kit_asset_type: ["color", "font", "logo", "image"],
       workspace_member_role: ["owner", "admin", "member"],
       workspace_type: ["personal", "team"],
