@@ -412,6 +412,7 @@ export function createBrandKitService(options: {
           text_content: input.text_content ?? null,
           role: input.role ?? null,
           sort_order: nextSortOrder,
+          metadata: input.metadata ?? {},
         })
         .select(
           "id, asset_type, display_name, role, sort_order, text_content, file_url, metadata, created_at, updated_at",
@@ -437,6 +438,7 @@ export function createBrandKitService(options: {
       if (input.text_content !== undefined) payload.text_content = input.text_content;
       if (input.role !== undefined) payload.role = input.role;
       if (input.sort_order !== undefined) payload.sort_order = input.sort_order;
+      if (input.metadata !== undefined) payload.metadata = input.metadata;
 
       if (Object.keys(payload).length === 0) {
         // Nothing to update, just fetch and return current state
