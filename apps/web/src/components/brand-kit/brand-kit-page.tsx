@@ -5,7 +5,7 @@ import type {
   BrandKitDetail,
   BrandKitAssetType,
 } from "@loomic/shared";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../../lib/auth-context";
@@ -14,10 +14,12 @@ import {
   createBrandKitAsset,
   deleteBrandKit,
   deleteBrandKitAsset,
+  duplicateBrandKit,
   fetchBrandKit,
   fetchBrandKits,
   updateBrandKit,
   updateBrandKitAsset,
+  uploadBrandKitAsset,
 } from "../../lib/brand-kit-api";
 import { ApiAuthError } from "../../lib/server-api";
 import { BrandKitEditor } from "./brand-kit-editor";
@@ -27,14 +29,17 @@ import { EmptyState } from "./empty-state";
 export function BrandKitPage() {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestedId = searchParams.get("id");
 
   const [kits, setKits] = useState<BrandKitSummary[]>([]);
   const [selectedKit, setSelectedKit] = useState<BrandKitDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const accessToken = session?.access_token;
+  // Use refs for values that change on token refresh but shouldn't
+  // trigger callback/effect cascades (root cause of tab-switch reloads).
+  const accessTokenRef = useRef(session?.access_token);
+  accessTokenRef.current = session?.access_token;
+  const selectedKitRef = useRef(selectedKit);
+  selectedKitRef.current = selectedKit;
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
   const routerRef = useRef(router);
@@ -49,84 +54,101 @@ export function BrandKitPage() {
     return false;
   }, []);
 
-  // Load a single kit detail
+  const getToken = useCallback(() => {
+    const token = accessTokenRef.current;
+    if (!token) throw new ApiAuthError();
+    return token;
+  }, []);
+
+  // --- Data loading (ref-based, no dependency cascades) ---
+
   const loadKitDetail = useCallback(
     async (kitId: string) => {
-      if (!accessToken) return;
       try {
-        const detail = await fetchBrandKit(accessToken, kitId);
+        const detail = await fetchBrandKit(getToken(), kitId);
         setSelectedKit(detail);
       } catch (err) {
         if (await handleAuthError(err)) return;
         console.error("Failed to load brand kit detail:", err);
       }
     },
-    [accessToken, handleAuthError],
+    [getToken, handleAuthError],
   );
 
-  // Initial load
-  const loadData = useCallback(async () => {
-    if (!accessToken) return;
-    setLoading(true);
-
+  const refreshList = useCallback(async () => {
     try {
-      const data = await fetchBrandKits(accessToken);
+      const data = await fetchBrandKits(getToken());
       setKits(data.brandKits);
-
-      // Select the requested kit, or the first one
-      const firstKit = data.brandKits[0];
-      if (firstKit) {
-        const targetId =
-          requestedId &&
-          data.brandKits.find((k) => k.id === requestedId)
-            ? requestedId
-            : firstKit.id;
-        await loadKitDetail(targetId);
-      } else {
-        setSelectedKit(null);
-      }
+      return data.brandKits;
     } catch (err) {
-      if (await handleAuthError(err)) return;
+      if (await handleAuthError(err)) return [];
       console.error("Failed to load brand kits:", err);
-    } finally {
-      setLoading(false);
+      return [];
     }
-  }, [accessToken, requestedId, handleAuthError, loadKitDetail]);
+  }, [getToken, handleAuthError]);
 
+  // Initial load — runs exactly once when auth is ready.
+  const hasInitialized = useRef(false);
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       routerRef.current.replace("/login");
       return;
     }
-    loadData();
-  }, [authLoading, user, loadData]);
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await fetchBrandKits(getToken());
+        setKits(data.brandKits);
+        const firstKit = data.brandKits[0];
+        if (firstKit) {
+          const detail = await fetchBrandKit(getToken(), firstKit.id);
+          setSelectedKit(detail);
+        }
+      } catch (err) {
+        if (await handleAuthError(err)) return;
+        console.error("Failed to load brand kits:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [authLoading, user, getToken, handleAuthError]);
 
   // --- Kit handlers ---
 
   const handleSelectKit = useCallback(
     async (kitId: string) => {
       await loadKitDetail(kitId);
-      // Update URL without full navigation
-      window.history.replaceState(null, "", `/brand-kit?id=${kitId}`);
     },
     [loadKitDetail],
   );
 
   const handleCreateKit = useCallback(async () => {
-    if (!accessToken) return;
     try {
-      const newKit = await createBrandKit(accessToken);
-      // Refresh list
-      const data = await fetchBrandKits(accessToken);
-      setKits(data.brandKits);
+      const newKit = await createBrandKit(getToken());
+      await refreshList();
       setSelectedKit(newKit);
-      window.history.replaceState(null, "", `/brand-kit?id=${newKit.id}`);
     } catch (err) {
       if (await handleAuthError(err)) return;
       console.error("Failed to create brand kit:", err);
     }
-  }, [accessToken, handleAuthError]);
+  }, [getToken, handleAuthError, refreshList]);
+
+  const handleDuplicateKit = useCallback(async () => {
+    const kit = selectedKitRef.current;
+    if (!kit) return;
+    try {
+      const duplicated = await duplicateBrandKit(getToken(), kit.id);
+      await refreshList();
+      setSelectedKit(duplicated);
+    } catch (err) {
+      if (await handleAuthError(err)) return;
+      console.error("Failed to duplicate brand kit:", err);
+    }
+  }, [getToken, handleAuthError, refreshList]);
 
   const handleUpdateKit = useCallback(
     async (data: {
@@ -134,71 +156,49 @@ export function BrandKitPage() {
       guidance_text?: string | null;
       is_default?: boolean;
     }) => {
-      if (!accessToken || !selectedKit) return;
+      const kit = selectedKitRef.current;
+      if (!kit) return;
       try {
-        const updated = await updateBrandKit(
-          accessToken,
-          selectedKit.id,
-          data,
-        );
+        const updated = await updateBrandKit(getToken(), kit.id, data);
         setSelectedKit(updated);
-        // Refresh list to reflect name / default changes
-        const listData = await fetchBrandKits(accessToken);
-        setKits(listData.brandKits);
+        await refreshList();
       } catch (err) {
         if (await handleAuthError(err)) return;
         console.error("Failed to update brand kit:", err);
       }
     },
-    [accessToken, selectedKit, handleAuthError],
+    [getToken, handleAuthError, refreshList],
   );
 
   const handleDeleteKit = useCallback(async () => {
-    if (!accessToken || !selectedKit) return;
+    const kit = selectedKitRef.current;
+    if (!kit) return;
     try {
-      await deleteBrandKit(accessToken, selectedKit.id);
-      const data = await fetchBrandKits(accessToken);
-      setKits(data.brandKits);
-
-      const nextKit = data.brandKits[0];
+      await deleteBrandKit(getToken(), kit.id);
+      const remaining = await refreshList();
+      const nextKit = remaining[0];
       if (nextKit) {
         await loadKitDetail(nextKit.id);
-        window.history.replaceState(
-          null,
-          "",
-          `/brand-kit?id=${nextKit.id}`,
-        );
       } else {
         setSelectedKit(null);
-        window.history.replaceState(null, "", "/brand-kit");
       }
     } catch (err) {
       if (await handleAuthError(err)) return;
       console.error("Failed to delete brand kit:", err);
     }
-  }, [accessToken, selectedKit, handleAuthError, loadKitDetail]);
+  }, [getToken, handleAuthError, refreshList, loadKitDetail]);
 
   const handleDeleteKitFromSidebar = useCallback(
     async (kitId: string) => {
-      if (!accessToken) return;
       try {
-        await deleteBrandKit(accessToken, kitId);
-        const data = await fetchBrandKits(accessToken);
-        setKits(data.brandKits);
-
-        // If the deleted kit was selected, select another
-        if (selectedKit?.id === kitId) {
-          const nextKit = data.brandKits[0];
+        await deleteBrandKit(getToken(), kitId);
+        const remaining = await refreshList();
+        if (selectedKitRef.current?.id === kitId) {
+          const nextKit = remaining[0];
           if (nextKit) {
             await loadKitDetail(nextKit.id);
-            window.history.replaceState(
-              null,
-              "",
-              `/brand-kit?id=${nextKit.id}`,
-            );
           } else {
             setSelectedKit(null);
-            window.history.replaceState(null, "", "/brand-kit");
           }
         }
       } catch (err) {
@@ -206,7 +206,7 @@ export function BrandKitPage() {
         console.error("Failed to delete brand kit:", err);
       }
     },
-    [accessToken, selectedKit, handleAuthError, loadKitDetail],
+    [getToken, handleAuthError, refreshList, loadKitDetail],
   );
 
   // --- Asset handlers ---
@@ -217,21 +217,21 @@ export function BrandKitPage() {
       displayName: string,
       textContent?: string | null,
     ) => {
-      if (!accessToken || !selectedKit) return;
+      const kit = selectedKitRef.current;
+      if (!kit) return;
       try {
-        await createBrandKitAsset(accessToken, selectedKit.id, {
+        await createBrandKitAsset(getToken(), kit.id, {
           asset_type: type,
           display_name: displayName,
           text_content: textContent ?? null,
         });
-        // Reload the kit to get updated assets
-        await loadKitDetail(selectedKit.id);
+        await loadKitDetail(kit.id);
       } catch (err) {
         if (await handleAuthError(err)) return;
         console.error("Failed to create asset:", err);
       }
     },
-    [accessToken, selectedKit, handleAuthError, loadKitDetail],
+    [getToken, handleAuthError, loadKitDetail],
   );
 
   const handleUpdateAsset = useCallback(
@@ -239,33 +239,49 @@ export function BrandKitPage() {
       assetId: string,
       data: { display_name?: string; text_content?: string | null },
     ) => {
-      if (!accessToken || !selectedKit) return;
+      const kit = selectedKitRef.current;
+      if (!kit) return;
       try {
-        await updateBrandKitAsset(accessToken, selectedKit.id, assetId, data);
-        await loadKitDetail(selectedKit.id);
+        await updateBrandKitAsset(getToken(), kit.id, assetId, data);
+        await loadKitDetail(kit.id);
       } catch (err) {
         if (await handleAuthError(err)) return;
         console.error("Failed to update asset:", err);
       }
     },
-    [accessToken, selectedKit, handleAuthError, loadKitDetail],
+    [getToken, handleAuthError, loadKitDetail],
   );
 
   const handleDeleteAsset = useCallback(
     async (assetId: string) => {
-      if (!accessToken || !selectedKit) return;
+      const kit = selectedKitRef.current;
+      if (!kit) return;
       try {
-        await deleteBrandKitAsset(accessToken, selectedKit.id, assetId);
-        await loadKitDetail(selectedKit.id);
-        // Refresh sidebar counts
-        const listData = await fetchBrandKits(accessToken);
-        setKits(listData.brandKits);
+        await deleteBrandKitAsset(getToken(), kit.id, assetId);
+        await loadKitDetail(kit.id);
+        await refreshList();
       } catch (err) {
         if (await handleAuthError(err)) return;
         console.error("Failed to delete asset:", err);
       }
     },
-    [accessToken, selectedKit, handleAuthError, loadKitDetail],
+    [getToken, handleAuthError, loadKitDetail, refreshList],
+  );
+
+  const handleUploadAsset = useCallback(
+    async (type: "logo" | "image", file: File) => {
+      const kit = selectedKitRef.current;
+      if (!kit) return;
+      try {
+        await uploadBrandKitAsset(getToken(), kit.id, type, file);
+        await loadKitDetail(kit.id);
+        await refreshList();
+      } catch (err) {
+        if (await handleAuthError(err)) return;
+        console.error("Failed to upload asset:", err);
+      }
+    },
+    [getToken, handleAuthError, loadKitDetail, refreshList],
   );
 
   // --- Render ---
@@ -293,9 +309,11 @@ export function BrandKitPage() {
           kit={selectedKit}
           onUpdateKit={handleUpdateKit}
           onDeleteKit={handleDeleteKit}
+          onDuplicateKit={handleDuplicateKit}
           onAddAsset={handleAddAsset}
           onUpdateAsset={handleUpdateAsset}
           onDeleteAsset={handleDeleteAsset}
+          onUploadAsset={handleUploadAsset}
         />
       ) : (
         <EmptyState onCreateKit={handleCreateKit} />

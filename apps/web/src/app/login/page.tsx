@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { LoomicLogoInverted } from "../../components/icons/loomic-logo";
 import { LoginForm } from "../../components/login-form";
 import { useAuth } from "../../lib/auth-context";
 
@@ -22,7 +23,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen">
       {/* Left panel -- dark brand */}
       <div className="hidden lg:flex lg:w-1/2 bg-black text-white flex-col justify-center px-16">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">Loomic</h1>
+        <div className="flex items-center gap-4 mb-4">
+          <LoomicLogoInverted className="size-14" />
+          <h1 className="text-4xl font-bold tracking-tight">Loomic</h1>
+        </div>
         <p className="text-lg text-neutral-400 mb-10">
           AI-powered creative workspace
         </p>

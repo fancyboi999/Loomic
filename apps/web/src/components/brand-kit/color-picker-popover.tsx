@@ -82,8 +82,7 @@ export function ColorPickerPopover({
   );
 
   const handleSave = useCallback(() => {
-    const trimmedName = name.trim();
-    if (!trimmedName) return;
+    const trimmedName = name.trim() || hex;
     onSave(trimmedName, hex);
     onClose();
   }, [name, hex, onSave, onClose]);
@@ -142,8 +141,7 @@ export function ColorPickerPopover({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!name.trim()}
-          className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+          className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
         >
           {mode === "create" ? "Add" : "Save"}
         </button>

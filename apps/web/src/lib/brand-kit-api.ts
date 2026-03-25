@@ -88,6 +88,21 @@ export async function updateBrandKit(
   return (await response.json()) as BrandKitDetailResponse;
 }
 
+export async function duplicateBrandKit(
+  accessToken: string,
+  kitId: string,
+): Promise<BrandKitDetailResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/brand-kits/${kitId}/duplicate`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as BrandKitDetailResponse;
+}
+
 export async function deleteBrandKit(
   accessToken: string,
   kitId: string,
@@ -152,4 +167,26 @@ export async function deleteBrandKitAsset(
     },
   );
   if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function uploadBrandKitAsset(
+  accessToken: string,
+  kitId: string,
+  assetType: "logo" | "image",
+  file: File,
+): Promise<BrandKitAssetResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("asset_type", assetType);
+
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/brand-kits/${kitId}/assets/upload`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: formData,
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as BrandKitAssetResponse;
 }

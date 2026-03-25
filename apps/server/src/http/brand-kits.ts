@@ -18,6 +18,14 @@ import {
 } from "../features/brand-kit/brand-kit-service.js";
 import type { RequestAuthenticator } from "../supabase/user.js";
 
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/svg+xml",
+]);
+
 type BrandKitErrorFallbackCode =
   | "brand_kit_not_found"
   | "brand_kit_create_failed"
@@ -121,6 +129,24 @@ export async function registerBrandKitRoutes(
     }
   });
 
+  // POST /api/brand-kits/:kitId/duplicate — duplicate kit
+  app.post("/api/brand-kits/:kitId/duplicate", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+
+      if (!user) {
+        return sendUnauthenticated(reply);
+      }
+
+      const { kitId } = request.params as { kitId: string };
+      const kit = await options.brandKitService.duplicateKit(user, kitId);
+
+      return reply.code(201).send(brandKitDetailResponseSchema.parse(kit));
+    } catch (error) {
+      return sendBrandKitError(error, reply, "brand_kit_create_failed");
+    }
+  });
+
   // DELETE /api/brand-kits/:kitId — delete kit
   app.delete("/api/brand-kits/:kitId", async (request, reply) => {
     try {
@@ -136,6 +162,77 @@ export async function registerBrandKitRoutes(
       return reply.code(204).send();
     } catch (error) {
       return sendBrandKitError(error, reply, "brand_kit_delete_failed");
+    }
+  });
+
+  // POST /api/brand-kits/:kitId/assets/upload — upload file asset (logo/image)
+  app.post("/api/brand-kits/:kitId/assets/upload", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+
+      if (!user) {
+        return sendUnauthenticated(reply);
+      }
+
+      const { kitId } = request.params as { kitId: string };
+
+      const file = await request.file();
+      if (!file) {
+        return reply.code(400).send(
+          applicationErrorResponseSchema.parse({
+            error: {
+              code: "brand_kit_asset_create_failed",
+              message: "No file provided.",
+            },
+          }),
+        );
+      }
+
+      const mimeType = file.mimetype;
+      if (!ALLOWED_UPLOAD_MIME_TYPES.has(mimeType)) {
+        return reply.code(400).send(
+          applicationErrorResponseSchema.parse({
+            error: {
+              code: "brand_kit_asset_create_failed",
+              message: `Unsupported file type: ${mimeType}. Allowed: ${[...ALLOWED_UPLOAD_MIME_TYPES].join(", ")}`,
+            },
+          }),
+        );
+      }
+
+      // Extract asset_type from multipart fields
+      const assetTypeField = file.fields.asset_type;
+      const assetType =
+        typeof assetTypeField === "object" &&
+        assetTypeField !== null &&
+        "value" in assetTypeField
+          ? String(assetTypeField.value)
+          : undefined;
+
+      if (assetType !== "logo" && assetType !== "image") {
+        return reply.code(400).send(
+          applicationErrorResponseSchema.parse({
+            error: {
+              code: "brand_kit_asset_create_failed",
+              message: "asset_type must be 'logo' or 'image'.",
+            },
+          }),
+        );
+      }
+
+      const fileBuffer = await file.toBuffer();
+      const asset = await options.brandKitService.uploadAsset(
+        user,
+        kitId,
+        assetType,
+        file.filename,
+        fileBuffer,
+        mimeType,
+      );
+
+      return reply.code(201).send(brandKitAssetResponseSchema.parse(asset));
+    } catch (error) {
+      return sendBrandKitError(error, reply, "brand_kit_asset_create_failed");
     }
   });
 

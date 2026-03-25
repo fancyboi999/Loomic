@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { LoomicLogo } from "./icons/loomic-logo";
 import { Separator } from "./ui/separator";
 
 interface ProjectSidebarProps {
@@ -23,11 +23,7 @@ export function ProjectSidebar({ workspace, projects }: ProjectSidebarProps) {
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r bg-neutral-50 p-4">
       {/* Workspace header */}
       <div className="flex items-center gap-3 mb-6">
-        <Avatar className="h-7 w-7 rounded">
-          <AvatarFallback className="bg-black text-white text-xs font-bold rounded">
-            {initial}
-          </AvatarFallback>
-        </Avatar>
+        <LoomicLogo className="size-7 text-black shrink-0" />
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate">
             {workspace?.name ?? "Workspace"}

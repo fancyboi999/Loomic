@@ -58,10 +58,17 @@ export function BrandKitSidebar({
         {kits.map((kit) => {
           const isSelected = kit.id === selectedKitId;
           return (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               key={kit.id}
               onClick={() => onSelectKit(kit.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectKit(kit.id);
+                }
+              }}
               className={cn(
                 "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer",
                 isSelected ? "bg-neutral-100" : "hover:bg-neutral-100/60",
@@ -99,7 +106,7 @@ export function BrandKitSidebar({
               >
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
-            </button>
+            </div>
           );
         })}
       </div>

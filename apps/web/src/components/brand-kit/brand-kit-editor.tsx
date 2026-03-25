@@ -5,8 +5,8 @@ import type {
   BrandKitDetail,
   BrandKitAssetType,
 } from "@loomic/shared";
-import { Sparkles, Trash2 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { Copy, Ellipsis, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "../../lib/utils";
 import { ColorSection } from "./color-section";
@@ -24,6 +24,7 @@ interface BrandKitEditorProps {
     is_default?: boolean;
   }) => void;
   onDeleteKit: () => void;
+  onDuplicateKit: () => void;
   onAddAsset: (
     type: BrandKitAssetType,
     displayName: string,
@@ -34,6 +35,7 @@ interface BrandKitEditorProps {
     data: { display_name?: string; text_content?: string | null },
   ) => void;
   onDeleteAsset: (assetId: string) => void;
+  onUploadAsset: (type: "logo" | "image", file: File) => void;
 }
 
 function filterAssets(
@@ -50,6 +52,8 @@ export function BrandKitEditor({
   onAddAsset,
   onUpdateAsset,
   onDeleteAsset,
+  onDuplicateKit,
+  onUploadAsset,
 }: BrandKitEditorProps) {
   const colors = useMemo(() => filterAssets(kit.assets, "color"), [kit.assets]);
   const fonts = useMemo(() => filterAssets(kit.assets, "font"), [kit.assets]);
@@ -109,6 +113,16 @@ export function BrandKitEditor({
     [onUpdateAsset],
   );
 
+  // Upload handlers
+  const handleUploadLogo = useCallback(
+    (file: File) => onUploadAsset("logo", file),
+    [onUploadAsset],
+  );
+  const handleUploadImage = useCallback(
+    (file: File) => onUploadAsset("image", file),
+    [onUploadAsset],
+  );
+
   return (
     <div className="flex flex-1 flex-col min-w-0">
       {/* Header */}
@@ -121,7 +135,10 @@ export function BrandKitEditor({
         />
 
         <div className="flex items-center gap-3 shrink-0 ml-4">
-          {/* Default toggle */}
+          {/* Apply to new projects toggle */}
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            应用到新项目
+          </span>
           <button
             type="button"
             role="switch"
@@ -139,19 +156,15 @@ export function BrandKitEditor({
               )}
             />
           </button>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            Default
-          </span>
 
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={onDeleteKit}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
-            aria-label="Delete brand kit"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {/* Divider */}
+          <div className="h-5 w-px bg-border" />
+
+          {/* More menu */}
+          <MoreMenu
+            onDuplicate={onDuplicateKit}
+            onDelete={onDeleteKit}
+          />
         </div>
       </header>
 
@@ -177,6 +190,7 @@ export function BrandKitEditor({
             logos={logos}
             onDelete={onDeleteAsset}
             onUpdateLabel={handleUpdateLogoLabel}
+            onUpload={handleUploadLogo}
           />
 
           <ColorSection
@@ -198,9 +212,74 @@ export function BrandKitEditor({
             images={images}
             onDelete={onDeleteAsset}
             onUpdateLabel={handleUpdateImageLabel}
+            onUpload={handleUploadImage}
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// --- More menu (⋯) dropdown ---
+
+function MoreMenu({
+  onDuplicate,
+  onDelete,
+}: {
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="rounded-lg p-2 text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+        aria-label="More actions"
+      >
+        <Ellipsis className="h-5 w-5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 w-[140px] rounded-xl border bg-popover p-1.5 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              onDuplicate();
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
+            <Copy className="h-4 w-4 text-muted-foreground" />
+            复制
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onDelete();
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4" />
+            删除
+          </button>
+        </div>
+      )}
     </div>
   );
 }
