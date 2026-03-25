@@ -10,6 +10,7 @@ import type {
 
 import { getServerBaseUrl } from "./env";
 import { ApiAuthError, ApiApplicationError } from "./server-api";
+import { dedupeRequest } from "./dedupe-request";
 
 // --- Internal helpers (mirrored from server-api.ts, not exported there) ---
 
@@ -36,14 +37,16 @@ async function handleErrorResponse(response: Response): Promise<never> {
 
 // --- Brand Kit CRUD ---
 
-export async function fetchBrandKits(
+export function fetchBrandKits(
   accessToken: string,
 ): Promise<BrandKitListResponse> {
-  const response = await fetch(`${getServerBaseUrl()}/api/brand-kits`, {
-    headers: authHeaders(accessToken),
+  return dedupeRequest("brand-kits:list", async () => {
+    const response = await fetch(`${getServerBaseUrl()}/api/brand-kits`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!response.ok) return handleErrorResponse(response);
+    return (await response.json()) as BrandKitListResponse;
   });
-  if (!response.ok) return handleErrorResponse(response);
-  return (await response.json()) as BrandKitListResponse;
 }
 
 export async function fetchBrandKit(

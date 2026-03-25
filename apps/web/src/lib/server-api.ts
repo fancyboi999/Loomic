@@ -19,6 +19,7 @@ import type {
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
+import { dedupeRequest } from "./dedupe-request";
 
 // --- Error types ---
 
@@ -262,16 +263,18 @@ export async function fetchModels(): Promise<ModelListResponse> {
 
 // --- Chat Session API ---
 
-export async function fetchSessions(
+export function fetchSessions(
   accessToken: string,
   canvasId: string,
 ): Promise<SessionListResponse> {
-  const response = await fetch(
-    `${getServerBaseUrl()}/api/canvases/${canvasId}/sessions`,
-    { headers: authHeaders(accessToken) },
-  );
-  if (!response.ok) return handleErrorResponse(response);
-  return (await response.json()) as SessionListResponse;
+  return dedupeRequest(`sessions:${canvasId}`, async () => {
+    const response = await fetch(
+      `${getServerBaseUrl()}/api/canvases/${canvasId}/sessions`,
+      { headers: authHeaders(accessToken) },
+    );
+    if (!response.ok) return handleErrorResponse(response);
+    return (await response.json()) as SessionListResponse;
+  });
 }
 
 export async function createSession(

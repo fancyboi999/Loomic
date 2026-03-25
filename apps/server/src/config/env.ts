@@ -18,6 +18,7 @@ export type ServerEnv = {
   replicateApiToken?: string;
   supabaseAnonKey?: string;
   supabaseDbUrl?: string;
+  supabaseJwtSecret?: string;
   supabaseProjectId?: string;
   supabaseServiceRoleKey?: string;
   supabaseUrl?: string;
@@ -47,6 +48,8 @@ export function loadServerEnv(
     normalizeOptionalString(source.SUPABASE_ANON_KEY);
   const supabaseDbUrl =
     overrides.supabaseDbUrl ?? normalizeOptionalString(source.SUPABASE_DB_URL);
+  const supabaseJwtSecret =
+    overrides.supabaseJwtSecret ?? normalizeOptionalString(source.SUPABASE_JWT_SECRET);
   const supabaseServiceRoleKey =
     overrides.supabaseServiceRoleKey ??
     normalizeOptionalString(source.SUPABASE_SERVICE_ROLE_KEY);
@@ -86,6 +89,7 @@ export function loadServerEnv(
     ...(supabaseUrl ? { supabaseUrl } : {}),
     ...(supabaseAnonKey ? { supabaseAnonKey } : {}),
     ...(supabaseDbUrl ? { supabaseDbUrl } : {}),
+    ...(supabaseJwtSecret ? { supabaseJwtSecret } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
     ...(supabaseProjectId ? { supabaseProjectId } : {}),
     ...(googleFontsApiKey ? { googleFontsApiKey } : {}),
