@@ -225,7 +225,32 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           };
         }
 
+        // Resolve brand kit ID from canvas → project → brand_kit_id
+        let brandKitId: string | null = null;
+        if (run.canvasId && run.accessToken && options.createUserClient) {
+          try {
+            const client = options.createUserClient(run.accessToken) as any;
+            const { data: canvas } = await client
+              .from("canvases")
+              .select("project_id")
+              .eq("id", run.canvasId)
+              .maybeSingle();
+
+            if (canvas?.project_id) {
+              const { data: project } = await client
+                .from("projects")
+                .select("brand_kit_id")
+                .eq("id", canvas.project_id)
+                .maybeSingle();
+              brandKitId = project?.brand_kit_id ?? null;
+            }
+          } catch (err) {
+            console.warn("Failed to resolve brand kit ID:", err);
+          }
+        }
+
         agent = resolvedAgentFactory({
+          ...(brandKitId ? { brandKitId } : {}),
           ...(run.canvasId ? { canvasId: run.canvasId } : {}),
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
           env: options.env,
