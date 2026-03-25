@@ -9,6 +9,11 @@ import { createVideoGenerateTool } from "./tools/video-generate.js";
 
 const imageGenerateResponseSchema = z.object({
   url: z.string().describe("Generated image URL"),
+  title: z
+    .string()
+    .describe(
+      "Short descriptive title for the generated image, e.g. 'Modern minimalist brand logo'",
+    ),
   placement: z
     .object({
       x: z.number().describe("Left edge x coordinate on canvas"),

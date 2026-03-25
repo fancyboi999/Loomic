@@ -27,6 +27,12 @@ function summarizeElement(el: CanvasElement) {
     base.text = el.text.length > 50 ? el.text.slice(0, 47) + "..." : el.text;
     base.fontSize = el.fontSize;
   }
+  if (el.type === "image") {
+    const customData = el.customData as Record<string, unknown> | undefined;
+    if (customData?.title) {
+      base.title = customData.title;
+    }
+  }
   return base;
 }
 
