@@ -31,7 +31,7 @@ export function FontPickerDialog({
   const [category, setCategory] = useState("");
   const [selected, setSelected] = useState<GoogleFontItem | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadedFamilies, setLoadedFamilies] = useState<Set<string>>(new Set());
+  const loadedRef = useRef<Set<string>>(new Set());
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -52,19 +52,18 @@ export function FontPickerDialog({
     return () => clearTimeout(searchTimer.current);
   }, [open, search, category]);
 
-  // Load font CSS for visible items
-  const ensureFontLoaded = useCallback((family: string) => {
-    setLoadedFamilies((prev) => {
-      if (prev.has(family)) return prev;
+  // Load Google Fonts CSS for visible items (side-effect in useEffect, not during render)
+  const visibleFamilies = open ? fonts.slice(0, visibleCount).map((f) => f.family) : [];
+  useEffect(() => {
+    for (const family of visibleFamilies) {
+      if (loadedRef.current.has(family)) continue;
+      loadedRef.current.add(family);
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}&display=swap`;
       document.head.appendChild(link);
-      const next = new Set(prev);
-      next.add(family);
-      return next;
-    });
-  }, []);
+    }
+  }, [visibleFamilies.join(",")]);
 
   // Scroll handler for loading more
   const handleScroll = useCallback(() => {
@@ -88,6 +87,7 @@ export function FontPickerDialog({
   if (!open) return null;
 
   const visibleFonts = fonts.slice(0, visibleCount);
+  // Font CSS is loaded via useEffect above (visibleFamilies), not during render
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
@@ -125,9 +125,7 @@ export function FontPickerDialog({
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto min-h-0"
         >
-          {visibleFonts.map((font) => {
-            ensureFontLoaded(font.family);
-            return (
+          {visibleFonts.map((font) => (
               <button
                 key={font.family}
                 type="button"
@@ -139,8 +137,7 @@ export function FontPickerDialog({
               >
                 {font.family}
               </button>
-            );
-          })}
+          ))}
           {fonts.length === 0 && (
             <p className="p-4 text-sm text-muted-foreground text-center">
               {search ? "未找到匹配字体" : "加载中..."}

@@ -154,11 +154,13 @@ export function FontSection({
         </div>
       </div>
 
-      <FontPickerDialog
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={handlePickerSelect}
-      />
+      {pickerOpen && (
+        <FontPickerDialog
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={handlePickerSelect}
+        />
+      )}
     </section>
   );
 }
