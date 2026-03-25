@@ -27,21 +27,26 @@ export default function SettingsPage() {
   const [defaultModel, setDefaultModel] = useState<string>("gpt-5.4-mini");
   const [pageLoading, setPageLoading] = useState(true);
 
-  const accessToken = session?.access_token;
-
+  // Ref pattern: prevent token refresh from cascading through dependency arrays
+  const accessTokenRef = useRef(session?.access_token);
+  accessTokenRef.current = session?.access_token;
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
   const routerRef = useRef(router);
   routerRef.current = router;
+  const hasInitialized = useRef(false);
+
+  const getToken = useCallback(() => accessTokenRef.current, []);
 
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    const token = getToken();
+    if (!token) return;
     setPageLoading(true);
 
     try {
       const [viewer, settings] = await Promise.all([
-        fetchViewer(accessToken),
-        fetchWorkspaceSettings(accessToken),
+        fetchViewer(token),
+        fetchWorkspaceSettings(token),
       ]);
 
       setProfile({
@@ -58,7 +63,7 @@ export default function SettingsPage() {
     } finally {
       setPageLoading(false);
     }
-  }, [accessToken]);
+  }, [getToken]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -66,30 +71,34 @@ export default function SettingsPage() {
       routerRef.current.replace("/login");
       return;
     }
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     loadData();
   }, [authLoading, user, loadData]);
 
   const handleProfileSave = useCallback(
     async (displayName: string) => {
-      if (!accessToken) return;
-      const result = await updateProfile(accessToken, { displayName });
+      const token = getToken();
+      if (!token) return;
+      const result = await updateProfile(token, { displayName });
       setProfile({
         displayName: result.profile.displayName,
         email: result.profile.email,
       });
     },
-    [accessToken],
+    [getToken],
   );
 
   const handleAgentSave = useCallback(
     async (model: string) => {
-      if (!accessToken) return;
-      const result = await updateWorkspaceSettings(accessToken, {
+      const token = getToken();
+      if (!token) return;
+      const result = await updateWorkspaceSettings(token, {
         defaultModel: model,
       });
       setDefaultModel(result.settings.defaultModel);
     },
-    [accessToken],
+    [getToken],
   );
 
   const stableFetchModels = useCallback(() => fetchModels(), []);

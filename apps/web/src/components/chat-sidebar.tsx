@@ -133,25 +133,26 @@ export function ChatSidebar({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Load sessions on mount
+  // Load sessions on mount (accessTokenRef avoids tab-switch reload)
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
+      const token = accessTokenRef.current;
       setSessionsLoading(true);
       try {
-        const res = await fetchSessions(accessToken, canvasId);
+        const res = await fetchSessions(token, canvasId);
         if (cancelled) return;
 
         if (res.sessions.length > 0) {
           setSessions(res.sessions);
           const mostRecent = res.sessions[0]!;
           setActiveSessionId(mostRecent.id);
-          const msgRes = await fetchMessages(accessToken, mostRecent.id);
+          const msgRes = await fetchMessages(token, mostRecent.id);
           if (cancelled) return;
           setMessages(mapServerMessages(msgRes.messages));
         } else {
-          const created = await createSession(accessToken, canvasId);
+          const created = await createSession(token, canvasId);
           if (cancelled) return;
           setSessions([created.session]);
           setActiveSessionId(created.session.id);
@@ -168,7 +169,7 @@ export function ChatSidebar({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, canvasId]);
+  }, [canvasId]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {

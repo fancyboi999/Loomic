@@ -1,3 +1,8 @@
+import { bootstrap } from "global-agent";
+
+// Enable HTTP proxy for all outbound requests if GLOBAL_AGENT_HTTP_PROXY is set
+bootstrap();
+
 import { loadServerEnv } from "./config/env.js";
 import { createPgmqClient, type PgmqMessage } from "./queue/pgmq-client.js";
 import { createJobService } from "./features/jobs/job-service.js";

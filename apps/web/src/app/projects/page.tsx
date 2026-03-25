@@ -28,35 +28,29 @@ export default function ProjectsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
-  const accessToken = session?.access_token;
-
-  // Keep stable references to avoid re-triggering loadData on every render
+  // Ref pattern: prevent token refresh from cascading through dependency arrays
+  const accessTokenRef = useRef(session?.access_token);
+  accessTokenRef.current = session?.access_token;
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
   const routerRef = useRef(router);
   routerRef.current = router;
+  const hasInitialized = useRef(false);
+
+  const getToken = useCallback(() => accessTokenRef.current, []);
 
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    const token = getToken();
+    if (!token) return;
     setPageLoading(true);
     setLoadError(null);
 
     try {
-      const viewer = await fetchViewer(accessToken);
+      const [viewer, data] = await Promise.all([
+        fetchViewer(token),
+        fetchProjects(token),
+      ]);
       setWorkspace(viewer.workspace);
-    } catch (err) {
-      if (err instanceof ApiAuthError) {
-        await signOutRef.current();
-        routerRef.current.replace("/login");
-        return;
-      }
-      setLoadError("Failed to load workspace. Please try again.");
-      setPageLoading(false);
-      return;
-    }
-
-    try {
-      const data = await fetchProjects(accessToken);
       setProjects(data.projects);
     } catch (err) {
       if (err instanceof ApiAuthError) {
@@ -64,11 +58,11 @@ export default function ProjectsPage() {
         routerRef.current.replace("/login");
         return;
       }
-      setLoadError("Failed to load projects. Please try again.");
+      setLoadError("Failed to load data. Please try again.");
     } finally {
       setPageLoading(false);
     }
-  }, [accessToken]);
+  }, [getToken]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -76,17 +70,20 @@ export default function ProjectsPage() {
       routerRef.current.replace("/login");
       return;
     }
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     loadData();
   }, [authLoading, user, loadData]);
 
   async function handleCreate(data: { name: string; description?: string }) {
-    if (!accessToken) return;
-    const result = await createProject(accessToken, data);
+    const token = getToken();
+    if (!token) return;
+    const result = await createProject(token, data);
     // Refresh list and highlight new project
     setHighlightId(result.project.id);
     setTimeout(() => setHighlightId(null), 3000);
     try {
-      const updated = await fetchProjects(accessToken);
+      const updated = await fetchProjects(token);
       setProjects(updated.projects);
     } catch {
       // Refresh failed but project was created -- add it manually
@@ -95,8 +92,9 @@ export default function ProjectsPage() {
   }
 
   async function handleDelete(projectId: string) {
-    if (!accessToken) return;
-    await deleteProject(accessToken, projectId);
+    const token = getToken();
+    if (!token) return;
+    await deleteProject(token, projectId);
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
   }
 
