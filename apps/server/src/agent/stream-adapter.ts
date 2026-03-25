@@ -137,11 +137,19 @@ export async function* adaptDeepAgentStream(
         if (seenStartedToolCalls.has(toolCallId)) continue;
         seenStartedToolCalls.add(toolCallId);
 
+        // Extract tool input arguments for frontend display
+        const rawInput = evt.data?.input;
+        const toolInput =
+          rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)
+            ? (rawInput as Record<string, unknown>)
+            : undefined;
+
         yield {
           runId: options.runId,
           timestamp: now(),
           toolCallId,
           toolName,
+          ...(toolInput ? { input: toolInput } : {}),
           type: "tool.started",
         };
         continue;

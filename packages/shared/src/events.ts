@@ -35,6 +35,7 @@ export const toolStartedEventSchema = z.object({
   runId: runIdSchema,
   toolCallId: toolCallIdSchema,
   toolName: z.string().min(1),
+  input: z.record(z.unknown()).optional(),
   timestamp: timestampSchema,
 });
 

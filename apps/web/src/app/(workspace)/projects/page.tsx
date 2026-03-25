@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { LoadingScreen } from "@/components/loading-screen";
 import { ProjectList } from "@/components/project-list";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -106,11 +107,7 @@ export default function ProjectsPage() {
   }
 
   if (pageLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
