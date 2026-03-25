@@ -193,7 +193,10 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ]);
   });
 
-  it("extracts image artifacts from generate_image tool output", async () => {
+  it("suppresses artifacts for generate_image (inner sub-agent tool) — parent tool carries them", async () => {
+    // generate_image is treated as an inner sub-agent tool whose artifacts are
+    // re-emitted by the parent "task" tool with placement info. The stream
+    // adapter deliberately suppresses artifacts at this level to avoid duplicates.
     const stream = makeStream([
       {
         event: "on_tool_start",
@@ -235,6 +238,54 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
 
     const completed = events.find(
       (e: any) => e.type === "tool.completed" && e.toolName === "generate_image",
+    ) as any;
+    expect(completed).toBeDefined();
+    // artifacts suppressed — parent task tool will carry them with placement
+    expect(completed.artifacts).toBeUndefined();
+  });
+
+  it("extracts image artifacts from a non-inner-tool with imageUrl output", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "image_task",
+        data: { input: { prompt: "a sunset over mountains" } },
+        run_id: "tool_run_img2",
+        metadata: { tool_call_id: "tool_call_img2" },
+      },
+      {
+        event: "on_tool_end",
+        name: "image_task",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Generated a sunset image",
+              imageUrl: "https://cdn.example.com/sunset.png",
+              mimeType: "image/png",
+              width: 1024,
+              height: 1024,
+            }),
+            name: "image_task",
+            tool_call_id: "tool_call_img2",
+          }),
+        },
+        run_id: "tool_run_img2",
+        metadata: { tool_call_id: "tool_call_img2" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "image_task",
     ) as any;
     expect(completed).toBeDefined();
     expect(completed.artifacts).toEqual([
