@@ -77,6 +77,10 @@ export const applicationErrorCodeSchema = z.enum([
   "settings_update_failed",
   "upload_failed",
   "asset_not_found",
+  "job_not_found",
+  "job_create_failed",
+  "job_query_failed",
+  "job_cancel_failed",
 ]);
 
 export const applicationErrorResponseSchema = z.object({
