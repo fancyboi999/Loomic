@@ -9,7 +9,7 @@ import { createAgentBackendFactory } from "./backends/index.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import { createImageSubAgent, createVideoSubAgent } from "./sub-agents.js";
 import { createMainAgentTools } from "./tools/index.js";
-import type { PersistImageFn } from "./tools/image-generate.js";
+import type { PersistImageFn, SubmitImageJobFn } from "./tools/image-generate.js";
 
 export type LoomicAgent = Pick<
   ReturnType<typeof createDeepAgent>,
@@ -24,6 +24,7 @@ export type LoomicAgentFactory = (options: {
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
+  submitImageJob?: SubmitImageJobFn;
   store?: BaseStore;
 }) => LoomicAgent;
 
@@ -36,6 +37,7 @@ export function createLoomicDeepAgent(options: {
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
+  submitImageJob?: SubmitImageJobFn;
   store?: BaseStore;
 }): LoomicAgent {
   const backendFactory =
@@ -70,9 +72,10 @@ export function createLoomicDeepAgent(options: {
     name: "loomic",
     ...(options.store ? { store: options.store } : {}),
     subagents: [
-      createImageSubAgent(
-        options.persistImage ? { persistImage: options.persistImage } : undefined,
-      ),
+      createImageSubAgent({
+        ...(options.persistImage ? { persistImage: options.persistImage } : {}),
+        ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
+      }),
       createVideoSubAgent(),
     ],
     systemPrompt,
@@ -80,6 +83,7 @@ export function createLoomicDeepAgent(options: {
       createUserClient,
       ...(options.brandKitId != null ? { brandKitId: options.brandKitId } : {}),
       ...(options.persistImage ? { persistImage: options.persistImage } : {}),
+      ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
     }),
   });
 }
