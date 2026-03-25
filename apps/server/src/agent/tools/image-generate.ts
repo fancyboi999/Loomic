@@ -76,6 +76,9 @@ type ImageGenerateResult = {
   width?: number;
   height?: number;
   error?: string;
+  jobId?: string;
+  model?: string;
+  placement?: { x: number; y: number; width: number; height: number };
 };
 
 /**
@@ -103,7 +106,46 @@ export type SubmitImageJobFn = (input: {
 export async function runImageGenerate(
   input: ImageGenerateInput,
   persistImage?: PersistImageFn,
+  submitImageJob?: SubmitImageJobFn,
 ): Promise<ImageGenerateResult> {
+  // 异步模式：提交 job 立即返回
+  if (submitImageJob) {
+    try {
+      const { jobId } = await submitImageJob({
+        prompt: input.prompt,
+        title: input.title,
+        model: input.model,
+        aspectRatio: input.aspectRatio ?? "1:1",
+        ...(input.inputImages ? { inputImages: input.inputImages } : {}),
+      });
+      const result: ImageGenerateResult = {
+        summary: `Image generation job submitted (jobId: ${jobId}), model: ${input.model}`,
+        title: input.title,
+        jobId,
+        model: input.model,
+        imageUrl: "",
+        mimeType: "image/png",
+        width: 1024,
+        height: 1024,
+      };
+      if (input.placementX != null && input.placementY != null) {
+        result.placement = {
+          x: input.placementX,
+          y: input.placementY,
+          width: input.placementWidth ?? 512,
+          height: input.placementHeight ?? 512,
+        };
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        summary: `Failed to submit image generation job: ${message}`,
+        error: message,
+      };
+    }
+  }
+
   try {
     const result = await generateImage("replicate", {
       prompt: input.prompt,
@@ -143,8 +185,8 @@ export function createImageGenerateTool(deps?: {
   submitImageJob?: SubmitImageJobFn;
 }) {
   return tool(
-    async (input) => {
-      return await runImageGenerate(input, deps?.persistImage);
+    async (input: ImageGenerateInput) => {
+      return await runImageGenerate(input, deps?.persistImage, deps?.submitImageJob);
     },
     {
       name: "generate_image",
