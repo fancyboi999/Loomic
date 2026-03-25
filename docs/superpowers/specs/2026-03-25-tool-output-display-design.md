@@ -37,14 +37,19 @@ output: z.record(z.unknown()).optional()
 - `output`: Full structured tool output for modal display
 - `outputSummary`: Short summary (<=200 chars) for card title — unchanged
 - Size limit: If serialized `output` exceeds 10KB, drop it (fall back to `outputSummary` only)
+- DB impact: `output` is stored inside the `content_blocks` JSONB column via `ContentBlock[]`. The 10KB per-tool limit keeps this manageable.
 
 ### Backend: stream-adapter.ts
 
 New function `extractOutput(output: unknown): Record<string, unknown> | undefined`:
-1. Extract structured data from ToolMessage / object / Command wrapper
-2. Reuse existing `unwrapCommandOutput`, `tryParseJson`, `extractChunkText`
-3. Return `undefined` if serialized size > 10KB
-4. Strip fields already captured by `artifacts` (e.g., `imageUrl`, `url`) to avoid redundancy
+
+Unwrapping pipeline (mirrors `extractArtifacts`):
+1. If `ToolMessage`: `extractChunkText(output)` → `tryParseJson(text)` → `unwrapCommandOutput(parsed)`
+2. If string: `tryParseJson(output)` → `unwrapCommandOutput(parsed)`
+3. If object: `JSON.stringify(output)` → `tryParseJson(serialized)` → `unwrapCommandOutput(parsed)`
+4. If result is not a non-null object, return `undefined`
+5. Strip top-level keys already captured by `artifacts`: `["url", "imageUrl", "mimeType", "width", "height", "placement", "jobId"]` — only when `extractedArtifacts` is non-empty
+6. Return `undefined` if `JSON.stringify(result).length > 10240`
 
 Emit in `tool.completed` event:
 ```typescript
@@ -80,10 +85,11 @@ Remove the inline `— outputSummary` truncated text (summary moves to card).
 ```
 
 - Style: `rounded-lg border border-black/[0.06] bg-[#FAFAFA]`
-- Title: `outputSummary`, font-medium
-- Preview: First 2-3 key-value pairs from `output`, single-line truncated
-- No image thumbnails in card (images visible on canvas)
+- Title: If `outputSummary` looks like a human-readable sentence (not raw JSON), use it. Otherwise fallback to `formatToolName(toolName)` as title, and show `outputSummary` in the preview area instead.
+- Preview: First 2-3 key-value pairs from `output` via `formatOutputPreview()` utility. Non-primitive values: arrays → `[N items]`, objects → `{...}`, strings truncated at 80 chars.
+- No image thumbnails in card (images visible on canvas; thumbnails available in modal)
 - Hidden while tool is running
+- "Check Details" button: shown when `output` exists. (Input-only tools without output still show the card with just the title.)
 
 #### Layer 3 — Detail Modal (on "Check Details" click)
 ```
@@ -112,7 +118,8 @@ Remove the inline `— outputSummary` truncated text (summary moves to card).
   - Has `output` object: `JSON.stringify(output, null, 2)` in `<pre>`, `max-h-[400px] overflow-y-auto`
   - Only `outputSummary`: Plain text display
   - Has `artifacts` (images): Render thumbnails below output
-- Close: X button, backdrop click, ESC key
+- Close: X button, backdrop click, ESC key (native `<dialog>` + `showModal()` handles ESC and focus trap automatically)
+- Accessibility: `aria-label` set to tool name, focus returns to "Check Details" button on close
 
 ### Component Structure
 
@@ -129,7 +136,6 @@ Both in `chat-message.tsx` (current ~195 lines, estimated ~350 after changes).
 Update `handleStreamEvent` for `tool.completed`:
 ```typescript
 case "tool.completed":
-  // Add output field alongside existing outputSummary and artifacts
   return {
     ...block,
     status: "completed",
@@ -138,6 +144,28 @@ case "tool.completed":
     ...(event.artifacts ? { artifacts: event.artifacts } : {}),
   };
 ```
+
+Update `mapServerMessages` legacy path to forward `output`:
+```typescript
+blocks.push({
+  type: "tool",
+  toolCallId: ta.toolCallId,
+  toolName: ta.toolName,
+  status: ta.status,
+  ...(ta.input ? { input: ta.input } : {}),
+  ...(ta.output ? { output: ta.output } : {}),          // NEW
+  ...(ta.outputSummary ? { outputSummary: ta.outputSummary } : {}),
+  ...(ta.artifacts ? { artifacts: ta.artifacts } : {}),
+});
+```
+
+### Removed: Inline Input Expand Chevron
+
+The existing chevron button that expands tool input inline is **removed**. Input is now viewable only in the modal via "Check Details". This avoids redundant UI (inline expand + modal both showing input). The existing inline artifact image rendering (`block.artifacts?.map(...)`) is also removed from the card — images are only shown in the modal detail view.
+
+### Tool Error Handling
+
+Tool-level errors are not modeled in `ToolBlock` (`status` is `"running" | "completed"` only). Failed tools remain in `running` state until the run itself fails via `run.failed` event, which is handled separately. This design does not change that behavior.
 
 ## Backward Compatibility
 
