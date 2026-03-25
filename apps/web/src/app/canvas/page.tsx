@@ -14,9 +14,6 @@ import { EditableProjectName } from "../../components/editable-project-name";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
 import { BrandKitSelector } from "../../components/brand-kit-selector";
-import { useJobPolling } from "@/hooks/use-job-polling";
-import type { PendingJob } from "@/hooks/use-job-polling";
-import { CanvasGeneratingOverlay } from "@/components/canvas-generating-overlay";
 
 function CanvasPageContent() {
   const searchParams = useSearchParams();
@@ -53,8 +50,6 @@ function CanvasPageContent() {
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
 
-  const { pendingJobs, addJob, completedJobs, clearCompletedJob } = useJobPolling(accessToken ?? "");
-
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
     setExcalidrawApi(api);
@@ -67,65 +62,6 @@ function CanvasPageContent() {
       console.warn("Failed to insert image on canvas:", err);
     });
   }, []);
-
-  const handleJobSubmitted = useCallback((job: {
-    jobId: string;
-    title?: string;
-    model?: string;
-    placement?: { x: number; y: number; width: number; height: number };
-  }) => {
-    addJob({
-      jobId: job.jobId,
-      ...(job.title !== undefined ? { title: job.title } : {}),
-      ...(job.model !== undefined ? { model: job.model } : {}),
-      placement: job.placement ?? { x: 0, y: 0, width: 512, height: 512 },
-      startedAt: Date.now(),
-    });
-  }, [addJob]);
-
-  useEffect(() => {
-    const api = excalidrawApiRef.current;
-    if (!api || completedJobs.length === 0) return;
-
-    const jobsToProcess = completedJobs.filter((job) => {
-      if (job.status !== "succeeded" || !job.result) return false;
-      const result = job.result as { signed_url?: string };
-      return !!result.signed_url;
-    });
-
-    if (jobsToProcess.length === 0) return;
-
-    // Clear jobs immediately to prevent re-processing on next render
-    for (const job of jobsToProcess) {
-      clearCompletedJob(job.id);
-    }
-
-    // Insert images sequentially to avoid race condition on scene updates
-    (async () => {
-      for (const job of jobsToProcess) {
-        const result = job.result as {
-          signed_url?: string;
-          width?: number;
-          height?: number;
-          mime_type?: string;
-        };
-        const artifact: ImageArtifact = {
-          type: "image",
-          title: job._title,
-          url: result.signed_url!,
-          mimeType: result.mime_type ?? "image/png",
-          width: result.width ?? 512,
-          height: result.height ?? 512,
-          placement: job._placement,
-        };
-        try {
-          await insertImageOnCanvas(api, artifact);
-        } catch (err) {
-          console.warn("Failed to insert image on canvas:", err);
-        }
-      }
-    })();
-  }, [completedJobs, clearCompletedJob]);
 
   // Only re-fetch when canvasId changes or on initial auth resolution.
   // Token refreshes (e.g. tab switch back) should NOT trigger a reload —
@@ -231,10 +167,6 @@ function CanvasPageContent() {
           excalidrawApi={excalidrawApi}
           onOpenChat={() => setChatOpen(true)}
         />
-        <CanvasGeneratingOverlay
-          items={pendingJobs}
-          excalidrawApi={excalidrawApi}
-        />
       </div>
       <ChatSidebar
         accessToken={accessToken}
@@ -242,8 +174,6 @@ function CanvasPageContent() {
         open={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}
         onImageGenerated={handleImageGenerated}
-        onJobSubmitted={handleJobSubmitted}
-        pendingJobs={pendingJobs}
         initialPrompt={initialPrompt}
       />
     </div>

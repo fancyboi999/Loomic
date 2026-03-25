@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PendingJob } from "@/hooks/use-job-polling";
-
 import type {
   ChatMessage as ChatMessageData,
   ChatSessionSummary,
@@ -40,13 +38,6 @@ type ChatSidebarProps = {
   open: boolean;
   onToggle: () => void;
   onImageGenerated?: (artifact: ImageArtifact) => void;
-  onJobSubmitted?: (job: {
-    jobId: string;
-    title?: string;
-    model?: string;
-    placement?: { x: number; y: number; width: number; height: number };
-  }) => void;
-  pendingJobs?: PendingJob[];
   initialPrompt?: string | undefined;
 };
 
@@ -90,8 +81,6 @@ export function ChatSidebar({
   open,
   onToggle,
   onImageGenerated,
-  onJobSubmitted,
-  pendingJobs = [],
   initialPrompt,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -99,7 +88,6 @@ export function ChatSidebar({
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [progressTick, setProgressTick] = useState(0);
 
   const initialPromptSent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -149,12 +137,6 @@ export function ChatSidebar({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    if (pendingJobs.length === 0) return;
-    const id = setInterval(() => setProgressTick((t) => t + 1), 1000);
-    return () => clearInterval(id);
-  }, [pendingJobs.length]);
 
   // Load sessions on mount (accessTokenRef avoids tab-switch reload)
   useEffect(() => {
@@ -433,18 +415,6 @@ export function ChatSidebar({
               }
             }
           }
-
-          // Handle async job submission events
-          if (event.type === "job.submitted" && onJobSubmitted) {
-            onJobSubmitted({
-              jobId: event.jobId,
-              ...(event.title !== undefined ? { title: event.title } : {}),
-              ...(event.model !== undefined ? { model: event.model } : {}),
-              ...(event.placement !== undefined
-                ? { placement: event.placement }
-                : {}),
-            });
-          }
         }
 
         // Derive flat content + full blocks from the final message state
@@ -484,7 +454,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent, onImageGenerated, onJobSubmitted],
+    [streaming, canvasId, handleStreamEvent, onImageGenerated],
   );
 
   // Auto-send initial prompt from Home page (once, after sessions load)
@@ -572,29 +542,6 @@ export function ChatSidebar({
           )}
           <div ref={messagesEndRef} />
         </div>
-
-        {/* Generation progress */}
-        {pendingJobs.length > 0 && (
-          <div className="border-t border-black/[0.06] px-4 py-2 space-y-1">
-            {pendingJobs.map((job) => {
-              const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
-              const minutes = Math.floor(elapsed / 60);
-              const seconds = elapsed % 60;
-              const timeStr = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-              return (
-                <div key={job.jobId} className="flex items-center gap-2 text-xs text-black/50">
-                  <span className="inline-block size-3.5 animate-spin rounded-full border-[1.5px] border-black/20 border-t-black/60" />
-                  <span className="truncate">
-                    {job.model
-                      ? `使用 ${job.model.split("/").pop()} 生成图片...`
-                      : "生成图片中..."}
-                  </span>
-                  <span className="ml-auto shrink-0 tabular-nums">{timeStr}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* Input */}
         <ChatInput onSend={handleSend} disabled={streaming || sessionsLoading} />

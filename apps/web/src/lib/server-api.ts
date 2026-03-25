@@ -402,30 +402,6 @@ export async function deleteAsset(
   if (!response.ok) return handleErrorResponse(response);
 }
 
-// --- Job API ---
-
-export type BackgroundJobResponse = {
-  id: string;
-  status: "queued" | "running" | "succeeded" | "failed" | "canceled" | "dead_letter";
-  payload: Record<string, unknown>;
-  result: Record<string, unknown> | null;
-  error_code: string | null;
-  error_message: string | null;
-};
-
-export async function fetchJob(
-  accessToken: string,
-  jobId: string,
-): Promise<BackgroundJobResponse> {
-  const response = await fetch(
-    `${getServerBaseUrl()}/api/jobs/${jobId}`,
-    { headers: authHeaders(accessToken) },
-  );
-  if (!response.ok) return handleErrorResponse(response);
-  const data = (await response.json()) as { job: BackgroundJobResponse };
-  return data.job;
-}
-
 // --- Canvas-Native Generation API ---
 
 export type GenerateImageResponse = {
