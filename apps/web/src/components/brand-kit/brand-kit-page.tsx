@@ -7,6 +7,7 @@ import type {
 } from "@loomic/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { LoadingScreen } from "../loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import {
   createBrandKit,
@@ -279,11 +280,7 @@ export function BrandKitPage() {
   // --- Render ---
 
   if (loading) {
-    return (
-      <div className="flex h-[100dvh] w-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (

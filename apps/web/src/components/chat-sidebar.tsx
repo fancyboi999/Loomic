@@ -294,6 +294,7 @@ export function ChatSidebar({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 status: "running",
+                ...(event.input ? { input: event.input } : {}),
               };
               return {
                 ...m,

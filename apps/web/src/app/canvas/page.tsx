@@ -198,7 +198,7 @@ function CanvasPageContent() {
           onBrandKitChange={(kitId) => setBrandKitId(kitId)}
         />
       </div>
-      <div className="flex-1 relative min-w-0">
+      <div className="flex-1 relative min-w-0 overflow-hidden">
         <CanvasEditor
           canvasId={canvasData.id}
           projectId={canvasData.projectId}

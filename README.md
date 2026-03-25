@@ -6,7 +6,7 @@ AI-powered creative workspace.
 
 - **Monorepo**: Turborepo + pnpm
 - **Web**: Next.js 15 (App Router) + React 19 + Tailwind CSS 4
-- **Server**: Node.js + Hono
+- **Server**: Node.js + Fastify
 - **Worker**: Node.js (poll-based task queue consumer)
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
 - **Canvas**: Excalidraw
@@ -50,13 +50,13 @@ cp apps/server/.env.local.example apps/server/.env.local
 Start all services (web + server + worker):
 
 ```bash
-npx turbo run dev --filter=@loomic/web --filter=@loomic/server --filter=@loomic/worker
+pnpm dev
 ```
 
 | Service | Port | Description |
 |---------|------|-------------|
 | Web     | 3000 | Next.js frontend |
-| Server  | 3001 | Hono API server |
+| Server  | 3001 | Fastify API server |
 | Worker  | —    | Background task processor (image generation etc.) |
 
 ### Build
@@ -76,8 +76,7 @@ npx turbo run test
 ```
 apps/
   web/        — Next.js frontend
-  server/     — Hono API server
-  worker/     — Background task worker
+  server/     — Fastify API server + background worker
 packages/
   shared/     — Shared types and utilities
 ```
