@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FastifyRequest } from "fastify";
-import { jwtVerify } from "jose";
+import { importJWK, jwtVerify } from "jose";
 
 import type { Database } from "@loomic/shared";
 
@@ -52,15 +52,30 @@ function setCachedAuth(token: string, user: AuthenticatedUser): void {
 
 // --- Authenticator factory ---
 
+// Parse JWK JSON string into a CryptoKey at startup (async init)
+let jwtPublicKeyPromise: Promise<Awaited<ReturnType<typeof importJWK>> | Uint8Array> | null = null;
+
+function initJwtKey(
+  env: Pick<ServerEnv, "supabaseJwtSecret">,
+): Promise<Awaited<ReturnType<typeof importJWK>> | Uint8Array> | null {
+  if (!env.supabaseJwtSecret) return null;
+
+  try {
+    const jwk = JSON.parse(env.supabaseJwtSecret);
+    return importJWK(jwk, jwk.alg ?? "ES256");
+  } catch {
+    // Not a JWK JSON — treat as HMAC symmetric secret
+    return Promise.resolve(new TextEncoder().encode(env.supabaseJwtSecret));
+  }
+}
+
 export function createSupabaseRequestAuthenticator(
   env: Pick<ServerEnv, "supabaseAnonKey" | "supabaseJwtSecret" | "supabaseUrl">,
 ): RequestAuthenticator {
-  const jwtSecret: Uint8Array | null = env.supabaseJwtSecret
-    ? new TextEncoder().encode(env.supabaseJwtSecret)
-    : null;
+  jwtPublicKeyPromise = initJwtKey(env);
 
-  // Fallback: remote verification when JWT secret is not configured
-  const createUserClient = jwtSecret
+  // Fallback: remote verification when JWT key is not configured
+  const createUserClient = jwtPublicKeyPromise
     ? null
     : createUserSupabaseClientFactory(env);
 
@@ -74,9 +89,10 @@ export function createSupabaseRequestAuthenticator(
       if (cached) return cached;
 
       // 2. Local JWT verification (preferred)
-      if (jwtSecret) {
+      if (jwtPublicKeyPromise) {
         try {
-          const { payload } = await jwtVerify(accessToken, jwtSecret, {
+          const key = await jwtPublicKeyPromise;
+          const { payload } = await jwtVerify(accessToken, key, {
             audience: "authenticated",
           });
 
