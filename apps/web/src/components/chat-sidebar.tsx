@@ -68,6 +68,8 @@ function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
             toolCallId: ta.toolCallId,
             toolName: ta.toolName,
             status: ta.status as "running" | "completed",
+            ...(ta.input ? { input: ta.input } : {}),
+            ...(ta.output ? { output: ta.output } : {}),
             ...(ta.outputSummary ? { outputSummary: ta.outputSummary } : {}),
             ...(ta.artifacts ? { artifacts: ta.artifacts } : {}),
           });
@@ -318,6 +320,7 @@ export function ChatSidebar({
                     return {
                       ...block,
                       status: "completed" as const,
+                      output: event.output,
                       outputSummary: event.outputSummary,
                       ...(event.artifacts
                         ? { artifacts: event.artifacts }
