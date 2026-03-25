@@ -27,10 +27,23 @@ pnpm install
 
 ### Environment
 
-Copy `.env.local.example` to `.env.local` in each app that needs it:
+Copy `.env.local.example` to `.env.local` in each app and fill in your values:
 
-- `apps/web/.env.local` — Supabase URL/Key, Server URL
-- `apps/server/.env.local` — Supabase service key, AI API keys
+```bash
+cp apps/web/.env.local.example apps/web/.env.local
+cp apps/server/.env.local.example apps/server/.env.local
+```
+
+| File | Required Variables |
+|------|-------------------|
+| `apps/web/.env.local` | Supabase URL/Key, Server URL |
+| `apps/server/.env.local` | Supabase credentials, OpenAI API Key, Google Fonts API Key |
+
+**Google Fonts API Key** (brand kit font picker 需要):
+1. 前往 [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. 创建 API Key
+3. 启用 "Web Fonts Developer API"
+4. 填入 `apps/server/.env.local` 的 `GOOGLE_FONTS_API_KEY`
 
 ### Development
 
