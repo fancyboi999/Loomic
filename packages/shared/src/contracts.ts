@@ -111,6 +111,7 @@ export const chatToolActivitySchema = z.object({
   toolName: z.string().min(1),
   status: z.enum(["running", "completed"]),
   input: z.record(z.unknown()).optional(),
+  output: z.record(z.unknown()).optional(),
   outputSummary: z.string().optional(),
   artifacts: z.array(toolArtifactSchema).optional(),
 });
@@ -132,6 +133,7 @@ export const toolBlockSchema = z.object({
   toolName: z.string().min(1),
   status: z.enum(["running", "completed"]),
   input: z.record(z.unknown()).optional(),
+  output: z.record(z.unknown()).optional(),
   outputSummary: z.string().optional(),
   artifacts: z.array(toolArtifactSchema).optional(),
 });
