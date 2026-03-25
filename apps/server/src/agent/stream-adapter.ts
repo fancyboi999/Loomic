@@ -157,12 +157,29 @@ export async function* adaptDeepAgentStream(
         seenCompletedToolCalls.add(toolCallId);
 
         const output = evt.data?.output;
+
+        // Check for async job submission in the output
+        const jobInfo = extractJobSubmission(output);
+        if (jobInfo) {
+          yield {
+            type: "job.submitted" as const,
+            runId: options.runId,
+            jobId: jobInfo.jobId,
+            jobType: "image_generation",
+            ...(jobInfo.title ? { title: jobInfo.title } : {}),
+            ...(jobInfo.model ? { model: jobInfo.model } : {}),
+            ...(jobInfo.placement ? { placement: jobInfo.placement } : {}),
+            timestamp: now(),
+          } satisfies StreamEvent;
+        }
+
         // Sub-agent inner tools (e.g. generate_image inside image_generate
         // sub-agent) emit duplicate artifacts that the parent "task" tool
         // will re-emit with placement info. Skip artifacts for known inner
         // tool names to avoid showing duplicates in chat.
         const isInnerSubAgentTool = toolName === "generate_image" || toolName === "generate_video";
-        const extractedArtifacts = isInnerSubAgentTool ? undefined : extractArtifacts(output);
+        // Skip artifact extraction for inner sub-agent tools and async job submissions
+        const extractedArtifacts = (isInnerSubAgentTool || jobInfo) ? undefined : extractArtifacts(output);
         yield {
           outputSummary: summarizeOutput(output),
           artifacts: extractedArtifacts,
@@ -388,4 +405,42 @@ function isStreamEvent(value: unknown): value is LangChainStreamEvent {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Check if tool output contains an async job submission (has jobId).
+ * Works for both direct tool responses and sub-agent Command wrapped responses.
+ */
+function extractJobSubmission(output: unknown): {
+  jobId: string;
+  title?: string;
+  model?: string;
+  placement?: { x: number; y: number; width: number; height: number };
+} | null {
+  let text = "";
+  if (ToolMessageClass.isInstance(output)) {
+    text = extractChunkText(output);
+  } else if (typeof output === "string") {
+    text = output;
+  } else if (output && typeof output === "object") {
+    text = JSON.stringify(output);
+  }
+
+  const parsed = tryParseJson(text);
+  if (!parsed || typeof parsed !== "object") return null;
+
+  const record = unwrapCommandOutput(parsed as Record<string, unknown>);
+
+  if (typeof record.jobId === "string" && record.jobId.length > 0) {
+    return {
+      jobId: record.jobId,
+      ...(typeof record.title === "string" ? { title: record.title } : {}),
+      ...(typeof record.model === "string" ? { model: record.model } : {}),
+      ...(record.placement && typeof record.placement === "object"
+        ? { placement: record.placement as { x: number; y: number; width: number; height: number } }
+        : {}),
+    };
+  }
+
+  return null;
 }
