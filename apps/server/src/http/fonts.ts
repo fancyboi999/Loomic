@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { ProxyAgent, fetch as undiciFetch } from "undici";
 import type { ServerEnv } from "../config/env.js";
 
 type GoogleFontItem = {
@@ -16,11 +17,22 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 let fontsCache: FontsCache | null = null;
 
+function getProxyDispatcher() {
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
+  if (!proxyUrl) return undefined;
+  return new ProxyAgent(proxyUrl);
+}
+
 async function loadGoogleFonts(apiKey: string): Promise<GoogleFontItem[]> {
   if (!apiKey) return [];
 
   const url = `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}&sort=popularity`;
-  const res = await fetch(url);
+  const dispatcher = getProxyDispatcher();
+  const res = await undiciFetch(url, dispatcher ? { dispatcher } : {});
   if (!res.ok) {
     console.error(`Google Fonts API error: ${res.status}`);
     return fontsCache?.fonts ?? [];
