@@ -30,6 +30,7 @@
     "build": "node ../../scripts/validate-foundation-app.mjs build",
     "predev": "pnpm --filter @loomic/shared build",
     "dev": "node --env-file=../../.env.local --import tsx ./src/server.ts",
+    "worker": "node --env-file=../../.env.local --import tsx ./src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
