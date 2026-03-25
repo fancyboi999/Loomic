@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BrowserWindow, app } from "electron";
 
+import { waitForHttpEntrypoint } from "./dev-server.js";
 import { resolveDesktopContentSource } from "./url.js";
 import { createDesktopLoadFailureUrl } from "./window-diagnostics.js";
 
@@ -13,6 +14,16 @@ const preloadPath = fileURLToPath(
 );
 
 export async function createMainWindow(): Promise<BrowserWindow> {
+  const source = resolveDesktopContentSource({
+    mode: app.isPackaged ? "production" : "development",
+    desktopAppDir,
+    resourcesPath: process.resourcesPath,
+  });
+
+  if (!app.isPackaged && source.kind === "url") {
+    await waitForHttpEntrypoint(source.entrypoint);
+  }
+
   const mainWindow = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -26,11 +37,6 @@ export async function createMainWindow(): Promise<BrowserWindow> {
       nodeIntegration: false,
       sandbox: true,
     },
-  });
-  const source = resolveDesktopContentSource({
-    mode: app.isPackaged ? "production" : "development",
-    desktopAppDir,
-    resourcesPath: process.resourcesPath,
   });
   let isShowingLoadFailure = false;
 
@@ -53,12 +59,11 @@ export async function createMainWindow(): Promise<BrowserWindow> {
         errorDescription,
       });
 
+      isShowingLoadFailure = true;
       void showLoadFailurePage(mainWindow, {
         attemptedEntrypoint: validatedURL || source.entrypoint,
         errorCode,
         errorDescription,
-      }).then(() => {
-        isShowingLoadFailure = true;
       });
     },
   );
@@ -71,9 +76,17 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     console.error("Desktop window became unresponsive.");
   });
 
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+  });
+
   try {
     await mainWindow.loadURL(source.entrypoint);
   } catch (error) {
+    if (isShowingLoadFailure && isNavigationAbortError(error)) {
+      return mainWindow;
+    }
+
     console.error("Desktop window failed during initial load.", error);
     isShowingLoadFailure = true;
     await showLoadFailurePage(mainWindow, {
@@ -88,9 +101,9 @@ export async function createMainWindow(): Promise<BrowserWindow> {
     mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 
-  mainWindow.once("ready-to-show", () => {
+  if (!mainWindow.isVisible()) {
     mainWindow.show();
-  });
+  }
 
   return mainWindow;
 }
@@ -123,4 +136,12 @@ async function showLoadFailurePage(
 ) {
   await mainWindow.loadURL(createDesktopLoadFailureUrl(options));
   mainWindow.show();
+}
+
+function isNavigationAbortError(error: unknown) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ERR_ABORTED"
+  );
 }

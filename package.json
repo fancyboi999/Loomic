@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.26.2",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "biome check .",
     "test:workspace": "node --test tests/workspace.test.mjs",
