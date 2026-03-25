@@ -1,25 +1,31 @@
 import { registerExecutor, type ExecutorContext } from "../job-executor.js";
 import { generateImage } from "../../../generation/image-generation.js";
 
-registerExecutor("image_generation", async (jobId, rawPayload, ctx: ExecutorContext) => {
-  const payload = rawPayload as {
-    prompt: string;
-    model?: string;
-    aspect_ratio?: string;
-    workspace_id?: string;
-    job_id?: string;
-  };
-
-  // Look up the job to get the real created_by user ID and workspace_id
+registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorContext) => {
+  // Read the full job row including payload from the database.
+  // The PGMQ message only contains { job_id, job_type, workspace_id },
+  // so we must fetch prompt/model/aspect_ratio from background_jobs.payload.
   const admin = ctx.getAdminClient();
   const { data: jobRow } = await admin
     .from("background_jobs")
-    .select("created_by, workspace_id")
+    .select("created_by, workspace_id, payload")
     .eq("id", jobId)
     .single();
 
-  const createdBy: string | null = jobRow?.created_by ?? null;
-  const workspaceId: string = payload.workspace_id ?? jobRow?.workspace_id ?? jobId;
+  if (!jobRow) throw new Error(`Job ${jobId} not found in database`);
+
+  const payload = (jobRow.payload ?? {}) as {
+    prompt: string;
+    model?: string;
+    aspect_ratio?: string;
+    title?: string;
+    input_images?: string[];
+  };
+
+  if (!payload.prompt) throw new Error(`Job ${jobId} has no prompt in payload`);
+
+  const createdBy: string | null = jobRow.created_by ?? null;
+  const workspaceId: string = jobRow.workspace_id ?? jobId;
 
   // Resolve provider and model
   // payload.model may be e.g. "replicate/flux-dev" or just "flux-dev"

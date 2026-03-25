@@ -11,7 +11,10 @@ import type {
 
 import type { ServerEnv } from "../config/env.js";
 import type { AgentRunMetadataService } from "../features/agent-runs/agent-run-service.js";
-import type { UserSupabaseClient } from "../supabase/user.js";
+import type { JobService } from "../features/jobs/job-service.js";
+import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
+import type { AuthenticatedUser, UserSupabaseClient } from "../supabase/user.js";
+import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import {
   type LoomicAgent,
   type LoomicAgentFactory,
@@ -35,6 +38,7 @@ type RuntimeRunRecord = RunCreateRequest & {
   runId: string;
   status: RuntimeRunStatus;
   threadId?: string;
+  userId?: string;
 };
 
 type CreateAgentRuntimeOptions = {
@@ -44,9 +48,11 @@ type CreateAgentRuntimeOptions = {
   createUserClient?: (accessToken: string) => unknown;
   env: ServerEnv;
   eventDelayMs?: number;
+  jobService?: JobService;
   model?: BaseLanguageModel | string;
   now?: () => string;
   runIdFactory?: () => string;
+  viewerService?: ViewerService;
 };
 
 export type AgentRunService = ReturnType<typeof createAgentRunService>;
@@ -88,7 +94,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
     createRun(
       input: RunCreateRequest,
-      runOptions?: { accessToken?: string; model?: string; threadId?: string },
+      runOptions?: { accessToken?: string; model?: string; threadId?: string; userId?: string },
     ): RunCreateResponse {
       const runId = runIdFactory();
 
@@ -99,6 +105,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         controller: new AbortController(),
         ...(runOptions?.model ? { modelOverride: runOptions.model } : {}),
         ...(runOptions?.threadId ? { threadId: runOptions.threadId } : {}),
+        ...(runOptions?.userId ? { userId: runOptions.userId } : {}),
         runId,
         status: "accepted",
       });
@@ -179,6 +186,39 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         return;
       }
 
+      // Build submitImageJob closure for async image generation via PGMQ
+      let submitImageJob: SubmitImageJobFn | undefined;
+      if (options.jobService && options.viewerService && run.accessToken && run.userId) {
+        const jobSvc = options.jobService;
+        const viewerSvc = options.viewerService;
+        const accessToken = run.accessToken;
+        const userId = run.userId;
+        const canvasId = run.canvasId;
+
+        submitImageJob = async (input) => {
+          const user: AuthenticatedUser = {
+            id: userId,
+            accessToken,
+            email: "",
+            userMetadata: {},
+          };
+          const viewer = await viewerSvc.ensureViewer(user);
+          const job = await jobSvc.createJob(user, {
+            workspaceId: viewer.workspace.id,
+            ...(canvasId ? { canvasId } : {}),
+            jobType: "image_generation",
+            payload: {
+              prompt: input.prompt,
+              title: input.title,
+              model: input.model,
+              aspect_ratio: input.aspectRatio,
+              ...(input.inputImages ? { input_images: input.inputImages } : {}),
+            },
+          });
+          return { jobId: job.id };
+        };
+      }
+
       let agent: LoomicAgent;
       try {
         const resolvedModel = run.modelOverride
@@ -256,6 +296,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           env: options.env,
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
+          ...(submitImageJob ? { submitImageJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
       } catch (error) {
