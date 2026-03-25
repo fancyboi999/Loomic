@@ -1,5 +1,7 @@
+import type { StructuredTool } from "@langchain/core/tools";
 import type { BackendFactory, BackendProtocol } from "deepagents";
 
+import { createBrandKitTool } from "./brand-kit.js";
 import { createInspectCanvasTool } from "./inspect-canvas.js";
 import { createImageGenerateTool } from "./image-generate.js";
 import { createProjectSearchTool } from "./project-search.js";
@@ -11,12 +13,19 @@ export { createInspectCanvasTool } from "./inspect-canvas.js";
 
 export function createMainAgentTools(
   backend: BackendProtocol | BackendFactory,
-  deps: { createUserClient: (accessToken: string) => any },
+  deps: {
+    createUserClient: (accessToken: string) => any;
+    brandKitId?: string | null;
+  },
 ) {
-  return [
+  const tools: StructuredTool[] = [
     createProjectSearchTool(backend),
     createInspectCanvasTool(deps),
-  ] as const;
+  ];
+  if (deps.brandKitId) {
+    tools.push(createBrandKitTool(deps, deps.brandKitId));
+  }
+  return tools;
 }
 
 /** @deprecated Use createMainAgentTools + sub-agents instead */

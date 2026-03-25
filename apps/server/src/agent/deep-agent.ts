@@ -17,6 +17,7 @@ export type LoomicAgent = Pick<
 >;
 
 export type LoomicAgentFactory = (options: {
+  brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
@@ -28,6 +29,7 @@ export type LoomicAgentFactory = (options: {
 
 export function createLoomicDeepAgent(options: {
   backendFactory?: BackendFactory;
+  brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
   createUserClient?: (accessToken: string) => any;
@@ -56,6 +58,11 @@ export function createLoomicDeepAgent(options: {
       );
     });
 
+  const systemPrompt = options.brandKitId
+    ? LOOMIC_SYSTEM_PROMPT +
+      "\n\n当前项目已绑定品牌套件。在进行设计相关工作时，请先使用 get_brand_kit 工具查询品牌信息，确保设计符合品牌规范。"
+    : LOOMIC_SYSTEM_PROMPT;
+
   return createDeepAgent({
     backend: backendFactory,
     ...(options.checkpointer ? { checkpointer: options.checkpointer } : {}),
@@ -68,8 +75,11 @@ export function createLoomicDeepAgent(options: {
       ),
       createVideoSubAgent(),
     ],
-    systemPrompt: LOOMIC_SYSTEM_PROMPT,
-    tools: createMainAgentTools(backendFactory, { createUserClient }),
+    systemPrompt,
+    tools: createMainAgentTools(backendFactory, {
+      createUserClient,
+      brandKitId: options.brandKitId,
+    }),
   });
 }
 
