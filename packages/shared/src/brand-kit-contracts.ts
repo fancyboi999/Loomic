@@ -66,6 +66,7 @@ export const brandKitAssetCreateRequestSchema = z.object({
   display_name: z.string().min(1).max(100),
   text_content: z.string().nullable().optional(),
   role: z.string().nullable().optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 export type BrandKitAssetCreateRequest = z.infer<typeof brandKitAssetCreateRequestSchema>;
 
@@ -74,6 +75,7 @@ export const brandKitAssetUpdateRequestSchema = z.object({
   text_content: z.string().nullable().optional(),
   role: z.string().nullable().optional(),
   sort_order: z.number().int().optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 export type BrandKitAssetUpdateRequest = z.infer<typeof brandKitAssetUpdateRequestSchema>;
 
