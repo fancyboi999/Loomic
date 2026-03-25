@@ -226,7 +226,60 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               ...(input.inputImages ? { input_images: input.inputImages } : {}),
             },
           });
-          return { jobId: job.id };
+
+          // Poll until terminal state
+          const POLL_INTERVAL = 2000;
+          const MAX_WAIT = 120_000; // 2 minutes
+          const start = Date.now();
+
+          while (Date.now() - start < MAX_WAIT) {
+            await delay(POLL_INTERVAL);
+
+            if (run.controller.signal.aborted) {
+              throw new Error("Run was canceled");
+            }
+
+            const current = await jobSvc.getJobAdmin(job.id);
+
+            if (current.status === "succeeded" && current.result) {
+              const result = current.result as {
+                signed_url?: string;
+                width?: number;
+                height?: number;
+                mime_type?: string;
+              };
+              return {
+                jobId: job.id,
+                imageUrl: result.signed_url ?? "",
+                width: result.width ?? 1024,
+                height: result.height ?? 1024,
+                mimeType: result.mime_type ?? "image/png",
+              };
+            }
+
+            if (current.status === "dead_letter" || current.status === "canceled") {
+              return {
+                jobId: job.id,
+                error: current.error_message ?? `Job ${current.status}`,
+              };
+            }
+
+            // "failed" with attempts exhausted
+            if (
+              current.status === "failed" &&
+              current.attempt_count >= current.max_attempts
+            ) {
+              return {
+                jobId: job.id,
+                error: current.error_message ?? "Job failed after max retries",
+              };
+            }
+          }
+
+          return {
+            jobId: job.id,
+            error: `Job timed out after ${MAX_WAIT / 1000}s`,
+          };
         };
       }
 
