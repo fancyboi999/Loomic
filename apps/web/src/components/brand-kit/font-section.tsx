@@ -2,15 +2,20 @@
 
 import type { BrandKitAsset } from "@loomic/shared";
 import { Plus, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "../../lib/utils";
+import { FontPickerDialog } from "./font-picker-dialog";
 import { InlineInput } from "./inline-input";
 import { SectionHeader } from "./section-header";
 
 interface FontSectionProps {
   fonts: BrandKitAsset[];
-  onAddFont: (name: string) => void;
+  onAddFont: (data: {
+    family: string;
+    variant: string;
+    category: string;
+  }) => void;
   onDeleteFont: (assetId: string) => void;
   onUpdateLabel: (assetId: string, name: string) => void;
 }
@@ -21,34 +26,53 @@ export function FontSection({
   onDeleteFont,
   onUpdateLabel,
 }: FontSectionProps) {
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const startAdding = useCallback(() => {
-    setAdding(true);
-    setNewName("");
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
-
-  const commitAdd = useCallback(() => {
-    const trimmed = newName.trim();
-    if (trimmed) {
-      onAddFont(trimmed);
-    }
-    setAdding(false);
-    setNewName("");
-  }, [newName, onAddFont]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") commitAdd();
-      if (e.key === "Escape") {
-        setAdding(false);
-        setNewName("");
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
       }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [menuOpen]);
+
+  // Load Google Fonts CSS for each font card
+  useEffect(() => {
+    const families = fonts
+      .map((f) => f.text_content)
+      .filter((v): v is string => Boolean(v));
+
+    const uniqueFamilies = [...new Set(families)];
+
+    for (const family of uniqueFamilies) {
+      const linkId = `gfont-${family.replace(/\s+/g, "-")}`;
+      if (document.getElementById(linkId)) continue;
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}&display=swap`;
+      document.head.appendChild(link);
+    }
+  }, [fonts]);
+
+  const handleManualInput = useCallback(() => {
+    setMenuOpen(false);
+    const name = window.prompt("输入字体名称");
+    if (!name?.trim()) return;
+    onAddFont({ family: name.trim(), variant: "regular", category: "sans-serif" });
+  }, [onAddFont]);
+
+  const handlePickerSelect = useCallback(
+    (font: { family: string; variant: string; category: string }) => {
+      onAddFont(font);
     },
-    [commitAdd],
+    [onAddFont],
   );
 
   return (
@@ -59,7 +83,14 @@ export function FontSection({
           <div key={font.id} className="flex flex-col items-center gap-1.5">
             <div className="relative group">
               <div className="w-[150px] h-[113px] rounded-xl border bg-muted/30 flex items-center justify-center">
-                <span className="text-3xl font-light text-foreground/70 select-none">
+                <span
+                  className="text-3xl font-light text-foreground/70 select-none"
+                  style={{
+                    fontFamily: font.text_content
+                      ? `"${font.text_content}", sans-serif`
+                      : undefined,
+                  }}
+                >
                   Ag
                 </span>
               </div>
@@ -85,41 +116,49 @@ export function FontSection({
           </div>
         ))}
 
-        {/* Add button / adding input */}
+        {/* Add button with dropdown menu */}
         <div className="flex flex-col items-center gap-1.5">
-          {adding ? (
-            <>
-              <div className="w-[150px] h-[113px] rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-                <span className="text-3xl font-light text-muted-foreground/40 select-none">
-                  Ag
-                </span>
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="w-[150px] h-[113px] rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
+              aria-label="Add font"
+            >
+              <Plus className="h-5 w-5 text-muted-foreground/60" />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 w-[180px] rounded-xl border bg-popover p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setPickerOpen(true);
+                  }}
+                  className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  从字体库选择
+                </button>
+                <button
+                  type="button"
+                  onClick={handleManualInput}
+                  className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  手动输入字体名称
+                </button>
               </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onBlur={commitAdd}
-                onKeyDown={handleKeyDown}
-                placeholder="Font name"
-                className="w-[150px] text-xs text-center bg-transparent border-b border-dashed border-muted-foreground/40 outline-none"
-              />
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={startAdding}
-                className="w-[150px] h-[113px] rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
-                aria-label="Add font"
-              >
-                <Plus className="h-5 w-5 text-muted-foreground/60" />
-              </button>
-              <span className="text-xs text-muted-foreground/60">Add</span>
-            </>
-          )}
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground/60">Add</span>
         </div>
       </div>
+
+      <FontPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePickerSelect}
+      />
     </section>
   );
 }

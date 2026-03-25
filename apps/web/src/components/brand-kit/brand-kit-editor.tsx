@@ -29,6 +29,7 @@ interface BrandKitEditorProps {
     type: BrandKitAssetType,
     displayName: string,
     textContent?: string | null,
+    metadata?: Record<string, unknown>,
   ) => void;
   onUpdateAsset: (
     assetId: string,
@@ -92,7 +93,15 @@ export function BrandKitEditor({
 
   // Font handlers
   const handleAddFont = useCallback(
-    (name: string) => onAddAsset("font", name),
+    (data: { family: string; variant: string; category: string }) => {
+      const weight = data.variant === "regular" ? "400" : data.variant;
+      const displayName = `${data.family} ${weight === "400" ? "Regular" : weight}`;
+      onAddAsset("font", displayName, data.family, {
+        weight,
+        category: data.category,
+        source: "google_fonts",
+      });
+    },
     [onAddAsset],
   );
   const handleUpdateFontLabel = useCallback(
