@@ -22,7 +22,8 @@ function getProxyDispatcher() {
     process.env.HTTPS_PROXY ||
     process.env.https_proxy ||
     process.env.HTTP_PROXY ||
-    process.env.http_proxy;
+    process.env.http_proxy ||
+    process.env.GLOBAL_AGENT_HTTP_PROXY;
   if (!proxyUrl) return undefined;
   return new ProxyAgent(proxyUrl);
 }
