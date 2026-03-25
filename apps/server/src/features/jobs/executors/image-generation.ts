@@ -28,11 +28,11 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
   const workspaceId: string = jobRow.workspace_id ?? jobId;
 
   // Resolve provider and model
-  // payload.model may be e.g. "replicate/flux-dev" or just "flux-dev"
-  // providerName is the first segment; fall back to "replicate"
-  const rawModel = payload.model ?? "replicate";
-  const providerName = rawModel.includes("/") ? (rawModel.split("/")[0] as string) : "replicate";
-  const model = rawModel;
+  // All models in REPLICATE_IMAGE_MODELS use the format "creator/model-name"
+  // (e.g. "google/nano-banana-pro", "black-forest-labs/flux-kontext-pro")
+  // which are Replicate model IDs — the provider is always "replicate".
+  const providerName = "replicate";
+  const model = payload.model ?? "black-forest-labs/flux-kontext-pro";
 
   const heartbeatTimer = setInterval(() => {
     // Best-effort heartbeat placeholder — VT extension requires msg_id not

@@ -188,23 +188,34 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
       // Build submitImageJob closure for async image generation via PGMQ
       let submitImageJob: SubmitImageJobFn | undefined;
-      if (options.jobService && options.viewerService && run.accessToken && run.userId) {
+      if (options.jobService && options.createUserClient && run.accessToken && run.userId) {
         const jobSvc = options.jobService;
-        const viewerSvc = options.viewerService;
+        const createClient = options.createUserClient;
         const accessToken = run.accessToken;
         const userId = run.userId;
         const canvasId = run.canvasId;
 
         submitImageJob = async (input) => {
+          // Look up personal workspace directly — the viewer is already
+          // bootstrapped from the normal auth flow, so we skip ensureViewer
+          // to avoid its strict email validation on the profile schema.
+          const client = createClient(accessToken) as UserSupabaseClient;
+          const { data: ws } = await client
+            .from("workspaces")
+            .select("id")
+            .eq("type", "personal")
+            .limit(1)
+            .single();
+          if (!ws?.id) throw new Error("No personal workspace found");
+
           const user: AuthenticatedUser = {
             id: userId,
             accessToken,
             email: "",
             userMetadata: {},
           };
-          const viewer = await viewerSvc.ensureViewer(user);
           const job = await jobSvc.createJob(user, {
-            workspaceId: viewer.workspace.id,
+            workspaceId: ws.id,
             ...(canvasId ? { canvasId } : {}),
             jobType: "image_generation",
             payload: {
