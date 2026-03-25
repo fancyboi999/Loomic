@@ -25,10 +25,14 @@ export function BrandKitSelector({
   const [updating, setUpdating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Use a ref for accessToken to prevent tab-switch reload cascades.
+  const accessTokenRef = useRef(accessToken);
+  accessTokenRef.current = accessToken;
+
   // Fetch brand kits on mount
   useEffect(() => {
     let cancelled = false;
-    fetchBrandKits(accessToken)
+    fetchBrandKits(accessTokenRef.current)
       .then((res) => {
         if (!cancelled) setKits(res.brandKits);
       })
@@ -38,7 +42,7 @@ export function BrandKitSelector({
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -66,7 +70,7 @@ export function BrandKitSelector({
       }
       setUpdating(true);
       try {
-        await updateProject(accessToken, projectId, {
+        await updateProject(accessTokenRef.current, projectId, {
           brand_kit_id: kitId,
         });
         onBrandKitChange(kitId);
@@ -77,7 +81,7 @@ export function BrandKitSelector({
         setOpen(false);
       }
     },
-    [accessToken, projectId, currentBrandKitId, onBrandKitChange],
+    [projectId, currentBrandKitId, onBrandKitChange],
   );
 
   return (
