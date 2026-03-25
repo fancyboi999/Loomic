@@ -60,6 +60,7 @@ export type JobService = {
     filters?: { status?: BackgroundJobStatus; jobType?: BackgroundJobType },
   ): Promise<BackgroundJob[]>;
   cancelJob(user: AuthenticatedUser, jobId: string): Promise<BackgroundJob>;
+  getJobAdmin(jobId: string): Promise<BackgroundJob>;
 
   // Worker-only methods (use admin client, no user auth)
   markRunning(jobId: string): Promise<void>;
@@ -210,6 +211,23 @@ export function createJobService(options: {
           "Job not found or already completed.",
           404,
         );
+      }
+      return mapJobRow(job as unknown as Record<string, unknown>);
+    },
+
+    async getJobAdmin(jobId) {
+      const admin = options.getAdminClient();
+      const { data: job, error } = await admin
+        .from("background_jobs")
+        .select(SELECT_COLS)
+        .eq("id", jobId)
+        .maybeSingle();
+
+      if (error) {
+        throw new JobServiceError("job_query_failed", "Failed to query job.", 500);
+      }
+      if (!job) {
+        throw new JobServiceError("job_not_found", "Job not found.", 404);
       }
       return mapJobRow(job as unknown as Record<string, unknown>);
     },
