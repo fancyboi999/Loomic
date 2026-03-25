@@ -134,6 +134,34 @@ export async function deleteProject(
   if (!response.ok) return handleErrorResponse(response);
 }
 
+export async function fetchProject(
+  accessToken: string,
+  projectId: string,
+): Promise<{ project: { id: string; name: string; brand_kit_id: string | null } }> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/projects/${projectId}`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as { project: { id: string; name: string; brand_kit_id: string | null } };
+}
+
+export async function updateProject(
+  accessToken: string,
+  projectId: string,
+  data: { brand_kit_id?: string | null },
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/projects/${projectId}`,
+    {
+      method: "PATCH",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify(data),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
 // --- Canvas API ---
 
 export async function fetchCanvas(

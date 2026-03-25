@@ -22,6 +22,29 @@ export async function registerProjectRoutes(
     projectService: ProjectService;
   },
 ) {
+  app.get("/api/projects/:projectId", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+
+      if (!user) {
+        return reply.code(401).send(
+          unauthenticatedErrorResponseSchema.parse({
+            error: {
+              code: "unauthorized",
+              message: "Missing or invalid bearer token.",
+            },
+          }),
+        );
+      }
+
+      const { projectId } = request.params as { projectId: string };
+      const project = await options.projectService.getProject(user, projectId);
+      return reply.code(200).send({ project });
+    } catch (error) {
+      return sendProjectError(error, reply, "project_query_failed");
+    }
+  });
+
   app.get("/api/projects", async (request, reply) => {
     try {
       const user = await options.auth.authenticate(request);

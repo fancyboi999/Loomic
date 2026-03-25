@@ -32,6 +32,19 @@ export type ProjectService = {
     user: AuthenticatedUser,
     input: ProjectCreateRequest,
   ): Promise<ProjectSummary>;
+  getProject(
+    user: AuthenticatedUser,
+    projectId: string,
+  ): Promise<{
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    workspace_id: string;
+    brand_kit_id: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
   listProjects(user: AuthenticatedUser): Promise<ProjectSummary[]>;
   saveThumbnail(
     user: AuthenticatedUser,
@@ -116,6 +129,19 @@ export function createProjectService(options: {
           500,
         );
       }
+    },
+    async getProject(user, projectId) {
+      const client = options.createUserClient(user.accessToken);
+      const { data, error } = await client
+        .from("projects")
+        .select("id, name, slug, description, workspace_id, brand_kit_id, created_at, updated_at")
+        .eq("id", projectId)
+        .is("archived_at", null)
+        .maybeSingle();
+
+      if (error) throw new ProjectServiceError("project_query_failed", "Failed to load project.", 500);
+      if (!data) throw new ProjectServiceError("project_not_found", "Project not found.", 404);
+      return data;
     },
     async createProject(user, input) {
       await ensureFoundation(options.viewerService, user, "project_create_failed");
@@ -453,13 +479,14 @@ function normalizeDescription(description: string | undefined) {
 }
 
 function slugify(value: string) {
-  const slug = value
+  const base = value
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return slug || "project";
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return base ? `${base}-${suffix}` : `project-${suffix}`;
 }
 
 async function generateThumbnailUrls(
