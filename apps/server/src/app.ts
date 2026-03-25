@@ -47,6 +47,12 @@ import {
   type UploadService,
 } from "./features/uploads/upload-service.js";
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
+import { createPgmqClient } from "./queue/pgmq-client.js";
+import {
+  createJobService,
+  type JobService,
+} from "./features/jobs/job-service.js";
+import { registerJobRoutes } from "./http/jobs.js";
 import { registerBrandKitRoutes } from "./http/brand-kits.js";
 import { registerCanvasRoutes } from "./http/canvases.js";
 import { registerChatRoutes } from "./http/chat.js";
@@ -77,6 +83,7 @@ export type BuildAppOptions = {
   canvasService?: CanvasService;
   chatService?: ChatService;
   env?: Partial<ServerEnv>;
+  jobService?: JobService;
   uploadService?: UploadService;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
@@ -130,6 +137,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     options.settingsService ?? createSettingsService({ createUserClient });
   const uploadService =
     options.uploadService ?? createUploadService({ createUserClient });
+  const pgmq = env.supabaseDbUrl
+    ? createPgmqClient(env.supabaseDbUrl)
+    : undefined;
+  const jobService =
+    options.jobService ??
+    (pgmq
+      ? createJobService({ createUserClient, getAdminClient, pgmq })
+      : undefined);
   const agentRuns = createAgentRunService({
     agentPersistenceService,
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
@@ -214,6 +229,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerGenerateRoutes(app, { auth, uploadService, viewerService });
+  if (jobService) {
+    void registerJobRoutes(app, { auth, jobService, viewerService });
+  }
 
   return app;
 }
