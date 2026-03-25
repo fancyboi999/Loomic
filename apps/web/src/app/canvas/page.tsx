@@ -6,12 +6,14 @@ import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import type { ImageArtifact } from "@loomic/shared";
 import Link from "next/link";
 import { LoomicLogo } from "../../components/icons/loomic-logo";
+import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
 import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
-import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
+import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
+import { BrandKitSelector } from "../../components/brand-kit-selector";
 
 function CanvasPageContent() {
   const searchParams = useSearchParams();
@@ -33,6 +35,7 @@ function CanvasPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
+  const [brandKitId, setBrandKitId] = useState<string | null>(null);
 
   const excalidrawApiRef = useRef<any>(null);
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
@@ -88,6 +91,10 @@ function CanvasPageContent() {
           },
         });
         setPageLoading(false);
+        // Fetch project to get brand_kit_id
+        fetchProject(token, c.projectId)
+          .then((projectData) => setBrandKitId(projectData.project.brand_kit_id))
+          .catch((err) => console.warn("Failed to fetch project for brand kit:", err));
       })
       .catch((err) => {
         if (err instanceof ApiAuthError) {
@@ -109,14 +116,7 @@ function CanvasPageContent() {
   }
 
   if (authLoading || pageLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="h-6 w-6 mx-auto animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
-          <p className="text-sm text-muted-foreground">Loading canvas...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error) {
@@ -141,6 +141,15 @@ function CanvasPageContent() {
           Loomic
         </span>
       </Link>
+      {/* Brand Kit Selector — sits right after the Loomic logo pill */}
+      <div className="absolute top-3 left-[130px] z-20">
+        <BrandKitSelector
+          accessToken={accessToken}
+          projectId={canvasData.projectId}
+          currentBrandKitId={brandKitId}
+          onBrandKitChange={(kitId) => setBrandKitId(kitId)}
+        />
+      </div>
       <div className="flex-1 relative min-w-0">
         <CanvasEditor
           canvasId={canvasData.id}
@@ -149,11 +158,11 @@ function CanvasPageContent() {
           initialContent={canvasData.content}
           onApiReady={handleApiReady}
         />
+        <CanvasEmptyHint
+          excalidrawApi={excalidrawApi}
+          onOpenChat={() => setChatOpen(true)}
+        />
       </div>
-      <CanvasEmptyHint
-        excalidrawApi={excalidrawApi}
-        onOpenChat={() => setChatOpen(true)}
-      />
       <ChatSidebar
         accessToken={accessToken}
         canvasId={canvasData.id}
@@ -168,13 +177,7 @@ function CanvasPageContent() {
 
 export default function CanvasPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingScreen />}>
       <CanvasPageContent />
     </Suspense>
   );
