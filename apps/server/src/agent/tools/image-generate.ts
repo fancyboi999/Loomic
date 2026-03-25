@@ -42,6 +42,28 @@ const imageGenerateSchema = z.object({
     .describe(
       "Reference image URLs for editing/transformation. Google models accept up to 14, Flux models accept 1.",
     ),
+  placementX: z
+    .number()
+    .optional()
+    .describe(
+      "Left edge x coordinate on canvas. Use inspect_canvas to determine position.",
+    ),
+  placementY: z
+    .number()
+    .optional()
+    .describe(
+      "Top edge y coordinate on canvas. Use inspect_canvas to determine position.",
+    ),
+  placementWidth: z
+    .number()
+    .optional()
+    .default(512)
+    .describe("Display width on canvas"),
+  placementHeight: z
+    .number()
+    .optional()
+    .default(512)
+    .describe("Display height on canvas"),
 });
 
 type ImageGenerateInput = z.infer<typeof imageGenerateSchema>;
@@ -65,6 +87,18 @@ export type PersistImageFn = (
   mimeType: string,
   prompt: string,
 ) => Promise<string>;
+
+/**
+ * Optional function to submit an async image generation job.
+ * Returns a job ID that can be polled for completion.
+ */
+export type SubmitImageJobFn = (input: {
+  prompt: string;
+  title: string;
+  model: string;
+  aspectRatio: string;
+  inputImages?: string[];
+}) => Promise<{ jobId: string }>;
 
 export async function runImageGenerate(
   input: ImageGenerateInput,
@@ -106,6 +140,7 @@ export async function runImageGenerate(
 
 export function createImageGenerateTool(deps?: {
   persistImage?: PersistImageFn;
+  submitImageJob?: SubmitImageJobFn;
 }) {
   return tool(
     async (input) => {

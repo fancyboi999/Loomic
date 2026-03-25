@@ -3,7 +3,11 @@ import type { BackendFactory, BackendProtocol } from "deepagents";
 
 import { createBrandKitTool } from "./brand-kit.js";
 import { createInspectCanvasTool } from "./inspect-canvas.js";
-import { createImageGenerateTool } from "./image-generate.js";
+import {
+  createImageGenerateTool,
+  type PersistImageFn,
+  type SubmitImageJobFn,
+} from "./image-generate.js";
 import { createProjectSearchTool } from "./project-search.js";
 import { createVideoGenerateTool } from "./video-generate.js";
 
@@ -16,11 +20,17 @@ export function createMainAgentTools(
   deps: {
     createUserClient: (accessToken: string) => any;
     brandKitId?: string | null;
+    persistImage?: PersistImageFn;
+    submitImageJob?: SubmitImageJobFn;
   },
 ) {
   const tools: StructuredTool[] = [
     createProjectSearchTool(backend),
     createInspectCanvasTool(deps),
+    createImageGenerateTool({
+      persistImage: deps.persistImage,
+      submitImageJob: deps.submitImageJob,
+    }),
   ];
   if (deps.brandKitId) {
     tools.push(createBrandKitTool(deps, deps.brandKitId));
