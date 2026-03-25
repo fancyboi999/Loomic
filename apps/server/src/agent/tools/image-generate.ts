@@ -42,6 +42,28 @@ const imageGenerateSchema = z.object({
     .describe(
       "Reference image URLs for editing/transformation. Google models accept up to 14, Flux models accept 1.",
     ),
+  placementX: z
+    .number()
+    .optional()
+    .describe(
+      "Left edge x coordinate on canvas. Use inspect_canvas to determine position.",
+    ),
+  placementY: z
+    .number()
+    .optional()
+    .describe(
+      "Top edge y coordinate on canvas. Use inspect_canvas to determine position.",
+    ),
+  placementWidth: z
+    .number()
+    .optional()
+    .default(512)
+    .describe("Display width on canvas"),
+  placementHeight: z
+    .number()
+    .optional()
+    .default(512)
+    .describe("Display height on canvas"),
 });
 
 type ImageGenerateInput = z.infer<typeof imageGenerateSchema>;
@@ -54,6 +76,9 @@ type ImageGenerateResult = {
   width?: number;
   height?: number;
   error?: string;
+  jobId?: string;
+  model?: string;
+  placement?: { x: number; y: number; width: number; height: number };
 };
 
 /**
@@ -66,10 +91,61 @@ export type PersistImageFn = (
   prompt: string,
 ) => Promise<string>;
 
+/**
+ * Optional function to submit an async image generation job.
+ * Returns a job ID that can be polled for completion.
+ */
+export type SubmitImageJobFn = (input: {
+  prompt: string;
+  title: string;
+  model: string;
+  aspectRatio: string;
+  inputImages?: string[];
+}) => Promise<{ jobId: string }>;
+
 export async function runImageGenerate(
   input: ImageGenerateInput,
   persistImage?: PersistImageFn,
+  submitImageJob?: SubmitImageJobFn,
 ): Promise<ImageGenerateResult> {
+  // 异步模式：提交 job 立即返回
+  if (submitImageJob) {
+    try {
+      const { jobId } = await submitImageJob({
+        prompt: input.prompt,
+        title: input.title,
+        model: input.model,
+        aspectRatio: input.aspectRatio ?? "1:1",
+        ...(input.inputImages ? { inputImages: input.inputImages } : {}),
+      });
+      const result: ImageGenerateResult = {
+        summary: `Image generation job submitted (jobId: ${jobId}), model: ${input.model}`,
+        title: input.title,
+        jobId,
+        model: input.model,
+        imageUrl: "",
+        mimeType: "image/png",
+        width: 1024,
+        height: 1024,
+      };
+      if (input.placementX != null && input.placementY != null) {
+        result.placement = {
+          x: input.placementX,
+          y: input.placementY,
+          width: input.placementWidth ?? 512,
+          height: input.placementHeight ?? 512,
+        };
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        summary: `Failed to submit image generation job: ${message}`,
+        error: message,
+      };
+    }
+  }
+
   try {
     const result = await generateImage("replicate", {
       prompt: input.prompt,
@@ -106,10 +182,11 @@ export async function runImageGenerate(
 
 export function createImageGenerateTool(deps?: {
   persistImage?: PersistImageFn;
+  submitImageJob?: SubmitImageJobFn;
 }) {
   return tool(
-    async (input) => {
-      return await runImageGenerate(input, deps?.persistImage);
+    async (input: ImageGenerateInput) => {
+      return await runImageGenerate(input, deps?.persistImage, deps?.submitImageJob);
     },
     {
       name: "generate_image",

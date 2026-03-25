@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { toolArtifactSchema } from "./artifacts.js";
+import { placementSchema, toolArtifactSchema } from "./artifacts.js";
 import {
   conversationIdSchema,
   messageIdSchema,
@@ -67,6 +67,17 @@ export const runFailedEventSchema = z.object({
   timestamp: timestampSchema,
 });
 
+export const jobSubmittedEventSchema = z.object({
+  type: z.literal("job.submitted"),
+  runId: runIdSchema,
+  jobId: z.string(),
+  jobType: z.string(),
+  title: z.string().optional(),
+  model: z.string().optional(),
+  placement: placementSchema.optional(),
+  timestamp: timestampSchema,
+});
+
 export const streamEventSchema = z.discriminatedUnion("type", [
   runStartedEventSchema,
   messageDeltaEventSchema,
@@ -75,6 +86,7 @@ export const streamEventSchema = z.discriminatedUnion("type", [
   runCanceledEventSchema,
   runCompletedEventSchema,
   runFailedEventSchema,
+  jobSubmittedEventSchema,
 ]);
 
 export type StreamEvent = z.infer<typeof streamEventSchema>;

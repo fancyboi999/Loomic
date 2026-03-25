@@ -156,6 +156,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       ? {}
       : { eventDelayMs: options.mockEventDelayMs }),
     env,
+    ...(jobService ? { jobService } : {}),
+    viewerService,
   });
 
   app.addHook("onRequest", async (request, reply) => {

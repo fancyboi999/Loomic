@@ -15,6 +15,7 @@ export const imageArtifactSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   placement: placementSchema.optional(),
+  jobId: z.string().optional(),
 });
 
 export const toolArtifactSchema = z.discriminatedUnion("type", [

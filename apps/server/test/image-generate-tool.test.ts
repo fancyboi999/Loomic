@@ -26,6 +26,8 @@ describe("generate_image tool", () => {
       prompt: "a cat",
       model: "google/nano-banana-pro",
       aspectRatio: "1:1",
+      placementWidth: 512,
+      placementHeight: 512,
     });
 
     expect(result.summary).toContain("Generated image");
@@ -46,6 +48,8 @@ describe("generate_image tool", () => {
       prompt: "test",
       model: "google/nano-banana-pro",
       aspectRatio: "1:1",
+      placementWidth: 512,
+      placementHeight: 512,
     });
 
     expect(result.summary).toContain("failed");
