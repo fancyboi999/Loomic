@@ -17,6 +17,7 @@
     "langchain": "^1.2.36",
     "openai": "^6.32.0",
     "pg": "^8.20.0",
+    "undici": "^7.24.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -29,7 +30,9 @@
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
     "predev": "pnpm --filter @loomic/shared build",
-    "dev": "node --env-file=../../.env.local --import tsx ./src/server.ts",
+    "dev": "node --watch --env-file=../../.env.local --import tsx ./src/server.ts & node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & wait",
+    "dev:server": "node --watch --env-file=../../.env.local --import tsx ./src/server.ts",
+    "dev:worker": "node --watch --env-file=../../.env.local --import tsx ./src/worker.ts",
     "worker": "node --env-file=../../.env.local --import tsx ./src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
