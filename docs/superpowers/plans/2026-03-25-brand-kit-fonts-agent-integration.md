@@ -31,9 +31,12 @@
 ### Layer 2 — Project ↔ Brand Kit Binding
 | Action | File | Responsibility |
 |--------|------|----------------|
-| Modify | `apps/web/src/lib/server-api.ts` | Add `updateProject()` and `fetchBrandKits()` client functions |
+| Modify | `apps/server/src/http/projects.ts` | Add `GET /api/projects/:projectId` endpoint |
+| Modify | `apps/web/src/lib/server-api.ts` | Add `updateProject()` and `fetchProject()` client functions |
 | Create | `apps/web/src/components/brand-kit-selector.tsx` | Canvas top-bar dropdown for binding brand kit to project |
 | Modify | `apps/web/src/app/canvas/page.tsx` | Fetch project + brand kits, render `BrandKitSelector` |
+
+> Note: `fetchBrandKits` already exists in `apps/web/src/lib/brand-kit-api.ts` — import from there, do NOT duplicate.
 
 ### Layer 3 — Agent Brand Kit Tool
 | Action | File | Responsibility |
@@ -243,8 +246,8 @@ In `apps/server/src/app.ts`, import and register:
 
 ```typescript
 import { registerFontsRoutes } from "./http/fonts.js";
-// ... in the setup function:
-registerFontsRoutes(app, { env });
+// ... in the setup function, alongside other route registrations:
+void registerFontsRoutes(app, { env });
 ```
 
 - [ ] **Step 4: Add API key to `.env.local`**
@@ -288,7 +291,6 @@ export type GoogleFontItem = {
 };
 
 export async function fetchGoogleFonts(
-  accessToken: string,
   search?: string,
   category?: string,
 ): Promise<GoogleFontItem[]> {
@@ -297,9 +299,7 @@ export async function fetchGoogleFonts(
   if (category) params.set("category", category);
 
   const url = `${SERVER_BASE_URL}/api/fonts?${params}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { fonts: GoogleFontItem[] };
   return data.fonts;
@@ -332,7 +332,6 @@ import type { GoogleFontItem } from "../../lib/font-api";
 import { fetchGoogleFonts } from "../../lib/font-api";
 
 interface FontPickerDialogProps {
-  accessToken: string;
   open: boolean;
   onClose: () => void;
   onSelect: (font: { family: string; variant: string; category: string }) => void;
@@ -350,7 +349,6 @@ const CATEGORIES = [
 const PAGE_SIZE = 50;
 
 export function FontPickerDialog({
-  accessToken,
   open,
   onClose,
   onSelect,
@@ -369,12 +367,12 @@ export function FontPickerDialog({
     if (!open) return;
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(async () => {
-      const result = await fetchGoogleFonts(accessToken, search || undefined, category || undefined);
+      const result = await fetchGoogleFonts(search || undefined, category || undefined);
       setFonts(result);
       setVisibleCount(PAGE_SIZE);
     }, search ? 300 : 0);
     return () => clearTimeout(searchTimer.current);
-  }, [open, search, category, accessToken]);
+  }, [open, search, category]);
 
   // Load font CSS for visible items
   const ensureFontLoaded = useCallback((family: string) => {
@@ -592,14 +590,76 @@ git commit -m "feat: integrate font picker with brand kit editor and real font r
 
 ## Layer 2: Project ↔ Brand Kit Binding
 
-### Task 6: Client API for project update and brand kit list
+### Task 6: Add GET /api/projects/:projectId endpoint + client API functions
 
 **Files:**
+- Modify: `apps/server/src/http/projects.ts`
+- Modify: `apps/server/src/features/projects/project-service.ts`
 - Modify: `apps/web/src/lib/server-api.ts`
 
-- [ ] **Step 1: Add `updateProject` function**
+- [ ] **Step 1: Add `getProject` to project service**
+
+In `apps/server/src/features/projects/project-service.ts`, add a `getProject` method:
 
 ```typescript
+async getProject(user: AuthUser, projectId: string) {
+  const client = createUserClient(user.accessToken);
+  const { data, error } = await client
+    .from("projects")
+    .select("id, name, slug, description, workspace_id, brand_kit_id, created_at, updated_at")
+    .eq("id", projectId)
+    .is("archived_at", null)
+    .maybeSingle();
+
+  if (error) throw new ProjectServiceError("project_query_failed", "Failed to load project.", 500);
+  if (!data) throw new ProjectServiceError("project_not_found", "Project not found.", 404);
+  return data;
+}
+```
+
+- [ ] **Step 2: Add `GET /api/projects/:projectId` route**
+
+In `apps/server/src/http/projects.ts`, add the endpoint:
+
+```typescript
+app.get("/api/projects/:projectId", async (request, reply) => {
+  try {
+    const user = await options.auth.authenticate(request);
+    if (!user) {
+      return reply.code(401).send(
+        unauthenticatedErrorResponseSchema.parse({
+          error: { code: "unauthorized", message: "Missing or invalid bearer token." },
+        }),
+      );
+    }
+    const { projectId } = request.params as { projectId: string };
+    const project = await options.projectService.getProject(user, projectId);
+    return reply.code(200).send({ project });
+  } catch (error) {
+    return sendProjectError(error, reply, "project_query_failed");
+  }
+});
+```
+
+- [ ] **Step 3: Add `fetchProject` and `updateProject` to client API**
+
+In `apps/web/src/lib/server-api.ts`:
+
+```typescript
+export async function fetchProject(
+  accessToken: string,
+  projectId: string,
+): Promise<{ project: { id: string; name: string; brand_kit_id: string | null } }> {
+  const res = await fetch(`${SERVER_BASE_URL}/api/projects/${projectId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new ApiAuthError("Unauthorized");
+    throw new Error(`Failed to fetch project: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function updateProject(
   accessToken: string,
   projectId: string,
@@ -620,30 +680,18 @@ export async function updateProject(
 }
 ```
 
-- [ ] **Step 2: Add `fetchBrandKits` function (if not already present)**
+> Note: `fetchBrandKits` already exists in `apps/web/src/lib/brand-kit-api.ts` — import from there in canvas page, do NOT duplicate.
 
-Check if `fetchBrandKits` exists. If not, add:
+- [ ] **Step 4: Verify build**
 
-```typescript
-export async function fetchBrandKits(
-  accessToken: string,
-): Promise<{ brandKits: Array<{ id: string; name: string; cover_url: string | null }> }> {
-  const res = await fetch(`${SERVER_BASE_URL}/api/brand-kits`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    if (res.status === 401) throw new ApiAuthError("Unauthorized");
-    throw new Error(`Failed to fetch brand kits: ${res.status}`);
-  }
-  return res.json();
-}
-```
+Run: `npx turbo run build --filter=@loomic/server --filter=@loomic/web`
+Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/web/src/lib/server-api.ts
-git commit -m "feat: add updateProject and fetchBrandKits client API functions"
+git add apps/server/src/http/projects.ts apps/server/src/features/projects/project-service.ts apps/web/src/lib/server-api.ts
+git commit -m "feat: add GET /api/projects/:projectId endpoint and client API functions"
 ```
 
 ---
@@ -659,7 +707,7 @@ Create `apps/web/src/components/brand-kit-selector.tsx`:
 
 The component should:
 - Accept props: `accessToken`, `projectId`, `currentBrandKitId`, `onBrandKitChange`
-- Fetch brand kit list on mount via `fetchBrandKits`
+- Fetch brand kit list on mount via `fetchBrandKits` from `brand-kit-api.ts` (already exists)
 - Render a dropdown trigger: small pill showing current kit name or "品牌套件: 无"
 - Dropdown panel: "无" option (unbind) + list of kits with name and small thumbnail
 - Checkmark on currently active kit
@@ -691,23 +739,17 @@ git commit -m "feat: add BrandKitSelector dropdown for canvas page"
 - [ ] **Step 1: Fetch project data and brand kit list**
 
 In `CanvasPageContent`, after canvas data loads:
-- Add state: `brandKitId` (from project), `brandKits` (list for dropdown)
-- After `fetchCanvas` resolves and we have `projectId`, fetch the project to get `brand_kit_id`
-- Fetch brand kit list for the dropdown
-
-Note: The project fetch can reuse data from the canvas endpoint if it includes `brand_kit_id`. Check `fetchCanvas` response. If it doesn't include `brand_kit_id`, add a separate `fetch` to `GET /api/projects/{projectId}` (may need a new server endpoint or modify the canvas response to include it).
-
-The simplest approach: the canvas response already includes `projectId`. Add a lightweight project fetch after canvas loads:
+- Add state: `brandKitId` (from project)
+- After `fetchCanvas` resolves and we have `projectId`, call `fetchProject(token, projectId)` (from Task 6) to get `brand_kit_id`
 
 ```typescript
-// After canvas loads and we have projectId
-const projectRes = await fetch(`${SERVER_BASE_URL}/api/projects/${c.projectId}`, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-// Extract brand_kit_id from project data
-```
+import { fetchProject } from "../../lib/server-api";
+import { fetchBrandKits } from "../../lib/brand-kit-api";
 
-Alternatively, modify `fetchCanvas` on the server to include `brand_kit_id` from the project join — this is cleaner. Check the server canvas endpoint and add a join.
+// Inside the existing useEffect, after fetchCanvas resolves:
+const projectData = await fetchProject(token, c.projectId);
+setBrandKitId(projectData.project.brand_kit_id);
+```
 
 - [ ] **Step 2: Render BrandKitSelector in canvas top bar**
 
@@ -751,23 +793,22 @@ git commit -m "feat: add brand kit selector to canvas page top bar"
 
 - [ ] **Step 1: Implement the tool**
 
-Create `apps/server/src/agent/tools/brand-kit.ts`:
+Create `apps/server/src/agent/tools/brand-kit.ts`.
+
+**IMPORTANT:** Use the `tool()` function from `"langchain"` — the same API pattern as `inspect-canvas.ts`. Do NOT use `DynamicStructuredTool` from `@langchain/core/tools`.
 
 ```typescript
+import { tool } from "langchain";
 import { z } from "zod";
-import { DynamicStructuredTool } from "@langchain/core/tools";
+
+const brandKitSchema = z.object({});
 
 export function createBrandKitTool(
   deps: { createUserClient: (accessToken: string) => any },
   brandKitId: string,
 ) {
-  return new DynamicStructuredTool({
-    name: "get_brand_kit",
-    description:
-      "查询当前项目绑定的品牌套件信息，包含设计指南、颜色、字体、Logo等品牌资产。当用户提到品牌、风格、设计规范时使用此工具。",
-    schema: z.object({}),
-    func: async (_input, runManager) => {
-      const config = runManager?.getChild()?.parentConfig ?? {};
+  return tool(
+    async (_input, config) => {
       const accessToken = (config as any)?.configurable?.access_token;
       if (!accessToken) {
         return JSON.stringify({ error: "No access token available" });
@@ -830,11 +871,17 @@ export function createBrandKitTool(
 
       return JSON.stringify(result, null, 2);
     },
-  });
+    {
+      name: "get_brand_kit",
+      description:
+        "查询当前项目绑定的品牌套件信息，包含设计指南、颜色、字体、Logo等品牌资产。当用户提到品牌、风格、设计规范时使用此工具。",
+      schema: brandKitSchema,
+    },
+  );
 }
 ```
 
-Note: The tool accesses `access_token` from LangGraph's configurable context (passed through `streamEvents` options). Check how `inspect-canvas.ts` accesses it — follow the same pattern exactly.
+This follows the exact same `tool(handler, { name, description, schema })` pattern used by `inspect-canvas.ts`. The `config` parameter provides `configurable.access_token`.
 
 - [ ] **Step 2: Verify build**
 
@@ -856,9 +903,17 @@ git commit -m "feat: add get_brand_kit agent tool for querying bound brand kit"
 - Modify: `apps/server/src/agent/tools/index.ts`
 - Modify: `apps/server/src/agent/deep-agent.ts`
 
-- [ ] **Step 1: Update `createMainAgentTools` to accept `brandKitId`**
+- [ ] **Step 1: Remove `as const` from return and switch to mutable array**
 
-In `apps/server/src/agent/tools/index.ts`:
+In `apps/server/src/agent/tools/index.ts`, the current `createMainAgentTools` returns `as const` (tuple type). Remove `as const` from the return statement since we need a mutable array for conditional `.push()`:
+
+```typescript
+// BEFORE:
+return [createProjectSearchTool(backend), createInspectCanvasTool(deps)] as const;
+// AFTER: remove `as const`
+```
+
+- [ ] **Step 2: Add `brandKitId` parameter and conditional tool registration**
 
 ```typescript
 import { createBrandKitTool } from "./brand-kit.js";
@@ -881,9 +936,7 @@ export function createMainAgentTools(
 }
 ```
 
-Note: The `as const` return type needs to be removed since we're now using a mutable array with conditional push. Change return to plain array.
-
-- [ ] **Step 2: Update `createLoomicDeepAgent` to accept and pass `brandKitId`**
+- [ ] **Step 3: Update `createLoomicDeepAgent` to accept and pass `brandKitId`**
 
 In `apps/server/src/agent/deep-agent.ts`:
 
@@ -921,12 +974,12 @@ export function createLoomicDeepAgent(options: {
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [ ] **Step 4: Verify build**
 
 Run: `npx turbo run build --filter=@loomic/server`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add apps/server/src/agent/tools/index.ts apps/server/src/agent/deep-agent.ts
