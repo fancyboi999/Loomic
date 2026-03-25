@@ -63,6 +63,19 @@ function CanvasPageContent() {
     });
   }, []);
 
+  const handleCanvasSync = useCallback(async () => {
+    const api = excalidrawApiRef.current;
+    const token = accessTokenRef.current;
+    if (!api || !token || !canvasData) return;
+    try {
+      const { canvas } = await fetchCanvas(token, canvasData.id);
+      const elements = canvas.content.elements ?? [];
+      api.updateScene({ elements, captureUpdate: "IMMEDIATELY" });
+    } catch (err) {
+      console.warn("Failed to sync canvas:", err);
+    }
+  }, [canvasData]);
+
   // Only re-fetch when canvasId changes or on initial auth resolution.
   // Token refreshes (e.g. tab switch back) should NOT trigger a reload —
   // we depend on user.id (stable string) instead of the user object ref.
@@ -174,6 +187,7 @@ function CanvasPageContent() {
         open={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}
         onImageGenerated={handleImageGenerated}
+        onCanvasSync={handleCanvasSync}
         initialPrompt={initialPrompt}
       />
     </div>

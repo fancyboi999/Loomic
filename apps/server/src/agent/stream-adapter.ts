@@ -183,6 +183,14 @@ export async function* adaptDeepAgentStream(
           toolName,
           type: "tool.completed",
         };
+
+        if (toolName === "manipulate_canvas") {
+          yield {
+            type: "canvas.sync" as const,
+            runId: options.runId,
+            timestamp: now(),
+          } satisfies StreamEvent;
+        }
         continue;
       }
     }
