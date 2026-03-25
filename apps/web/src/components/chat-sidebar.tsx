@@ -435,9 +435,11 @@ export function ChatSidebar({
           if (event.type === "job.submitted" && onJobSubmitted) {
             onJobSubmitted({
               jobId: event.jobId,
-              title: event.title,
-              model: event.model,
-              placement: event.placement,
+              ...(event.title !== undefined ? { title: event.title } : {}),
+              ...(event.model !== undefined ? { model: event.model } : {}),
+              ...(event.placement !== undefined
+                ? { placement: event.placement }
+                : {}),
             });
           }
         }

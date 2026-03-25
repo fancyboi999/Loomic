@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -18,6 +19,7 @@ export type ResolveDesktopContentSourceOptions = Readonly<{
   desktopAppDir?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
   mode?: "development" | "production";
+  resourcesPath?: string;
   webExportDir?: string;
 }>;
 
@@ -46,6 +48,9 @@ export function resolveDesktopContentSource(
     resolveWebExportDir({
       desktopAppDir,
       env,
+      ...(options.resourcesPath
+        ? { resourcesPath: options.resourcesPath }
+        : {}),
     });
   const filePath = path.resolve(webExportDir, "index.html");
 
@@ -59,14 +64,35 @@ export function resolveDesktopContentSource(
 function resolveWebExportDir({
   desktopAppDir,
   env,
+  resourcesPath,
 }: Readonly<{
   desktopAppDir: string;
   env: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  resourcesPath?: string;
 }>): string {
   const explicitExportDir = env.WEB_EXPORT_DIR?.trim();
 
   if (explicitExportDir) {
     return path.resolve(explicitExportDir);
+  }
+
+  const normalizedResourcesPath = resourcesPath?.trim();
+  if (normalizedResourcesPath) {
+    const resourceCandidates = [
+      path.resolve(normalizedResourcesPath, "web"),
+      path.resolve(normalizedResourcesPath, "web/out"),
+    ] as const;
+
+    const existingResourceDir = resourceCandidates.find((candidate) =>
+      existsSync(path.resolve(candidate, "index.html")),
+    );
+
+    if (existingResourceDir) {
+      return existingResourceDir;
+    }
+
+    const [primaryResourceDir] = resourceCandidates;
+    return primaryResourceDir;
   }
 
   return path.resolve(desktopAppDir, "../web/out");

@@ -19,6 +19,10 @@ supabase/.temp/
 # production
 /build
 **/dist
+apps/desktop/release/
+apps/desktop/build/
+*.app
+*.dmg
 **/.turbo
 
 # misc

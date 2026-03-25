@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { BrowserWindow, app } from "electron";
 
 import { resolveDesktopContentSource } from "./url.js";
+import { createDesktopLoadFailureUrl } from "./window-diagnostics.js";
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentFileExtension = path.extname(currentFilePath);
@@ -29,9 +30,64 @@ export async function createMainWindow(): Promise<BrowserWindow> {
   const source = resolveDesktopContentSource({
     mode: app.isPackaged ? "production" : "development",
     desktopAppDir,
+    resourcesPath: process.resourcesPath,
+  });
+  let isShowingLoadFailure = false;
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (
+      _event,
+      errorCode,
+      errorDescription,
+      validatedURL,
+      isMainFrame,
+    ) => {
+      if (!isMainFrame || isShowingLoadFailure) {
+        return;
+      }
+
+      console.error("Desktop renderer failed to load.", {
+        attemptedEntrypoint: validatedURL || source.entrypoint,
+        errorCode,
+        errorDescription,
+      });
+
+      void showLoadFailurePage(mainWindow, {
+        attemptedEntrypoint: validatedURL || source.entrypoint,
+        errorCode,
+        errorDescription,
+      }).then(() => {
+        isShowingLoadFailure = true;
+      });
+    },
+  );
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error("Desktop renderer process exited unexpectedly.", details);
   });
 
-  await mainWindow.loadURL(source.entrypoint);
+  mainWindow.on("unresponsive", () => {
+    console.error("Desktop window became unresponsive.");
+  });
+
+  try {
+    await mainWindow.loadURL(source.entrypoint);
+  } catch (error) {
+    console.error("Desktop window failed during initial load.", error);
+    isShowingLoadFailure = true;
+    await showLoadFailurePage(mainWindow, {
+      attemptedEntrypoint: source.entrypoint,
+      errorCode: -1,
+      errorDescription:
+        error instanceof Error ? error.message : "Unknown renderer load error",
+    });
+  }
+
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools({ mode: "detach" });
+  }
+
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
   });
@@ -56,4 +112,15 @@ app.on("window-all-closed", () => {
   }
 });
 
-void bootstrap();
+void bootstrap().catch((error) => {
+  console.error("Desktop bootstrap failed.", error);
+  app.exit(1);
+});
+
+async function showLoadFailurePage(
+  mainWindow: BrowserWindow,
+  options: Parameters<typeof createDesktopLoadFailureUrl>[0],
+) {
+  await mainWindow.loadURL(createDesktopLoadFailureUrl(options));
+  mainWindow.show();
+}

@@ -75,8 +75,8 @@ function CanvasPageContent() {
   }) => {
     addJob({
       jobId: job.jobId,
-      title: job.title,
-      model: job.model,
+      ...(job.title !== undefined ? { title: job.title } : {}),
+      ...(job.model !== undefined ? { model: job.model } : {}),
       placement: job.placement ?? { x: 0, y: 0, width: 512, height: 512 },
       startedAt: Date.now(),
     });

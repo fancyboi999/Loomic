@@ -69,6 +69,33 @@ describe("@loomic/desktop shell url resolution", () => {
     expect(source.entrypoint).toBe(pathToFileURL(expectedIndexPath).toString());
     expect(source.entrypoint).toMatch(/apps\/web\/out\/index\.html$/);
   });
+
+  it("resolves packaged renderer assets from the app resources directory in production", async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "loomic-desktop-"));
+    const resourcesPath = path.join(tempRoot, "Loomic.app/Contents/Resources");
+    const desktopAppDir = path.join(resourcesPath, "app.asar/dist");
+    const webOutDir = path.join(resourcesPath, "web");
+    const expectedIndexPath = path.join(webOutDir, "index.html");
+
+    await mkdir(desktopAppDir, { recursive: true });
+    await mkdir(webOutDir, { recursive: true });
+    await writeFile(expectedIndexPath, "<!doctype html>", "utf8");
+
+    const source = resolveDesktopContentSource({
+      mode: "production",
+      env: {},
+      desktopAppDir,
+      resourcesPath,
+    });
+
+    expect(source.kind).toBe("file");
+    if (source.kind !== "file") {
+      throw new Error("Expected a file-based production entrypoint.");
+    }
+
+    expect(source.filePath).toBe(expectedIndexPath);
+    expect(source.entrypoint).toBe(pathToFileURL(expectedIndexPath).toString());
+  });
 });
 
 describe("@loomic/desktop preload bridge", () => {
