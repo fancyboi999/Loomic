@@ -28,8 +28,8 @@ export function createMainAgentTools(
     createProjectSearchTool(backend),
     createInspectCanvasTool(deps),
     createImageGenerateTool({
-      persistImage: deps.persistImage,
-      submitImageJob: deps.submitImageJob,
+      ...(deps.persistImage ? { persistImage: deps.persistImage } : {}),
+      ...(deps.submitImageJob ? { submitImageJob: deps.submitImageJob } : {}),
     }),
   ];
   if (deps.brandKitId) {

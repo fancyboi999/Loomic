@@ -78,8 +78,8 @@ export function createLoomicDeepAgent(options: {
     systemPrompt,
     tools: createMainAgentTools(backendFactory, {
       createUserClient,
-      brandKitId: options.brandKitId,
-      persistImage: options.persistImage,
+      ...(options.brandKitId != null ? { brandKitId: options.brandKitId } : {}),
+      ...(options.persistImage ? { persistImage: options.persistImage } : {}),
     }),
   });
 }
