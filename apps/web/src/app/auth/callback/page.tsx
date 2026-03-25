@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     if (loading) return;
     if (user) {
-      router.replace("/projects");
+      router.replace("/home");
     } else if (timedOut.current) {
       router.replace("/login");
     }
