@@ -206,6 +206,7 @@ export function BrandKitPage() {
       type: BrandKitAssetType,
       displayName: string,
       textContent?: string | null,
+      metadata?: Record<string, unknown>,
     ) => {
       const kit = selectedKitRef.current;
       if (!kit) return;
@@ -214,6 +215,7 @@ export function BrandKitPage() {
           asset_type: type,
           display_name: displayName,
           text_content: textContent ?? null,
+          metadata,
         });
         await loadKitDetail(kit.id);
       } catch (err) {
