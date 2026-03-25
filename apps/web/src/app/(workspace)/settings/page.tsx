@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AgentSection } from "@/components/agent-section";
-import { LoadingScreen } from "@/components/loading-screen";
 import { ProfileSection } from "@/components/profile-section";
+import { SettingsSkeleton } from "@/components/skeletons/settings-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import {
   ApiAuthError,
@@ -101,7 +101,7 @@ export default function SettingsPage() {
   const stableFetchModels = useCallback(() => fetchModels(), []);
 
   if (pageLoading) {
-    return <LoadingScreen />;
+    return <SettingsSkeleton />;
   }
 
   if (!profile) return null;

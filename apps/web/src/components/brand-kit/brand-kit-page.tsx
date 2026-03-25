@@ -7,7 +7,7 @@ import type {
 } from "@loomic/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { LoadingScreen } from "../loading-screen";
+import { BrandKitSkeleton } from "../skeletons/brand-kit-skeleton";
 import { useAuth } from "../../lib/auth-context";
 import {
   createBrandKit,
@@ -280,7 +280,7 @@ export function BrandKitPage() {
   // --- Render ---
 
   if (loading) {
-    return <LoadingScreen />;
+    return <BrandKitSkeleton />;
   }
 
   return (

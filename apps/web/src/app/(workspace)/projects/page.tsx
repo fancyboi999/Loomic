@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CreateProjectDialog } from "@/components/create-project-dialog";
-import { LoadingScreen } from "@/components/loading-screen";
 import { ProjectList } from "@/components/project-list";
+import { ProjectsSkeleton } from "@/components/skeletons/projects-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchViewer,
@@ -107,7 +107,7 @@ export default function ProjectsPage() {
   }
 
   if (pageLoading) {
-    return <LoadingScreen />;
+    return <ProjectsSkeleton />;
   }
 
   return (

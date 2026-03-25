@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
 import { HomePrompt, type HomePromptHandle } from "@/components/home-prompt";
 import { LoomicLogo } from "@/components/icons/loomic-logo";
+import { HomeProjectsSkeleton } from "@/components/skeletons/home-skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { ApiAuthError, createProject, fetchProjects } from "@/lib/server-api";
 
@@ -206,9 +207,7 @@ export default function HomePage() {
         </div>
 
         {projectsLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
-          </div>
+          <HomeProjectsSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {/* New project card */}
