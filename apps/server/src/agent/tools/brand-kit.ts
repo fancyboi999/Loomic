@@ -36,6 +36,27 @@ export function createBrandKitTool(
 
       const safeAssets = assets ?? [];
 
+      // Resolve signed URLs for file-based assets (logo/image)
+      const fileAssets = safeAssets.filter((a: any) => a.file_url);
+      if (fileAssets.length > 0) {
+        const paths = fileAssets.map((a: any) => a.file_url as string);
+        const { data: signedData } = await client.storage
+          .from("brand-kit-assets")
+          .createSignedUrls(paths, 3600);
+
+        if (signedData) {
+          const urlByPath = new Map(
+            signedData
+              .filter((e: any) => e.signedUrl && e.path)
+              .map((e: any) => [e.path, e.signedUrl]),
+          );
+          for (const asset of fileAssets) {
+            const url = urlByPath.get(asset.file_url);
+            if (url) asset.file_url = url;
+          }
+        }
+      }
+
       const result = {
         kit_name: kit.name,
         design_guidance: kit.guidance_text ?? "",
