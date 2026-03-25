@@ -11,6 +11,7 @@ export type ServerEnv = {
   agentBackendMode: AgentBackendMode;
   agentFilesRoot?: string;
   agentModel: string;
+  googleFontsApiKey?: string;
   openAIApiBase?: string;
   openAIApiKey?: string;
   port: number;
@@ -52,6 +53,8 @@ export function loadServerEnv(
   const supabaseProjectId =
     overrides.supabaseProjectId ??
     normalizeOptionalString(source.SUPABASE_PROJECT_ID);
+  const googleFontsApiKey =
+    overrides.googleFontsApiKey ?? normalizeOptionalString(source.GOOGLE_FONTS_API_KEY);
   const replicateApiToken =
     overrides.replicateApiToken ?? normalizeOptionalString(source.REPLICATE_API_TOKEN);
   const volcesApiKey =
@@ -85,6 +88,7 @@ export function loadServerEnv(
     ...(supabaseDbUrl ? { supabaseDbUrl } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
     ...(supabaseProjectId ? { supabaseProjectId } : {}),
+    ...(googleFontsApiKey ? { googleFontsApiKey } : {}),
     ...(replicateApiToken ? { replicateApiToken } : {}),
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
