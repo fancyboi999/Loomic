@@ -360,6 +360,147 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
   });
 });
 
+describe("extractOutput via tool.completed", () => {
+  const baseOpts = {
+    conversationId: "c",
+    now: () => "2026-01-01T00:00:00.000Z",
+    runId: "run_1",
+    sessionId: "s",
+  };
+
+  it("includes structured output from tool end event", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "project_search",
+        run_id: "tool_run_1",
+        data: { input: { query: "test" } },
+      },
+      {
+        event: "on_tool_end",
+        name: "project_search",
+        run_id: "tool_run_1",
+        data: {
+          output: JSON.stringify({
+            matchCount: 3,
+            summary: "Found 3 files",
+            files: ["a.ts", "b.ts", "c.ts"],
+          }),
+        },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({ ...baseOpts, stream }),
+    );
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.output).toEqual({
+      matchCount: 3,
+      summary: "Found 3 files",
+      files: ["a.ts", "b.ts", "c.ts"],
+    });
+  });
+
+  it("strips artifact keys from output when artifacts are extracted", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "some_tool",
+        run_id: "tool_run_2",
+        data: { input: {} },
+      },
+      {
+        event: "on_tool_end",
+        name: "some_tool",
+        run_id: "tool_run_2",
+        data: {
+          output: JSON.stringify({
+            imageUrl: "https://cdn.example.com/img.png",
+            mimeType: "image/png",
+            width: 512,
+            height: 512,
+            summary: "Generated image",
+            extraInfo: "kept",
+          }),
+        },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({ ...baseOpts, stream }),
+    );
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed",
+    ) as any;
+    expect(completed).toBeDefined();
+    // artifact keys stripped, non-artifact keys kept
+    expect(completed.output).toEqual({
+      summary: "Generated image",
+      extraInfo: "kept",
+    });
+  });
+
+  it("returns undefined output when serialized size exceeds 10KB", async () => {
+    const bigValue = "x".repeat(11000);
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "big_tool",
+        run_id: "tool_run_3",
+        data: { input: {} },
+      },
+      {
+        event: "on_tool_end",
+        name: "big_tool",
+        run_id: "tool_run_3",
+        data: {
+          output: JSON.stringify({ data: bigValue }),
+        },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({ ...baseOpts, stream }),
+    );
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.output).toBeUndefined();
+  });
+
+  it("returns undefined output for non-parseable output", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "text_tool",
+        run_id: "tool_run_4",
+        data: { input: {} },
+      },
+      {
+        event: "on_tool_end",
+        name: "text_tool",
+        run_id: "tool_run_4",
+        data: {
+          output: "plain text output not json",
+        },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({ ...baseOpts, stream }),
+    );
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.output).toBeUndefined();
+  });
+});
+
 async function collectEvents(stream: AsyncIterable<unknown>) {
   const events: unknown[] = [];
 

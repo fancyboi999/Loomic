@@ -188,7 +188,9 @@ export async function* adaptDeepAgentStream(
         const isInnerSubAgentTool = toolName === "generate_image" || toolName === "generate_video";
         // Skip artifact extraction for inner sub-agent tools and async job submissions
         const extractedArtifacts = (isInnerSubAgentTool || jobInfo) ? undefined : extractArtifacts(output);
+        const extractedOutput = extractOutput(output, (extractedArtifacts?.length ?? 0) > 0);
         yield {
+          output: extractedOutput,
           outputSummary: summarizeOutput(output),
           artifacts: extractedArtifacts,
           runId: options.runId,
@@ -254,6 +256,53 @@ function unwrapCommandOutput(
     // fall through
   }
   return record;
+}
+
+const ARTIFACT_KEYS = new Set([
+  "url",
+  "imageUrl",
+  "mimeType",
+  "width",
+  "height",
+  "placement",
+  "jobId",
+]);
+const OUTPUT_SIZE_LIMIT = 10240; // 10KB
+
+function extractOutput(
+  output: unknown,
+  hasArtifacts: boolean,
+): Record<string, unknown> | undefined {
+  let text = "";
+  if (ToolMessageClass.isInstance(output)) {
+    text = extractChunkText(output);
+  } else if (typeof output === "string") {
+    text = output;
+  } else if (output && typeof output === "object") {
+    text = JSON.stringify(output);
+  }
+
+  const parsed = tryParseJson(text);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return undefined;
+
+  const unwrapped = unwrapCommandOutput(parsed as Record<string, unknown>);
+
+  // Strip artifact keys if artifacts were extracted
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(unwrapped)) {
+    if (hasArtifacts && ARTIFACT_KEYS.has(key)) continue;
+    result[key] = value;
+  }
+
+  // Skip if empty after stripping
+  if (Object.keys(result).length === 0) return undefined;
+
+  // Size limit check
+  const serialized = JSON.stringify(result);
+  if (serialized.length > OUTPUT_SIZE_LIMIT) return undefined;
+
+  return result;
 }
 
 function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
