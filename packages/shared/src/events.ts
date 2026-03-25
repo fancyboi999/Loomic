@@ -44,6 +44,7 @@ export const toolCompletedEventSchema = z.object({
   runId: runIdSchema,
   toolCallId: toolCallIdSchema,
   toolName: z.string().min(1),
+  output: z.record(z.unknown()).optional(),
   outputSummary: z.string().optional(),
   artifacts: z.array(toolArtifactSchema).optional(),
   timestamp: timestampSchema,
