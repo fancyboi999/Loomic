@@ -1,12 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { AgentSection } from "../../components/agent-section";
-import { ProfileSection } from "../../components/profile-section";
-import { SettingsLayout } from "../../components/settings-layout";
-import { useAuth } from "../../lib/auth-context";
+import { AgentSection } from "@/components/agent-section";
+import { ProfileSection } from "@/components/profile-section";
+import { useAuth } from "@/lib/auth-context";
 import {
   ApiAuthError,
   fetchModels,
@@ -14,12 +12,19 @@ import {
   fetchWorkspaceSettings,
   updateProfile,
   updateWorkspaceSettings,
-} from "../../lib/server-api";
+} from "@/lib/server-api";
+
+type SettingsTab = "profile" | "agent";
+
+const tabs: Array<{ id: SettingsTab; label: string }> = [
+  { id: "profile", label: "Profile" },
+  { id: "agent", label: "Agent" },
+];
 
 export default function SettingsPage() {
-  const { user, session, loading: authLoading, signOut } = useAuth();
-  const router = useRouter();
+  const { session } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [profile, setProfile] = useState<{
     displayName: string;
     email: string;
@@ -30,10 +35,6 @@ export default function SettingsPage() {
   // Ref pattern: prevent token refresh from cascading through dependency arrays
   const accessTokenRef = useRef(session?.access_token);
   accessTokenRef.current = session?.access_token;
-  const signOutRef = useRef(signOut);
-  signOutRef.current = signOut;
-  const routerRef = useRef(router);
-  routerRef.current = router;
   const hasInitialized = useRef(false);
 
   const getToken = useCallback(() => accessTokenRef.current, []);
@@ -56,8 +57,7 @@ export default function SettingsPage() {
       setDefaultModel(settings.settings.defaultModel);
     } catch (err) {
       if (err instanceof ApiAuthError) {
-        await signOutRef.current();
-        routerRef.current.replace("/login");
+        // Workspace layout handles auth redirect
         return;
       }
     } finally {
@@ -66,15 +66,11 @@ export default function SettingsPage() {
   }, [getToken]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      routerRef.current.replace("/login");
-      return;
-    }
     if (hasInitialized.current) return;
+    if (!session?.access_token) return;
     hasInitialized.current = true;
     loadData();
-  }, [authLoading, user, loadData]);
+  }, [session?.access_token, loadData]);
 
   const handleProfileSave = useCallback(
     async (displayName: string) => {
@@ -103,9 +99,9 @@ export default function SettingsPage() {
 
   const stableFetchModels = useCallback(() => fetchModels(), []);
 
-  if (authLoading || pageLoading) {
+  if (pageLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-full items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
@@ -114,26 +110,41 @@ export default function SettingsPage() {
   if (!profile) return null;
 
   return (
-    <SettingsLayout>
-      {(activeSection) => {
-        if (activeSection === "profile") {
-          return (
-            <ProfileSection
-              displayName={profile.displayName}
-              email={profile.email}
-              onSave={handleProfileSave}
-            />
-          );
-        }
+    <div className="p-8">
+      <h1 className="text-lg font-semibold mb-6">Settings</h1>
 
-        return (
+      <div className="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 mb-8">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              activeTab === tab.id
+                ? "bg-white font-medium text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-w-xl">
+        {activeTab === "profile" ? (
+          <ProfileSection
+            displayName={profile.displayName}
+            email={profile.email}
+            onSave={handleProfileSave}
+          />
+        ) : (
           <AgentSection
             defaultModel={defaultModel}
             onSave={handleAgentSave}
             fetchModels={stableFetchModels}
           />
-        );
-      }}
-    </SettingsLayout>
+        )}
+      </div>
+    </div>
   );
 }

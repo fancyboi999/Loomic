@@ -16,6 +16,7 @@ import { fetchCanvas, ApiAuthError } from "../../lib/server-api";
 function CanvasPageContent() {
   const searchParams = useSearchParams();
   const canvasId = searchParams.get("id");
+  const initialPrompt = searchParams.get("prompt") ?? undefined;
   const { user, session, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
 
@@ -159,6 +160,7 @@ function CanvasPageContent() {
         open={chatOpen}
         onToggle={() => setChatOpen(!chatOpen)}
         onImageGenerated={handleImageGenerated}
+        initialPrompt={initialPrompt}
       />
     </div>
   );

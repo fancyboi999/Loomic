@@ -5,7 +5,6 @@ import type {
   BrandKitDetail,
   BrandKitAssetType,
 } from "@loomic/shared";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../../lib/auth-context";
@@ -27,8 +26,7 @@ import { BrandKitSidebar } from "./brand-kit-sidebar";
 import { EmptyState } from "./empty-state";
 
 export function BrandKitPage() {
-  const { user, session, loading: authLoading, signOut } = useAuth();
-  const router = useRouter();
+  const { session, signOut } = useAuth();
 
   const [kits, setKits] = useState<BrandKitSummary[]>([]);
   const [selectedKit, setSelectedKit] = useState<BrandKitDetail | null>(null);
@@ -42,13 +40,10 @@ export function BrandKitPage() {
   selectedKitRef.current = selectedKit;
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
-  const routerRef = useRef(router);
-  routerRef.current = router;
 
   const handleAuthError = useCallback(async (err: unknown) => {
     if (err instanceof ApiAuthError) {
       await signOutRef.current();
-      routerRef.current.replace("/login");
       return true;
     }
     return false;
@@ -87,14 +82,9 @@ export function BrandKitPage() {
     }
   }, [getToken, handleAuthError]);
 
-  // Initial load — runs exactly once when auth is ready.
+  // Initial load — runs exactly once (workspace layout guarantees auth).
   const hasInitialized = useRef(false);
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      routerRef.current.replace("/login");
-      return;
-    }
     if (hasInitialized.current) return;
     hasInitialized.current = true;
 
@@ -115,7 +105,7 @@ export function BrandKitPage() {
         setLoading(false);
       }
     })();
-  }, [authLoading, user, getToken, handleAuthError]);
+  }, [getToken, handleAuthError]);
 
   // --- Kit handlers ---
 
@@ -286,7 +276,7 @@ export function BrandKitPage() {
 
   // --- Render ---
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="flex h-[100dvh] w-full items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading...</p>

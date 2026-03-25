@@ -1,8 +1,7 @@
 "use client";
 
 import type { BrandKitSummary } from "@loomic/shared";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Plus, Trash2 } from "lucide-react";
 
 import { cn } from "../../lib/utils";
 
@@ -21,20 +20,10 @@ export function BrandKitSidebar({
   onCreateKit,
   onDeleteKit,
 }: BrandKitSidebarProps) {
-  const router = useRouter();
-
   return (
     <aside className="flex w-[260px] shrink-0 flex-col border-r bg-neutral-50">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3">
-        <button
-          type="button"
-          onClick={() => router.push("/projects")}
-          className="rounded-lg p-1.5 hover:bg-neutral-200 transition-colors cursor-pointer"
-          aria-label="Back to projects"
-        >
-          <ArrowLeft className="h-4 w-4 text-foreground" />
-        </button>
         <h1 className="text-sm font-semibold text-foreground">Brand Kit</h1>
         <span className="ml-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           Beta

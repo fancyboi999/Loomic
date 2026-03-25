@@ -1,16 +1,7 @@
 "use client";
 
 import type { ChatSessionSummary } from "@loomic/shared";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type SessionSelectorProps = {
   sessions: ChatSessionSummary[];
@@ -57,6 +48,15 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SessionSelector({
   sessions,
   activeSessionId,
@@ -65,50 +65,159 @@ export function SessionSelector({
   onDelete,
 }: SessionSelectorProps) {
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const [open, setOpen] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const filtered = search.trim()
+    ? sessions.filter((s) => s.title.toLowerCase().includes(search.toLowerCase()))
+    : sessions;
+
+  // Close panel on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setConfirmingId(null);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const handleSelect = useCallback(
+    (sessionId: string) => {
+      onSelect(sessionId);
+      setOpen(false);
+      setConfirmingId(null);
+      setSearch("");
+    },
+    [onSelect],
+  );
+
+  const handleDelete = useCallback(
+    (sessionId: string) => {
+      onDelete(sessionId);
+      setConfirmingId(null);
+    },
+    [onDelete],
+  );
 
   return (
     <div className="flex items-center gap-1.5">
-      {/* History dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-none">
+      {/* History toggle */}
+      <div className="relative" ref={panelRef}>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open);
+            setConfirmingId(null);
+            setSearch("");
+          }}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-none"
+        >
           <HistoryIcon className="h-3.5 w-3.5" />
           <span className="max-w-[140px] truncate">
             {activeSession?.title ?? "History"}
           </span>
-          <svg className="h-3 w-3 opacity-50" viewBox="0 0 16 16" fill="currentColor">
+          <svg
+            className={`h-3 w-3 opacity-50 transition-transform ${open ? "rotate-180" : ""}`}
+            viewBox="0 0 16 16"
+            fill="currentColor"
+          >
             <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
           </svg>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="bottom" align="start" sideOffset={6} className="min-w-[220px]">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Conversations</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {sessions.map((s) => (
-              <DropdownMenuItem
-                key={s.id}
-                className="group flex items-center justify-between gap-2"
-                onClick={() => onSelect(s.id)}
-              >
-                <span className={`truncate ${s.id === activeSessionId ? "font-medium" : ""}`}>
-                  {s.title}
-                </span>
-                {sessions.length > 1 && (
-                  <button
-                    type="button"
-                    className="hidden group-focus:flex group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(s.id);
-                    }}
-                  >
-                    <TrashIcon className="h-3 w-3" />
-                  </button>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </button>
+
+        {open && (
+          <div className="absolute left-0 top-full mt-1.5 z-50 w-[260px] rounded-lg border border-neutral-200 bg-white shadow-lg overflow-hidden">
+            {/* Header */}
+            <div className="px-3 pt-3 pb-2">
+              <p className="text-xs font-medium text-[#2F3640] mb-2">历史对话</p>
+              {/* Search */}
+              <div className="relative">
+                <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="请输入搜索关键词"
+                  className="w-full rounded-md border border-neutral-200 bg-neutral-50 py-1.5 pl-7 pr-2 text-xs text-[#2F3640] placeholder:text-neutral-400 outline-none focus:border-neutral-300 focus:bg-white transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Session list */}
+            <div className="max-h-[240px] overflow-y-auto px-1 pb-1">
+              {filtered.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-neutral-400">
+                  {search ? "无匹配结果" : "暂无对话"}
+                </p>
+              )}
+              {filtered.map((s) => (
+                <div
+                  key={s.id}
+                  className={`group flex items-center justify-between gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors ${
+                    s.id === activeSessionId
+                      ? "bg-neutral-100 text-[#2F3640] font-medium"
+                      : "text-neutral-600 hover:bg-neutral-50"
+                  }`}
+                  onClick={() => {
+                    if (confirmingId !== s.id) handleSelect(s.id);
+                  }}
+                >
+                  {confirmingId === s.id ? (
+                    /* Inline confirm */
+                    <>
+                      <span className="truncate flex-1">{s.title}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          className="px-2 py-0.5 rounded text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmingId(null);
+                          }}
+                        >
+                          取消
+                        </button>
+                        <button
+                          type="button"
+                          className="px-2 py-0.5 rounded text-xs text-white bg-red-500 hover:bg-red-600 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(s.id);
+                          }}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* Normal state */
+                    <>
+                      <span className="truncate flex-1">{s.title}</span>
+                      <button
+                        type="button"
+                        className="hidden group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmingId(s.id);
+                        }}
+                      >
+                        <TrashIcon className="h-3 w-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* New chat button */}
       <button

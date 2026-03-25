@@ -1,24 +1,23 @@
 "use client";
 
 import type { WorkspaceSummary, ProjectSummary } from "@loomic/shared";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { CreateProjectDialog } from "../../components/create-project-dialog";
-import { ProjectList } from "../../components/project-list";
-import { ProjectSidebar } from "../../components/project-sidebar";
-import { useAuth } from "../../lib/auth-context";
+import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { ProjectList } from "@/components/project-list";
+import { useAuth } from "@/lib/auth-context";
 import {
   fetchViewer,
   fetchProjects,
   createProject,
   deleteProject,
   ApiAuthError,
-} from "../../lib/server-api";
-import { Button } from "../../components/ui/button";
+} from "@/lib/server-api";
+import { Button } from "@/components/ui/button";
 
 export default function ProjectsPage() {
-  const { user, session, loading: authLoading, signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const router = useRouter();
 
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
@@ -65,15 +64,10 @@ export default function ProjectsPage() {
   }, [getToken]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      routerRef.current.replace("/login");
-      return;
-    }
     if (hasInitialized.current) return;
     hasInitialized.current = true;
     loadData();
-  }, [authLoading, user, loadData]);
+  }, [loadData]);
 
   async function handleCreate(data: { name: string; description?: string }) {
     const token = getToken();
@@ -98,11 +92,9 @@ export default function ProjectsPage() {
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
   }
 
-  if (authLoading || (!user && !loadError)) return null;
-
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-sm text-destructive">{loadError}</p>
           <Button variant="outline" onClick={loadData}>
@@ -115,28 +107,25 @@ export default function ProjectsPage() {
 
   if (pageLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen">
-      <ProjectSidebar workspace={workspace} projects={projects} />
-      <main className="flex-1 p-6">
-        <ProjectList
-          projects={projects}
-          highlightId={highlightId}
-          onCreateClick={() => setDialogOpen(true)}
-          onDelete={handleDelete}
-        />
-        <CreateProjectDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          onSubmit={handleCreate}
-        />
-      </main>
+    <div className="p-6">
+      <ProjectList
+        projects={projects}
+        highlightId={highlightId}
+        onCreateClick={() => setDialogOpen(true)}
+        onDelete={handleDelete}
+      />
+      <CreateProjectDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 }

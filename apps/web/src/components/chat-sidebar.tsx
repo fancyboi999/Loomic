@@ -38,6 +38,7 @@ type ChatSidebarProps = {
   open: boolean;
   onToggle: () => void;
   onImageGenerated?: (artifact: ImageArtifact) => void;
+  initialPrompt?: string | undefined;
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -78,6 +79,7 @@ export function ChatSidebar({
   open,
   onToggle,
   onImageGenerated,
+  initialPrompt,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -85,6 +87,7 @@ export function ChatSidebar({
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
 
+  const initialPromptSent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef(false);
   const accessTokenRef = useRef(accessToken);
@@ -204,36 +207,40 @@ export function ChatSidebar({
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       if (streaming) return;
-      try {
-        await deleteSessionApi(accessTokenRef.current, sessionId);
-        const remaining = sessionsRef.current.filter(
-          (s) => s.id !== sessionId,
-        );
+      const token = accessTokenRef.current;
+      const remaining = sessionsRef.current.filter(
+        (s) => s.id !== sessionId,
+      );
 
-        if (remaining.length === 0) {
-          const res = await createSession(accessTokenRef.current, canvasId);
+      // Optimistic UI update — remove immediately
+      if (remaining.length === 0) {
+        // Create new session first (need its ID before updating UI)
+        try {
+          const res = await createSession(token, canvasId);
           setSessions([res.session]);
           setActiveSessionId(res.session.id);
           setMessages([]);
-        } else {
-          setSessions(remaining);
-          if (sessionId === activeSessionIdRef.current) {
-            const next = remaining[0]!;
-            setActiveSessionId(next.id);
-            try {
-              const msgRes = await fetchMessages(
-                accessTokenRef.current,
-                next.id,
-              );
-              setMessages(mapServerMessages(msgRes.messages));
-            } catch {
-              setMessages([]);
-            }
-          }
+        } catch {
+          return; // Can't proceed without a replacement session
         }
-      } catch {
-        // Silently fail
+      } else {
+        setSessions(remaining);
+        if (sessionId === activeSessionIdRef.current) {
+          const next = remaining[0]!;
+          setActiveSessionId(next.id);
+          fetchMessages(token, next.id)
+            .then((msgRes) => setMessages(mapServerMessages(msgRes.messages)))
+            .catch(() => setMessages([]));
+        }
       }
+
+      // Delete in background — don't block UI
+      deleteSessionApi(token, sessionId).catch(() => {
+        // If delete failed, re-fetch sessions to restore truth
+        fetchSessions(token, canvasId)
+          .then((res) => setSessions(res.sessions))
+          .catch(() => {});
+      });
     },
     [canvasId, streaming],
   );
@@ -446,20 +453,31 @@ export function ChatSidebar({
     [streaming, canvasId, handleStreamEvent, onImageGenerated],
   );
 
+  // Auto-send initial prompt from Home page (once, after sessions load)
+  useEffect(() => {
+    if (!initialPrompt || sessionsLoading || initialPromptSent.current) return;
+    initialPromptSent.current = true;
+    void handleSend(initialPrompt);
+  }, [initialPrompt, sessionsLoading, handleSend]);
+
   if (!open) {
     return (
-      <button
-        onClick={onToggle}
-        className="fixed right-4 top-4 z-50 inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3 py-2 text-xs font-medium shadow-lg hover:opacity-90 transition-opacity"
-      >
-        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-          <path
-            fillOpacity={0.9}
-            d="M18.25 3A3.75 3.75 0 0 1 22 6.75v9a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM5.75 4.5A2.25 2.25 0 0 0 3.5 6.75v9A2.25 2.25 0 0 0 5.75 18h2.901c.412 0 .81.145 1.125.41l2.065 1.73a.25.25 0 0 0 .32 0l2.099-1.738A1.75 1.75 0 0 1 15.376 18h2.874a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25z"
-          />
-        </svg>
-        Chat
-      </button>
+      <div className="absolute right-3 top-3 z-20">
+        <button
+          onClick={onToggle}
+          type="button"
+          className="group inline-flex items-center gap-1 rounded-xl bg-white/80 backdrop-blur-sm border border-black/[0.06] px-2.5 py-1.5 text-xs text-[#2F3640]/60 shadow-sm hover:bg-white hover:text-[#2F3640] transition-colors cursor-pointer"
+        >
+          <svg className="size-3.5" viewBox="0 0 24 24" fill="none">
+            <path
+              fill="currentColor"
+              fillOpacity={0.9}
+              d="M18.25 3c2.071 0 3.946 2.16 3.946 4.23L22 15.75a3.75 3.75 0 0 1-3.75 3.75h-2.874a.25.25 0 0 0-.16.058l-2.098 1.738a1.75 1.75 0 0 1-2.24-.007l-2.065-1.73a.25.25 0 0 0-.162-.059H5.75A3.75 3.75 0 0 1 2 15.75v-9A3.75 3.75 0 0 1 5.75 3zM7.5 10q-.053 0-.104.005a1.25 1.25 0 0 0-1.14 1.117l-.006.128.007.128a1.25 1.25 0 1 0 1.37-1.371l-.02-.002A1 1 0 0 0 7.5 10m4.5 0q-.053 0-.104.005a1.25 1.25 0 0 0-1.14 1.117l-.006.128.007.128a1.25 1.25 0 1 0 1.37-1.371l-.02-.002A1 1 0 0 0 12 10m4.5 0q-.053 0-.105.005a1.25 1.25 0 0 0-1.138 1.117l-.007.128.007.128a1.25 1.25 0 1 0 1.37-1.371l-.02-.002A1 1 0 0 0 16.5 10"
+            />
+          </svg>
+          对话
+        </button>
+      </div>
     );
   }
 
@@ -488,9 +506,10 @@ export function ChatSidebar({
           <button
             onClick={onToggle}
             className="rounded-md p-1.5 text-[#A4A9B2] hover:bg-[#F5F5F5] hover:text-[#2F3640] transition-colors shrink-0"
+            title="Collapse panel"
           >
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <path d="M4 3.25a.75.75 0 0 1 .75.75v16a.75.75 0 0 1-1.5 0V4A.75.75 0 0 1 4 3.25m9.47 2.22a.75.75 0 0 1 1.06 0l6 6a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 1 1-1.06-1.06l4.72-4.72H8a.75.75 0 0 1 0-1.5h10.19l-4.72-4.72a.75.75 0 0 1 0-1.06" fill="currentColor" />
             </svg>
           </button>
         </div>

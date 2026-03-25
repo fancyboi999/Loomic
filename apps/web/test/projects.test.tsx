@@ -27,7 +27,7 @@ vi.mock("../src/lib/auth-context", () => ({
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
-import ProjectsPage from "../src/app/projects/page";
+import ProjectsPage from "../src/app/(workspace)/projects/page";
 
 const viewerResponse = {
   profile: { id: "u1", email: "test@test.com", displayName: "Test", avatarUrl: null },
