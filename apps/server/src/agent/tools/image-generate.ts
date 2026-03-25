@@ -76,8 +76,6 @@ type ImageGenerateResult = {
   width?: number;
   height?: number;
   error?: string;
-  jobId?: string;
-  model?: string;
   placement?: { x: number; y: number; width: number; height: number };
 };
 
@@ -92,8 +90,8 @@ export type PersistImageFn = (
 ) => Promise<string>;
 
 /**
- * Optional function to submit an async image generation job.
- * Returns a job ID that can be polled for completion.
+ * Submit an image generation job and wait for it to complete.
+ * Returns the final result: signed_url on success, error on failure.
  */
 export type SubmitImageJobFn = (input: {
   prompt: string;
@@ -101,32 +99,45 @@ export type SubmitImageJobFn = (input: {
   model: string;
   aspectRatio: string;
   inputImages?: string[];
-}) => Promise<{ jobId: string }>;
+}) => Promise<{
+  jobId: string;
+  imageUrl?: string;
+  width?: number;
+  height?: number;
+  mimeType?: string;
+  error?: string;
+}>;
 
 export async function runImageGenerate(
   input: ImageGenerateInput,
   persistImage?: PersistImageFn,
   submitImageJob?: SubmitImageJobFn,
 ): Promise<ImageGenerateResult> {
-  // 异步模式：提交 job 立即返回
+  // Job mode: submit to PGMQ and wait for worker to complete
   if (submitImageJob) {
     try {
-      const { jobId } = await submitImageJob({
+      const jobResult = await submitImageJob({
         prompt: input.prompt,
         title: input.title,
         model: input.model,
         aspectRatio: input.aspectRatio ?? "1:1",
         ...(input.inputImages ? { inputImages: input.inputImages } : {}),
       });
+
+      if (jobResult.error) {
+        return {
+          summary: `Image generation failed: ${jobResult.error}`,
+          error: jobResult.error,
+        };
+      }
+
       const result: ImageGenerateResult = {
-        summary: `Image generation job submitted (jobId: ${jobId}), model: ${input.model}`,
+        summary: `Generated image (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via replicate/${input.model}`,
         title: input.title,
-        jobId,
-        model: input.model,
-        imageUrl: "",
-        mimeType: "image/png",
-        width: 1024,
-        height: 1024,
+        imageUrl: jobResult.imageUrl ?? "",
+        mimeType: jobResult.mimeType ?? "image/png",
+        ...(jobResult.width != null ? { width: jobResult.width } : {}),
+        ...(jobResult.height != null ? { height: jobResult.height } : {}),
       };
       if (input.placementX != null && input.placementY != null) {
         result.placement = {
@@ -140,7 +151,7 @@ export async function runImageGenerate(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       return {
-        summary: `Failed to submit image generation job: ${message}`,
+        summary: `Image generation failed: ${message}`,
         error: message,
       };
     }
