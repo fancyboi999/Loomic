@@ -24,6 +24,8 @@ export type ServerEnv = {
   volcesApiKey?: string;
   volcesBaseUrl?: string;
   webOrigin: string;
+  workerPollIntervalMs?: number;
+  workerMaxBatchSize?: number;
 };
 
 export function loadServerEnv(
@@ -56,6 +58,12 @@ export function loadServerEnv(
     overrides.volcesApiKey ?? normalizeOptionalString(source.VOLCES_API_KEY);
   const volcesBaseUrl =
     overrides.volcesBaseUrl ?? normalizeOptionalString(source.VOLCES_BASE_URL);
+  const workerPollIntervalMs = overrides.workerPollIntervalMs ??
+    (source.WORKER_POLL_INTERVAL_MS
+      ? parseInt(source.WORKER_POLL_INTERVAL_MS, 10) : undefined);
+  const workerMaxBatchSize = overrides.workerMaxBatchSize ??
+    (source.WORKER_MAX_BATCH_SIZE
+      ? parseInt(source.WORKER_MAX_BATCH_SIZE, 10) : undefined);
 
   return {
     agentBackendMode:
@@ -80,6 +88,8 @@ export function loadServerEnv(
     ...(replicateApiToken ? { replicateApiToken } : {}),
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
+    ...(workerPollIntervalMs ? { workerPollIntervalMs } : {}),
+    ...(workerMaxBatchSize ? { workerMaxBatchSize } : {}),
   };
 }
 
