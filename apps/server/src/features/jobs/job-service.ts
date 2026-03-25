@@ -140,7 +140,8 @@ export function createJobService(options: {
           job_type: input.jobType,
           workspace_id: input.workspaceId,
         });
-      } catch {
+      } catch (enqueueErr) {
+        console.error("[job-service] pgmq.send failed:", enqueueErr);
         await client.from("background_jobs").delete().eq("id", job.id);
         throw new JobServiceError(
           "job_create_failed",

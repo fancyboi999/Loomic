@@ -27,7 +27,7 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
   return {
     async send(queue, payload, delay = 0) {
       const { rows } = await pool.query(
-        `SELECT * FROM pgmq.send($1, $2::jsonb, $3)`,
+        `SELECT * FROM pgmq.send($1::text, $2::jsonb, $3::integer)`,
         [queue, JSON.stringify(payload), delay],
       );
       return rows[0].send;
@@ -35,7 +35,7 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
 
     async read<T>(queue: string, vt: number, qty: number) {
       const { rows } = await pool.query(
-        `SELECT * FROM pgmq.read($1, $2, $3)`,
+        `SELECT * FROM pgmq.read($1::text, $2::integer, $3::integer)`,
         [queue, vt, qty],
       );
       return rows as PgmqMessage<T>[];
@@ -43,7 +43,7 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
 
     async deleteMsg(queue, msgId) {
       const { rows } = await pool.query(
-        `SELECT pgmq.delete($1, $2)`,
+        `SELECT pgmq.delete($1::text, $2::bigint)`,
         [queue, msgId],
       );
       return rows[0]?.delete === true;
@@ -51,7 +51,7 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
 
     async archive(queue, msgId) {
       const { rows } = await pool.query(
-        `SELECT pgmq.archive($1, $2)`,
+        `SELECT pgmq.archive($1::text, $2::bigint)`,
         [queue, msgId],
       );
       return rows[0]?.archive === true;
@@ -59,7 +59,7 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
 
     async setVt(queue, msgId, vt) {
       await pool.query(
-        `SELECT pgmq.set_vt($1, $2, $3)`,
+        `SELECT pgmq.set_vt($1::text, $2::bigint, $3::integer)`,
         [queue, msgId, vt],
       );
     },
