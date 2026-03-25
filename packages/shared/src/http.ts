@@ -171,5 +171,6 @@ export type AssetSignedUrlResponse = z.infer<typeof assetSignedUrlResponseSchema
 
 export const projectUpdateRequestSchema = z.object({
   brand_kit_id: z.string().uuid().nullable().optional(),
+  name: z.string().min(1).max(100).optional(),
 });
 export type ProjectUpdateRequest = z.infer<typeof projectUpdateRequestSchema>;

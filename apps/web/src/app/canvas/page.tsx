@@ -4,13 +4,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
 import type { ImageArtifact } from "@loomic/shared";
-import Link from "next/link";
-import { LoomicLogo } from "../../components/icons/loomic-logo";
 import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
 import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
+import { CanvasLogoMenu } from "../../components/canvas-logo-menu";
+import { EditableProjectName } from "../../components/editable-project-name";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
 import { BrandKitSelector } from "../../components/brand-kit-selector";
@@ -39,6 +39,7 @@ function CanvasPageContent() {
   const [pageLoading, setPageLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
   const [brandKitId, setBrandKitId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("Untitled");
 
   const excalidrawApiRef = useRef<any>(null);
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
@@ -86,28 +87,44 @@ function CanvasPageContent() {
     const api = excalidrawApiRef.current;
     if (!api || completedJobs.length === 0) return;
 
-    for (const job of completedJobs) {
-      if (job.status !== "succeeded" || !job.result) continue;
-      const result = job.result as {
-        signed_url?: string;
-        width?: number;
-        height?: number;
-        mime_type?: string;
-      };
-      if (!result.signed_url) continue;
+    const jobsToProcess = completedJobs.filter((job) => {
+      if (job.status !== "succeeded" || !job.result) return false;
+      const result = job.result as { signed_url?: string };
+      return !!result.signed_url;
+    });
 
-      const artifact: ImageArtifact = {
-        type: "image",
-        title: job._title,
-        url: result.signed_url,
-        mimeType: result.mime_type ?? "image/png",
-        width: result.width ?? 512,
-        height: result.height ?? 512,
-        placement: job._placement,
-      };
-      insertImageOnCanvas(api, artifact).catch(console.warn);
+    if (jobsToProcess.length === 0) return;
+
+    // Clear jobs immediately to prevent re-processing on next render
+    for (const job of jobsToProcess) {
       clearCompletedJob(job.id);
     }
+
+    // Insert images sequentially to avoid race condition on scene updates
+    (async () => {
+      for (const job of jobsToProcess) {
+        const result = job.result as {
+          signed_url?: string;
+          width?: number;
+          height?: number;
+          mime_type?: string;
+        };
+        const artifact: ImageArtifact = {
+          type: "image",
+          title: job._title,
+          url: result.signed_url!,
+          mimeType: result.mime_type ?? "image/png",
+          width: result.width ?? 512,
+          height: result.height ?? 512,
+          placement: job._placement,
+        };
+        try {
+          await insertImageOnCanvas(api, artifact);
+        } catch (err) {
+          console.warn("Failed to insert image on canvas:", err);
+        }
+      }
+    })();
   }, [completedJobs, clearCompletedJob]);
 
   // Only re-fetch when canvasId changes or on initial auth resolution.
@@ -139,9 +156,12 @@ function CanvasPageContent() {
           },
         });
         setPageLoading(false);
-        // Fetch project to get brand_kit_id
+        // Fetch project to get brand_kit_id and name
         fetchProject(token, c.projectId)
-          .then((projectData) => setBrandKitId(projectData.project.brand_kit_id))
+          .then((projectData) => {
+            setBrandKitId(projectData.project.brand_kit_id);
+            setProjectName(projectData.project.name ?? "Untitled");
+          })
           .catch((err) => console.warn("Failed to fetch project for brand kit:", err));
       })
       .catch((err) => {
@@ -179,18 +199,19 @@ function CanvasPageContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Logo — top-left, navigates back to projects (like Lovart) */}
-      <Link
-        href="/projects"
-        className="absolute top-3 left-3 z-20 flex items-center gap-2 rounded-xl bg-white/80 backdrop-blur-sm pl-1 pr-3 py-1 shadow-sm border border-black/[0.06] hover:bg-white transition-colors"
-      >
-        <LoomicLogo className="size-7 text-[#0C0C0D]" />
-        <span className="text-sm font-semibold text-[#0E1014] tracking-tight">
-          Loomic
-        </span>
-      </Link>
-      {/* Brand Kit Selector — sits right after the Loomic logo pill */}
-      <div className="absolute top-3 left-[130px] z-20">
+      {/* Top-left navigation bar */}
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
+        <CanvasLogoMenu
+          accessToken={accessToken}
+          projectId={canvasData.projectId}
+          canvasId={canvasData.id}
+          excalidrawApi={excalidrawApi}
+        />
+        <EditableProjectName
+          accessToken={accessToken}
+          projectId={canvasData.projectId}
+          initialName={projectName}
+        />
         <BrandKitSelector
           accessToken={accessToken}
           projectId={canvasData.projectId}

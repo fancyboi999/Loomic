@@ -331,6 +331,7 @@ export function createProjectService(options: {
 
       const payload: Record<string, unknown> = {};
       if (input.brand_kit_id !== undefined) payload.brand_kit_id = input.brand_kit_id;
+      if (input.name !== undefined) payload.name = input.name;
 
       if (Object.keys(payload).length === 0) {
         return;

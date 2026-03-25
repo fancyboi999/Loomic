@@ -111,7 +111,7 @@ export default function HomePage() {
       setSubmitting(true);
       try {
         const result = await createProject(token, {
-          name: prompt.substring(0, 50),
+          name: "Untitled",
         });
         const canvasId = result.project.primaryCanvas.id;
         routerRef.current.push(

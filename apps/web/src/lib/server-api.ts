@@ -5,6 +5,7 @@ import type {
   ProjectListResponse,
   ProjectCreateRequest,
   ProjectCreateResponse,
+  ProjectUpdateRequest,
   CanvasDetail,
   ProfileUpdateResponse,
   WorkspaceSettingsResponse,
@@ -150,7 +151,7 @@ export async function fetchProject(
 export async function updateProject(
   accessToken: string,
   projectId: string,
-  data: { brand_kit_id?: string | null },
+  data: ProjectUpdateRequest,
 ): Promise<void> {
   const response = await fetch(
     `${getServerBaseUrl()}/api/projects/${projectId}`,
