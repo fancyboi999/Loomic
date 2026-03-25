@@ -40,9 +40,14 @@ export function FontPickerDialog({
     if (!open) return;
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(async () => {
-      const result = await fetchGoogleFonts(search || undefined, category || undefined);
-      setFonts(result);
-      setVisibleCount(PAGE_SIZE);
+      try {
+        const result = await fetchGoogleFonts(search || undefined, category || undefined);
+        setFonts(result);
+        setVisibleCount(PAGE_SIZE);
+      } catch {
+        // API failure — keep current list or show empty
+        setFonts([]);
+      }
     }, search ? 300 : 0);
     return () => clearTimeout(searchTimer.current);
   }, [open, search, category]);
