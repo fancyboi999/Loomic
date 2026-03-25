@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { useAuth } from "@/lib/auth-context";
 import { AppSidebar } from "@/components/app-sidebar";
+import { LoadingScreen } from "@/components/loading-screen";
 
 export default function WorkspaceLayout({
   children,
@@ -22,11 +23,7 @@ export default function WorkspaceLayout({
   }, [loading, user, router]);
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {

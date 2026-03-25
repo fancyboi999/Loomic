@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { LoomicLogoInverted } from "../../components/icons/loomic-logo";
 import { LoginForm } from "../../components/login-form";
+import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 
 export default function LoginPage() {
@@ -17,7 +18,7 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
-  if (loading || user) return null;
+  if (loading || user) return <LoadingScreen />;
 
   return (
     <div className="flex min-h-screen">

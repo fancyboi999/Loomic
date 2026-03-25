@@ -137,6 +137,55 @@
   animation: bounce-dot 1.4s infinite ease-in-out both;
 }
 
+/* Loading screen — logo float + breathing */
+@keyframes logo-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.04);
+  }
+}
+
+.animate-logo-float {
+  animation: logo-float 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Loading dots pulse */
+@keyframes loading-dot {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
+.animate-loading-dot {
+  animation: loading-dot 1.2s ease-in-out infinite;
+}
+
+/* Star eye — rotate sparkle */
+@keyframes star-sparkle {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(0.85); }
+  50% { transform: rotate(180deg) scale(1); }
+  75% { transform: rotate(270deg) scale(0.85); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.animate-star-sparkle {
+  animation: star-sparkle 3s ease-in-out infinite;
+}
+
+/* Smile — stroke draw-in + fade loop */
+@keyframes smile-draw {
+  0% { stroke-dashoffset: 28; opacity: 0; }
+  30% { stroke-dashoffset: 0; opacity: 1; }
+  70% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: -28; opacity: 0; }
+}
+
+.animate-smile-draw {
+  animation: smile-draw 2.8s ease-in-out infinite;
+}
+
 /* Markdown content styles for assistant chat messages */
 .markdown-content h1 {
   font-size: 1.25rem;
