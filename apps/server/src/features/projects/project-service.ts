@@ -176,8 +176,8 @@ export function createProjectService(options: {
       });
     },
     async listProjects(user) {
-      await ensureFoundation(options.viewerService, user, "project_query_failed");
-
+      // Skip bootstrap for read-only queries — user is already authenticated,
+      // and /api/viewer handles bootstrap on page load.
       const client = options.createUserClient(user.accessToken);
       const workspace = await resolvePersonalWorkspace(
         client,

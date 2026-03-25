@@ -22,6 +22,8 @@ export function CanvasImageGenPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const accessTokenRef = useRef(accessToken);
+  accessTokenRef.current = accessToken;
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || loading) return;
@@ -29,7 +31,7 @@ export function CanvasImageGenPanel({
     setError(null);
 
     try {
-      const result = await generateImageDirect(accessToken, prompt.trim());
+      const result = await generateImageDirect(accessTokenRef.current, prompt.trim());
 
       if (excalidrawApi) {
         const artifact: ImageArtifact = {
@@ -48,7 +50,7 @@ export function CanvasImageGenPanel({
     } finally {
       setLoading(false);
     }
-  }, [prompt, loading, accessToken, excalidrawApi]);
+  }, [prompt, loading, excalidrawApi]);
 
   return (
     <div className="absolute bottom-16 left-1/2 translate-x-[220px] z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
