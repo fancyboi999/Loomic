@@ -24,6 +24,7 @@ import {
 import { streamEvents } from "../lib/stream-events";
 import { useImageAttachments } from "../hooks/use-image-attachments";
 import { INITIAL_ATTACHMENTS_KEY } from "../hooks/use-create-project";
+import { CanvasImagePicker, type CanvasImageItem } from "./canvas-image-picker";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
@@ -45,6 +46,7 @@ type ChatSidebarProps = {
   initialPrompt?: string | undefined;
   initialSessionId?: string | undefined;
   onSessionChange?: (sessionId: string) => void;
+  onRequestCanvasImages?: () => CanvasImageItem[];
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -91,12 +93,14 @@ export function ChatSidebar({
   initialPrompt,
   initialSessionId,
   onSessionChange,
+  onRequestCanvasImages,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   const initialPromptSent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -610,14 +614,31 @@ export function ChatSidebar({
         </div>
 
         {/* Input */}
-        <ChatInput
-          onSend={handleSend}
-          disabled={streaming || sessionsLoading}
-          attachments={imageAttachments}
-          onAddFiles={addFiles}
-          onRemoveAttachment={removeAttachment}
-          isUploading={isUploading}
-        />
+        <div className="relative">
+          {showImagePicker && onRequestCanvasImages && (
+            <CanvasImagePicker
+              items={onRequestCanvasImages()}
+              onSelect={(item) => {
+                addCanvasRef({
+                  assetId: item.assetId,
+                  url: item.url,
+                  mimeType: item.mimeType,
+                  name: item.name,
+                });
+              }}
+              onClose={() => setShowImagePicker(false)}
+            />
+          )}
+          <ChatInput
+            onSend={handleSend}
+            disabled={streaming || sessionsLoading}
+            attachments={imageAttachments}
+            onAddFiles={addFiles}
+            onRemoveAttachment={removeAttachment}
+            isUploading={isUploading}
+            onAtTrigger={() => setShowImagePicker(true)}
+          />
+        </div>
       </div>
     </div>
   );
