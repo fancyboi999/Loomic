@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
 
 import type { ImageAttachmentState } from "../hooks/use-image-attachments";
 import { ImageAttachmentBar } from "./image-attachment-bar";
@@ -13,10 +13,15 @@ type ChatInputProps = {
   onRemoveAttachment?: (id: string) => void;
   onRetryAttachment?: (id: string) => void;
   isUploading?: boolean;
-  onAtTrigger?: () => void;
+  onAtQuery?: (query: string | null) => void;
 };
 
-export function ChatInput({
+export type ChatInputHandle = {
+  /** Remove the @query text from input after picker selection */
+  clearAtQuery: () => void;
+};
+
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
   onSend,
   disabled,
   attachments,
@@ -24,11 +29,21 @@ export function ChatInput({
   onRemoveAttachment,
   onRetryAttachment,
   isUploading,
-  onAtTrigger,
-}: ChatInputProps) {
+  onAtQuery,
+}, ref) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    clearAtQuery() {
+      setValue((prev) => {
+        const lastAtIdx = prev.lastIndexOf("@");
+        if (lastAtIdx === -1) return prev;
+        return prev.slice(0, lastAtIdx);
+      });
+    },
+  }));
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
@@ -61,15 +76,35 @@ export function ChatInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
-      // Detect @ trigger — remove the @ character and open picker
-      if (onAtTrigger && newValue.endsWith("@")) {
-        setValue(newValue.slice(0, -1));
-        onAtTrigger();
+      setValue(newValue);
+
+      if (!onAtQuery) return;
+
+      // Find last @ in text to detect mention mode
+      const lastAtIdx = newValue.lastIndexOf("@");
+      if (lastAtIdx === -1) {
+        onAtQuery(null); // close picker
         return;
       }
-      setValue(newValue);
+
+      // Only trigger if @ is at start or preceded by whitespace
+      const charBefore = lastAtIdx > 0 ? newValue[lastAtIdx - 1] : " ";
+      if (charBefore !== " " && charBefore !== "\n" && lastAtIdx !== 0) {
+        onAtQuery(null);
+        return;
+      }
+
+      // Extract query after @
+      const query = newValue.slice(lastAtIdx + 1);
+      // Close if user typed a space after query (finished mentioning)
+      if (query.includes(" ") || query.includes("\n")) {
+        onAtQuery(null);
+        return;
+      }
+
+      onAtQuery(query);
     },
-    [onAtTrigger],
+    [onAtQuery],
   );
 
   const handleFileChange = useCallback(
@@ -174,4 +209,4 @@ export function ChatInput({
       </div>
     </div>
   );
-}
+});
