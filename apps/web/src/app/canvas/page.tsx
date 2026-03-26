@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
 import type { ImageArtifact } from "@loomic/shared";
+import type { CanvasImageItem } from "../../components/canvas-image-picker";
 import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import { CanvasEditor } from "../../components/canvas-editor";
@@ -18,7 +19,10 @@ import { BrandKitSelector } from "../../components/brand-kit-selector";
 function CanvasPageContent() {
   const searchParams = useSearchParams();
   const canvasId = searchParams.get("id");
-  const initialPrompt = searchParams.get("prompt") ?? undefined;
+  const initialSessionId = searchParams.get("session") ?? undefined;
+  // Capture prompt once — router.replace will strip it from URL, but the
+  // value must survive for the auto-send effect in ChatSidebar.
+  const [initialPrompt] = useState(() => searchParams.get("prompt") ?? undefined);
   const { user, session, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
 
@@ -61,6 +65,38 @@ function CanvasPageContent() {
     insertImageOnCanvas(api, artifact).catch((err) => {
       console.warn("Failed to insert image on canvas:", err);
     });
+  }, []);
+
+  const handleSessionChange = useCallback(
+    (sessionId: string) => {
+      if (!canvasId) return;
+      // Update URL: set session param, remove prompt param to prevent re-send on refresh
+      routerRef.current.replace(`/canvas?id=${canvasId}&session=${sessionId}`);
+    },
+    [canvasId],
+  );
+
+  const handleRequestCanvasImages = useCallback((): CanvasImageItem[] => {
+    const api = excalidrawApiRef.current;
+    if (!api) return [];
+    const elements: any[] = api.getSceneElements() ?? [];
+    const files: Record<string, any> = api.getFiles() ?? {};
+    let idx = 0;
+    return elements
+      .filter((el: any) => el.type === "image" && !el.isDeleted && el.fileId)
+      .map((el: any) => {
+        idx++;
+        const file = files[el.fileId];
+        const dataURL = file?.dataURL ?? "";
+        return {
+          id: el.id,
+          name: `Image ${idx}`,
+          thumbnailUrl: dataURL,
+          assetId: el.id,
+          url: dataURL,
+          mimeType: file?.mimeType ?? "image/png",
+        };
+      });
   }, []);
 
   const handleCanvasSync = useCallback(async () => {
@@ -189,6 +225,9 @@ function CanvasPageContent() {
         onImageGenerated={handleImageGenerated}
         onCanvasSync={handleCanvasSync}
         initialPrompt={initialPrompt}
+        initialSessionId={initialSessionId}
+        onSessionChange={handleSessionChange}
+        onRequestCanvasImages={handleRequestCanvasImages}
       />
     </div>
   );
