@@ -25,11 +25,18 @@ export const runStatusSchema = z.enum([
   "failed",
 ]);
 
+export const imageAttachmentSchema = z.object({
+  assetId: z.string().min(1),
+  url: z.string().url(),
+  mimeType: z.string().min(1),
+});
+
 export const runCreateRequestSchema = z.object({
   sessionId: sessionIdSchema,
   conversationId: conversationIdSchema,
   prompt: z.string().min(1),
   canvasId: canvasIdSchema.optional(),
+  attachments: z.array(imageAttachmentSchema).optional(),
 });
 
 export const runCreateResponseSchema = z.object({
@@ -138,9 +145,18 @@ export const toolBlockSchema = z.object({
   artifacts: z.array(toolArtifactSchema).optional(),
 });
 
+export const imageBlockSchema = z.object({
+  type: z.literal("image"),
+  assetId: z.string().min(1),
+  url: z.string().url(),
+  mimeType: z.string().min(1),
+  source: z.enum(["upload", "canvas-ref"]),
+});
+
 export const contentBlockSchema = z.discriminatedUnion("type", [
   textBlockSchema,
   toolBlockSchema,
+  imageBlockSchema,
 ]);
 
 export const chatMessageSchema = z.object({
@@ -177,6 +193,8 @@ export type AssetObject = z.infer<typeof assetObjectSchema>;
 
 export type TextBlock = z.infer<typeof textBlockSchema>;
 export type ToolBlock = z.infer<typeof toolBlockSchema>;
+export type ImageBlock = z.infer<typeof imageBlockSchema>;
+export type ImageAttachment = z.infer<typeof imageAttachmentSchema>;
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

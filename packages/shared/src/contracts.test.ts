@@ -50,6 +50,23 @@ describe("@loomic/shared contracts", () => {
     expect(result.canvasId).toBeUndefined();
   });
 
+  it("accepts optional attachments in run creation", () => {
+    const result = runCreateRequestSchema.parse({
+      sessionId: "session-1",
+      conversationId: "conv-1",
+      prompt: "Analyze this image",
+      attachments: [
+        {
+          assetId: "asset-123",
+          url: "https://example.com/image.png",
+          mimeType: "image/png",
+        },
+      ],
+    });
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments![0].assetId).toBe("asset-123");
+  });
+
   it("accepts sessionId and conversationId for run creation", () => {
     const request = runCreateRequestSchema.parse({
       sessionId: "session_123",
