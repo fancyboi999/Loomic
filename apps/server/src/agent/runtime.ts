@@ -380,6 +380,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
                 { type: "text" as const, text: run.prompt },
                 ...run.attachments!.map((a) => ({
                   type: "image" as const,
+                  source_type: "url" as const,
                   url: a.url,
                   mimeType: a.mimeType,
                 })),
