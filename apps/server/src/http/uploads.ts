@@ -99,14 +99,14 @@ export async function registerUploadRoutes(
         const user = await options.auth.authenticate(request);
         if (!user) return sendUnauthorized(reply);
 
-        const signedUrl = await options.uploadService.getSignedUrl(
+        const url = await options.uploadService.getAssetUrl(
           user,
           request.params.assetId,
         );
 
         return reply
           .code(200)
-          .send(assetSignedUrlResponseSchema.parse({ signedUrl }));
+          .send(assetSignedUrlResponseSchema.parse({ url }));
       } catch (error) {
         return sendUploadError(error, reply);
       }

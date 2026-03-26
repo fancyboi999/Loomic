@@ -60,12 +60,12 @@ describe("upload routes", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    const result = response.json() as { asset: AssetObject; signedUrl: string };
+    const result = response.json() as { asset: AssetObject; url: string };
     expect(result.asset.id).toBe("asset-1");
-    expect(result.signedUrl).toBe(STUB_SIGNED_URL);
+    expect(result.url).toBe(STUB_SIGNED_URL);
   });
 
-  it("GET /api/uploads/:assetId/url returns signed URL", async () => {
+  it("GET /api/uploads/:assetId/url returns asset URL", async () => {
     const authUser = stubUser();
     const uploadService = createUploadServiceStub();
 
@@ -82,8 +82,8 @@ describe("upload routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const result = response.json() as { signedUrl: string };
-    expect(result.signedUrl).toBe(STUB_SIGNED_URL);
+    const result = response.json() as { url: string };
+    expect(result.url).toBe(STUB_SIGNED_URL);
   });
 
   it("DELETE /api/uploads/:assetId deletes an asset", async () => {
@@ -170,9 +170,9 @@ function stubUser() {
 function createUploadServiceStub(): UploadService {
   return {
     async uploadFile() {
-      return { asset: STUB_ASSET, signedUrl: STUB_SIGNED_URL };
+      return { asset: STUB_ASSET, url: STUB_SIGNED_URL };
     },
-    async getSignedUrl() {
+    async getAssetUrl() {
       return STUB_SIGNED_URL;
     },
     async deleteAsset() {},

@@ -376,7 +376,7 @@ export async function uploadFile(
   return (await response.json()) as UploadResponse;
 }
 
-export async function getAssetSignedUrl(
+export async function getAssetUrl(
   accessToken: string,
   assetId: string,
 ): Promise<AssetSignedUrlResponse> {

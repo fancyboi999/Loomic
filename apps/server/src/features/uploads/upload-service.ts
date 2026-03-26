@@ -5,6 +5,9 @@ import type {
   UserSupabaseClient,
 } from "../../supabase/user.js";
 
+/** Buckets configured as public in Supabase — use getPublicUrl instead of signed URLs */
+const PUBLIC_BUCKETS = new Set(["project-assets"]);
+
 export class UploadServiceError extends Error {
   readonly statusCode: number;
   readonly code: "upload_failed" | "asset_not_found";
@@ -33,9 +36,9 @@ export type UploadService = {
   uploadFile(
     user: AuthenticatedUser,
     input: UploadFileInput,
-  ): Promise<{ asset: AssetObject; signedUrl: string }>;
+  ): Promise<{ asset: AssetObject; url: string }>;
 
-  getSignedUrl(
+  getAssetUrl(
     user: AuthenticatedUser,
     assetId: string,
   ): Promise<string>;
@@ -100,7 +103,7 @@ export function createUploadService(options: {
         );
       }
 
-      const signedUrl = await createSignedUrl(client, input.bucket, objectPath);
+      const url = await getAssetUrl(client, input.bucket, objectPath);
 
       return {
         asset: {
@@ -113,11 +116,11 @@ export function createUploadService(options: {
           projectId: assetRow.project_id,
           createdAt: assetRow.created_at,
         },
-        signedUrl,
+        url,
       };
     },
 
-    async getSignedUrl(user, assetId) {
+    async getAssetUrl(user, assetId) {
       const client = options.createUserClient(user.accessToken);
 
       const { data: assetRow, error } = await client
@@ -134,11 +137,7 @@ export function createUploadService(options: {
         );
       }
 
-      return createSignedUrl(
-        client,
-        assetRow.bucket,
-        assetRow.object_path,
-      );
+      return getAssetUrl(client, assetRow.bucket, assetRow.object_path);
     },
 
     async deleteAsset(user, assetId) {
@@ -189,6 +188,19 @@ function buildObjectPath(
     return `${workspaceId}/${projectId}/${timestamp}-${safeName}`;
   }
   return `${workspaceId}/${timestamp}-${safeName}`;
+}
+
+function getAssetUrl(
+  client: UserSupabaseClient,
+  bucket: string,
+  objectPath: string,
+): string | Promise<string> {
+  if (PUBLIC_BUCKETS.has(bucket)) {
+    const { data } = client.storage.from(bucket).getPublicUrl(objectPath);
+    return data.publicUrl;
+  }
+  // Fallback for private buckets (e.g. user-avatars)
+  return createSignedUrl(client, bucket, objectPath);
 }
 
 async function createSignedUrl(
