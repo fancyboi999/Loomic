@@ -21,6 +21,7 @@ import {
   updateSessionTitle,
 } from "../lib/server-api";
 import { streamEvents } from "../lib/stream-events";
+import { useImageAttachments } from "../hooks/use-image-attachments";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
@@ -40,6 +41,8 @@ type ChatSidebarProps = {
   onImageGenerated?: (artifact: ImageArtifact) => void;
   onCanvasSync?: () => void;
   initialPrompt?: string | undefined;
+  initialSessionId?: string | undefined;
+  onSessionChange?: (sessionId: string) => void;
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -84,6 +87,8 @@ export function ChatSidebar({
   onImageGenerated,
   onCanvasSync,
   initialPrompt,
+  initialSessionId,
+  onSessionChange,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -102,6 +107,16 @@ export function ChatSidebar({
   sessionsRef.current = sessions;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+
+  const {
+    attachments: imageAttachments,
+    addFiles,
+    addCanvasRef,
+    removeAttachment,
+    clearAll: clearAttachments,
+    isUploading,
+    readyAttachments,
+  } = useImageAttachments(accessToken);
 
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const isResizing = useRef(false);
@@ -140,6 +155,9 @@ export function ChatSidebar({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  const onSessionChangeRef = useRef(onSessionChange);
+  onSessionChangeRef.current = onSessionChange;
+
   // Load sessions on mount (accessTokenRef avoids tab-switch reload)
   useEffect(() => {
     let cancelled = false;
@@ -153,9 +171,13 @@ export function ChatSidebar({
 
         if (res.sessions.length > 0) {
           setSessions(res.sessions);
-          const mostRecent = res.sessions[0]!;
-          setActiveSessionId(mostRecent.id);
-          const msgRes = await fetchMessages(token, mostRecent.id);
+          // Restore session from URL if available, otherwise use most recent
+          const target = initialSessionId
+            ? res.sessions.find((s) => s.id === initialSessionId) ?? res.sessions[0]!
+            : res.sessions[0]!;
+          setActiveSessionId(target.id);
+          onSessionChangeRef.current?.(target.id);
+          const msgRes = await fetchMessages(token, target.id);
           if (cancelled) return;
           setMessages(mapServerMessages(msgRes.messages));
         } else {
@@ -163,6 +185,7 @@ export function ChatSidebar({
           if (cancelled) return;
           setSessions([created.session]);
           setActiveSessionId(created.session.id);
+          onSessionChangeRef.current?.(created.session.id);
           setMessages([]);
         }
       } catch {
@@ -176,12 +199,14 @@ export function ChatSidebar({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasId]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       if (sessionId === activeSessionIdRef.current || streaming) return;
       setActiveSessionId(sessionId);
+      onSessionChangeRef.current?.(sessionId);
       setMessages([]);
       try {
         const msgRes = await fetchMessages(
@@ -202,6 +227,7 @@ export function ChatSidebar({
       const res = await createSession(accessTokenRef.current, canvasId);
       setSessions((prev) => [res.session, ...prev]);
       setActiveSessionId(res.session.id);
+      onSessionChangeRef.current?.(res.session.id);
       setMessages([]);
     } catch {
       // Silently fail
@@ -223,6 +249,7 @@ export function ChatSidebar({
           const res = await createSession(token, canvasId);
           setSessions([res.session]);
           setActiveSessionId(res.session.id);
+          onSessionChangeRef.current?.(res.session.id);
           setMessages([]);
         } catch {
           return; // Can't proceed without a replacement session
@@ -232,6 +259,7 @@ export function ChatSidebar({
         if (sessionId === activeSessionIdRef.current) {
           const next = remaining[0]!;
           setActiveSessionId(next.id);
+          onSessionChangeRef.current?.(next.id);
           fetchMessages(token, next.id)
             .then((msgRes) => setMessages(mapServerMessages(msgRes.messages)))
             .catch(() => setMessages([]));
@@ -344,13 +372,24 @@ export function ChatSidebar({
       const currentSessionId = activeSessionIdRef.current;
       if (streaming || !currentSessionId) return;
 
+      const currentAttachments = readyAttachments;
       const isFirstMessage = messagesRef.current.length === 0;
 
       // Add user message locally
+      const imageBlocks: ContentBlock[] = currentAttachments.map((a) => ({
+        type: "image" as const,
+        assetId: a.assetId,
+        url: a.url,
+        mimeType: a.mimeType,
+        source: "upload" as const,
+      }));
       const userMsg: Message = {
         id: `user-${Date.now()}`,
         role: "user",
-        contentBlocks: [{ type: "text", text }],
+        contentBlocks: [
+          { type: "text", text },
+          ...imageBlocks,
+        ],
       };
       setMessages((prev) => [...prev, userMsg]);
 
@@ -358,7 +397,10 @@ export function ChatSidebar({
       saveMessage(accessTokenRef.current, currentSessionId, {
         role: "user",
         content: text,
-        contentBlocks: [{ type: "text", text }],
+        contentBlocks: [
+          { type: "text", text },
+          ...imageBlocks,
+        ],
       }).catch((err) => console.error("[chat] Failed to save user message:", err));
 
       // Auto-title from first user message
@@ -392,11 +434,13 @@ export function ChatSidebar({
             conversationId: canvasId,
             prompt: text,
             canvasId,
+            ...(currentAttachments.length > 0 ? { attachments: currentAttachments } : {}),
           },
           {
             accessToken: accessTokenRef.current,
           },
         );
+        clearAttachments();
 
         for await (const event of streamEvents(run.runId)) {
           if (abortRef.current) break;
@@ -460,7 +504,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync],
+    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments],
   );
 
   // Auto-send initial prompt from Home page (once, after sessions load)
@@ -550,7 +594,14 @@ export function ChatSidebar({
         </div>
 
         {/* Input */}
-        <ChatInput onSend={handleSend} disabled={streaming || sessionsLoading} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={streaming || sessionsLoading}
+          attachments={imageAttachments}
+          onAddFiles={addFiles}
+          onRemoveAttachment={removeAttachment}
+          isUploading={isUploading}
+        />
       </div>
     </div>
   );
