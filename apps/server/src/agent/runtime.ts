@@ -320,12 +320,11 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               .upload(objectPath, buffer, { contentType: mimeType, upsert: false });
             if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-            const { data: urlData, error: urlError } = await client.storage
+            const { data: urlData } = client.storage
               .from("project-assets")
-              .createSignedUrl(objectPath, 3600);
-            if (urlError || !urlData?.signedUrl) throw new Error("Signed URL failed");
+              .getPublicUrl(objectPath);
 
-            return urlData.signedUrl;
+            return urlData.publicUrl;
           };
         }
 
@@ -373,11 +372,23 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
       let stream: AsyncIterable<unknown>;
       try {
+        const hasAttachments = run.attachments && run.attachments.length > 0;
+        const messageContent = hasAttachments
+          ? [
+              { type: "text" as const, text: run.prompt },
+              ...run.attachments!.map((a) => ({
+                type: "image" as const,
+                url: a.url,
+                mimeType: a.mimeType,
+              })),
+            ]
+          : run.prompt;
+
         stream = agent.streamEvents(
           {
             messages: [
               {
-                content: run.prompt,
+                content: messageContent,
                 role: "user",
               },
             ],
