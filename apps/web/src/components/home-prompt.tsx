@@ -8,14 +8,23 @@ import {
   useState,
 } from "react";
 
+import type { ImageAttachment } from "@loomic/shared";
+import type { ImageAttachmentState } from "../hooks/use-image-attachments";
+import { ImageAttachmentBar } from "./image-attachment-bar";
+
 export type HomePromptHandle = {
   /** Programmatically set the textarea value (e.g. from an example pill). */
   fill: (text: string) => void;
 };
 
 type HomePromptProps = {
-  onSubmit: (prompt: string) => void;
+  onSubmit: (prompt: string, attachments?: ImageAttachment[]) => void;
   disabled?: boolean;
+  attachments?: ImageAttachmentState[];
+  onAddFiles?: (files: File[]) => void;
+  onRemoveAttachment?: (id: string) => void;
+  isUploading?: boolean;
+  readyAttachments?: ImageAttachment[];
 };
 
 const toolbarButtons = [
@@ -52,9 +61,21 @@ const submitIcon = {
 };
 
 export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
-  function HomePrompt({ onSubmit, disabled }, ref) {
+  function HomePrompt(
+    {
+      onSubmit,
+      disabled,
+      attachments,
+      onAddFiles,
+      onRemoveAttachment,
+      isUploading,
+      readyAttachments,
+    },
+    ref,
+  ) {
     const [value, setValue] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
       fill(text: string) {
@@ -71,17 +92,28 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
       },
     }));
 
-    const hasContent = value.trim().length > 0;
+    const hasContent =
+      value.trim().length > 0 || (attachments && attachments.length > 0);
 
     const handleSubmit = useCallback(() => {
       const trimmed = value.trim();
-      if (!trimmed || disabled) return;
-      onSubmit(trimmed);
+      if (
+        (!trimmed && (!attachments || attachments.length === 0)) ||
+        disabled ||
+        isUploading
+      )
+        return;
+      onSubmit(
+        trimmed,
+        readyAttachments && readyAttachments.length > 0
+          ? readyAttachments
+          : undefined,
+      );
       setValue("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
-    }, [value, disabled, onSubmit]);
+    }, [value, disabled, isUploading, onSubmit, attachments, readyAttachments]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
@@ -101,7 +133,13 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
     }, []);
 
     return (
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border-[0.5px] border-[rgba(82,109,135,0.145)] bg-[#F7F7F7] shadow-[0_4px_8px_rgba(0,0,0,0.04)]">
+        {attachments && onRemoveAttachment && (
+          <ImageAttachmentBar
+            attachments={attachments}
+            onRemove={onRemoveAttachment}
+          />
+        )}
         <textarea
           ref={textareaRef}
           value={value}
@@ -116,47 +154,102 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
 
         <div className="flex items-center justify-between px-3 pb-3">
           <div className="flex items-center gap-0.5">
-            {toolbarButtons.map((btn) => (
+            {onAddFiles ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      onAddFiles(Array.from(files));
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] transition-colors hover:bg-black/[0.04]"
+                >
+                  <svg
+                    className="h-[14px] w-[14px]"
+                    viewBox={toolbarButtons[0].viewBox}
+                    fill="currentColor"
+                    role="img"
+                    aria-label="Attach"
+                  >
+                    <path d={toolbarButtons[0].path} />
+                  </svg>
+                </button>
+              </>
+            ) : (
               <button
-                key={btn.name}
                 type="button"
                 disabled
-                title={btn.name}
-                className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg text-neutral-300 transition-colors"
+                title="Attach"
+                className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
               >
                 <svg
-                  className="h-[18px] w-[18px]"
-                  viewBox={btn.viewBox}
+                  className="h-[14px] w-[14px]"
+                  viewBox={toolbarButtons[0].viewBox}
                   fill="currentColor"
                   role="img"
-                  aria-label={btn.name}
+                  aria-label="Attach"
                 >
-                  <path d={btn.path} />
+                  <path d={toolbarButtons[0].path} />
                 </svg>
               </button>
-            ))}
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={disabled || !hasContent}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg p-1.5 transition-colors ${
-              hasContent && !disabled
-                ? "bg-black/90 text-white hover:bg-black"
-                : "cursor-not-allowed bg-neutral-200 text-neutral-400"
-            }`}
-          >
-            <svg
-              className="h-4 w-4"
-              viewBox={submitIcon.viewBox}
-              fill="currentColor"
-              role="img"
-              aria-label="Submit"
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5">
+              {toolbarButtons.slice(1).map((btn) => (
+                <button
+                  key={btn.name}
+                  type="button"
+                  disabled
+                  title={btn.name}
+                  className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
+                >
+                  <svg
+                    className="h-[14px] w-[14px]"
+                    viewBox={btn.viewBox}
+                    fill="currentColor"
+                    role="img"
+                    aria-label={btn.name}
+                  >
+                    <path d={btn.path} />
+                  </svg>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={disabled || isUploading || !hasContent}
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                hasContent && !disabled && !isUploading
+                  ? "bg-[#2F3640] text-white hover:bg-[#4A535F] active:bg-[#191E26]"
+                  : "cursor-not-allowed bg-[#2F3640] text-white opacity-30"
+              }`}
             >
-              <path d={submitIcon.path} />
-            </svg>
-          </button>
+              <svg
+                className="h-[14px] w-[14px]"
+                viewBox={submitIcon.viewBox}
+                fill="currentColor"
+                role="img"
+                aria-label="Submit"
+              >
+                <path d={submitIcon.path} />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     );

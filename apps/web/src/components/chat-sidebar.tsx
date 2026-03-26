@@ -11,6 +11,7 @@ import type {
   TextBlock,
   ToolBlock,
 } from "@loomic/shared";
+import type { ImageAttachment } from "@loomic/shared";
 import {
   createRun,
   createSession,
@@ -22,6 +23,7 @@ import {
 } from "../lib/server-api";
 import { streamEvents } from "../lib/stream-events";
 import { useImageAttachments } from "../hooks/use-image-attachments";
+import { INITIAL_ATTACHMENTS_KEY } from "../hooks/use-create-project";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
@@ -368,11 +370,11 @@ export function ChatSidebar({
   );
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, attachmentsOverride?: ImageAttachment[]) => {
       const currentSessionId = activeSessionIdRef.current;
       if (streaming || !currentSessionId) return;
 
-      const currentAttachments = readyAttachments;
+      const currentAttachments = attachmentsOverride ?? readyAttachments;
       const isFirstMessage = messagesRef.current.length === 0;
 
       // Add user message locally
@@ -507,11 +509,25 @@ export function ChatSidebar({
     [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments],
   );
 
-  // Auto-send initial prompt from Home page (once, after sessions load)
+  // Auto-send initial prompt from Home page (once, after sessions load).
+  // Reads any attachments stored in sessionStorage by useCreateProject and
+  // clears them immediately so they are consumed exactly once.
   useEffect(() => {
     if (!initialPrompt || sessionsLoading || initialPromptSent.current) return;
     initialPromptSent.current = true;
-    void handleSend(initialPrompt);
+
+    let storedAttachments: ImageAttachment[] | undefined;
+    try {
+      const raw = sessionStorage.getItem(INITIAL_ATTACHMENTS_KEY);
+      if (raw) {
+        storedAttachments = JSON.parse(raw) as ImageAttachment[];
+        sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
+      }
+    } catch {
+      // Malformed JSON or unavailable storage — proceed without attachments
+    }
+
+    void handleSend(initialPrompt, storedAttachments);
   }, [initialPrompt, sessionsLoading, handleSend]);
 
   if (!open) {

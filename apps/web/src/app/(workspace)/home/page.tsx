@@ -1,21 +1,54 @@
 "use client";
 
-import type { ProjectSummary } from "@loomic/shared";
+import type { ImageAttachment, ProjectSummary } from "@loomic/shared";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { Trash2 } from "lucide-react";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { HomePrompt, type HomePromptHandle } from "@/components/home-prompt";
+import { LoadingScreen } from "@/components/loading-screen";
 import { LoomicLogo } from "@/components/icons/loomic-logo";
 import { HomeProjectsSkeleton } from "@/components/skeletons/home-skeleton";
+import { useCreateProject } from "@/hooks/use-create-project";
+import { useDeleteProject } from "@/hooks/use-delete-project";
+import { useImageAttachments } from "@/hooks/use-image-attachments";
 import { useAuth } from "@/lib/auth-context";
-import { ApiAuthError, createProject, fetchProjects } from "@/lib/server-api";
+import { ApiAuthError, fetchProjects } from "@/lib/server-api";
 
 /** Maximum number of recent projects shown on the home page. */
 const RECENT_PROJECTS_LIMIT = 4;
 
 const EXAMPLE_PROMPT = "帮我设计一个现代简约的品牌 Logo";
+
+// ---------------------------------------------------------------------------
+// Animation variants
+// ---------------------------------------------------------------------------
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+  }),
+};
+
+const cardStagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+};
+
+const cardItem = {
+  hidden: { opacity: 0, y: 16, scale: 0.97 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Sparkle icon for the example pill
@@ -53,16 +86,30 @@ export default function HomePage() {
   const { session, signOut } = useAuth();
   const router = useRouter();
 
+  const { create: createNewProject, creating } = useCreateProject();
+  const handleDeleted = useCallback((id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+  const { pendingId, deleting, requestDelete, confirmDelete, cancelDelete } =
+    useDeleteProject({ onDeleted: handleDeleted });
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const promptRef = useRef<HomePromptHandle>(null);
 
   // Ref pattern: avoid token changes cascading through dep arrays
   const accessTokenRef = useRef(session?.access_token);
   accessTokenRef.current = session?.access_token;
+
+  // Image attachments for the home prompt.
+  // No projectId yet — uploads go to the general bucket; the project is created on submit.
+  const {
+    attachments: imageAttachments,
+    addFiles,
+    removeAttachment,
+    isUploading,
+    readyAttachments,
+  } = useImageAttachments(session?.access_token ?? "");
   const signOutRef = useRef(signOut);
   signOutRef.current = signOut;
   const routerRef = useRef(router);
@@ -104,45 +151,12 @@ export default function HomePage() {
   // Prompt submit → create project → navigate to canvas
   // -----------------------------------------------------------------------
   const handlePromptSubmit = useCallback(
-    async (prompt: string) => {
-      const token = getToken();
-      if (!token || submitting) return;
-
-      setSubmitting(true);
-      try {
-        const result = await createProject(token, {
-          name: "Untitled",
-        });
-        const canvasId = result.project.primaryCanvas.id;
-        routerRef.current.push(
-          `/canvas?id=${canvasId}&prompt=${encodeURIComponent(prompt)}`,
-        );
-      } catch (err) {
-        if (err instanceof ApiAuthError) {
-          await signOutRef.current();
-          routerRef.current.replace("/login");
-          return;
-        }
-        console.error("[home] failed to create project from prompt", err);
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [getToken, submitting],
-  );
-
-  // -----------------------------------------------------------------------
-  // CreateProjectDialog submit → create project → navigate to canvas
-  // -----------------------------------------------------------------------
-  const handleDialogCreate = useCallback(
-    async (data: { name: string; description?: string }) => {
-      const token = getToken();
-      if (!token) return;
-      const result = await createProject(token, data);
-      const canvasId = result.project.primaryCanvas.id;
-      routerRef.current.push(`/canvas?id=${canvasId}`);
-    },
-    [getToken],
+    (prompt: string, attachments?: ImageAttachment[]) =>
+      createNewProject({
+        prompt,
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
+      }),
+    [createNewProject],
   );
 
   // -----------------------------------------------------------------------
@@ -155,112 +169,163 @@ export default function HomePage() {
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
+  if (creating) {
+    return <LoadingScreen />;
+  }
+
   return (
-    <div className="flex h-full flex-col items-center overflow-auto px-4 py-16">
+    <div className="flex h-full flex-col items-center overflow-auto px-6 py-16">
       {/* Hero */}
-      <div className="flex w-full max-w-2xl flex-col items-center text-center">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        className="flex w-full max-w-3xl flex-col items-center text-center"
+      >
         {/* Logo + brand name */}
-        <div className="mb-4 flex items-center gap-2">
+        <motion.div variants={fadeUp} custom={0} className="mb-4 flex items-center gap-2">
           <LoomicLogo className="size-8 text-black" />
           <span className="text-xl font-semibold text-[#0E1014]">Loomic</span>
-        </div>
+        </motion.div>
 
-        <h1 className="mb-2 text-2xl font-bold text-[#0E1014]">
+        <motion.h1 variants={fadeUp} custom={1} className="mb-2 text-2xl font-bold text-[#0E1014]">
           让创意设计更简单
-        </h1>
-        <p className="mb-8 text-sm text-[#A8A8A8]">
+        </motion.h1>
+        <motion.p variants={fadeUp} custom={2} className="mb-8 text-base text-[#A8A8A8]">
           你的 AI 设计助手，从想法到作品
-        </p>
+        </motion.p>
 
         {/* Prompt input */}
-        <div className="w-full">
+        <motion.div variants={fadeUp} custom={3} className="w-full">
           <HomePrompt
             ref={promptRef}
             onSubmit={handlePromptSubmit}
-            disabled={submitting}
+            disabled={creating}
+            attachments={imageAttachments}
+            onAddFiles={addFiles}
+            onRemoveAttachment={removeAttachment}
+            isUploading={isUploading}
+            readyAttachments={readyAttachments}
           />
-        </div>
+        </motion.div>
 
         {/* Example pill */}
-        <div className="mt-3 flex items-center gap-2">
-          <button
+        <motion.div variants={fadeUp} custom={4} className="mt-3 flex items-center gap-2">
+          <motion.button
             type="button"
             onClick={handlePillClick}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 transition-colors hover:bg-neutral-50"
           >
             <SparkleIcon className="h-3 w-3" />
             设计
-          </button>
-        </div>
-      </div>
+          </motion.button>
+        </motion.div>
+      </motion.div>
 
       {/* Recent projects */}
-      <div className="mt-14 w-full max-w-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-[#0E1014]">最近项目</h2>
+      <div className="mt-14 w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.4, ease: "easeOut" }}
+          className="mb-4 flex items-center justify-between"
+        >
+          <h2 className="text-lg font-medium text-[#141414]">最近项目</h2>
           <Link
             href="/projects"
-            className="text-xs text-[#A8A8A8] transition-colors hover:text-[#0E1014]"
+            className="flex items-center gap-1 text-base text-[#919191] transition-colors hover:text-[#141414]"
           >
             查看全部
+            <span className="flex h-6 w-6 -rotate-90 items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 13 8" className="h-[6px] w-[10px]">
+                <path stroke="currentColor" d="m1 .657 5.657 5.657L12.314.657" />
+              </svg>
+            </span>
           </Link>
-        </div>
+        </motion.div>
 
         {projectsLoading ? (
           <HomeProjectsSkeleton />
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          <motion.div
+            variants={cardStagger}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+          >
             {/* New project card */}
-            <button
+            <motion.button
+              variants={cardItem}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
-              onClick={() => setDialogOpen(true)}
-              className="flex aspect-[286/208] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#E3E3E3] transition-colors hover:border-[#C0C0C0] hover:bg-[#FAFAFA]"
+              disabled={creating}
+              onClick={() => createNewProject()}
+              className="aspect-[286/208] cursor-pointer rounded-xl bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-md sm:rounded-2xl"
             >
-              <span className="text-2xl text-[#C0C0C0]">+</span>
-              <span className="text-xs text-[#919191]">新建项目</span>
-            </button>
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#0C0C0D]/[0.04]">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-[#0E1014]">
+                  <path fill="currentColor" fillRule="evenodd" d="M6.417 2.917a.583.583 0 0 1 1.166 0v3.5h3.5a.583.583 0 0 1 0 1.166h-3.5v3.5a.583.583 0 1 1-1.166 0v-3.5h-3.5a.583.583 0 1 1 0-1.166h3.5z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-semibold text-[#0E1014]">新建项目</span>
+              </div>
+            </motion.button>
 
             {/* Project cards */}
             {projects.map((project) => (
-              <button
+              <motion.div
                 key={project.id}
-                type="button"
+                variants={cardItem}
+                whileHover={{ y: -4 }}
+                className="group relative aspect-[286/208] cursor-pointer rounded-lg bg-white p-3 text-left shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-md"
                 onClick={() =>
                   router.push(`/canvas?id=${project.primaryCanvas.id}`)
                 }
-                className="group cursor-pointer overflow-hidden rounded-lg bg-white text-left transition-shadow hover:shadow-md"
               >
+                {/* Trash icon — hover reveal */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestDelete(project.id);
+                  }}
+                  className="absolute top-5 right-5 z-10 size-8 flex items-center justify-center rounded-[4px] bg-[rgba(51,51,51,0.8)] text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/70"
+                >
+                  <Trash2 size={14} />
+                </button>
                 {/* Thumbnail */}
-                <div className="aspect-[395/227] overflow-hidden rounded-lg bg-[#F5F5F5]">
+                <div className="aspect-[395/227] w-full overflow-hidden rounded-lg bg-[#0C0C0D]/[0.04]">
                   {project.thumbnailUrl && (
                     <img
                       src={project.thumbnailUrl}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                       loading="lazy"
                     />
                   )}
                 </div>
                 {/* Info */}
-                <div className="px-1 py-2">
-                  <div className="truncate text-sm font-medium text-[#0E1014]">
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="truncate text-sm text-[#141414]">
                     {project.name}
                   </div>
-                  <div className="px-1 text-[11px] text-[#919191]">
-                    更新于 {formatDate(project.updatedAt)}
-                  </div>
                 </div>
-              </button>
+                <div className="mt-0.5 text-[11px] text-[#919191]">
+                  更新于 {formatDate(project.updatedAt)}
+                </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Create project dialog (opened from "+ 新建项目" card) */}
-      <CreateProjectDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSubmit={handleDialogCreate}
+      {/* Delete confirmation dialog */}
+      <DeleteProjectDialog
+        open={pendingId !== null}
+        deleting={deleting}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
       />
     </div>
   );
