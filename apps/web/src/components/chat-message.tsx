@@ -116,10 +116,12 @@ export function ChatMessage({
           );
         }
 
-        // ToolBlock
-        return (
-          <ToolBlockView key={block.toolCallId} block={block} />
-        );
+        if (block.type === "tool") {
+          return <ToolBlockView key={block.toolCallId} block={block} />;
+        }
+
+        // ImageBlock — skip in assistant messages (images are user-side only)
+        return null;
       })}
     </motion.div>
   );
