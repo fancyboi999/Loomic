@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
+import { HumanMessage } from "@langchain/core/messages";
 import type {
   RunCancelResponse,
   RunCreateRequest,
@@ -373,24 +374,22 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       let stream: AsyncIterable<unknown>;
       try {
         const hasAttachments = run.attachments && run.attachments.length > 0;
-        const messageContent = hasAttachments
-          ? [
-              { type: "text" as const, text: run.prompt },
-              ...run.attachments!.map((a) => ({
-                type: "image_url" as const,
-                image_url: { url: a.url },
-              })),
-            ]
-          : run.prompt;
+        const userMessage = hasAttachments
+          ? new HumanMessage({
+              content: [
+                { type: "text" as const, text: run.prompt },
+                ...run.attachments!.map((a) => ({
+                  type: "image" as const,
+                  url: a.url,
+                  mimeType: a.mimeType,
+                })),
+              ],
+            })
+          : new HumanMessage(run.prompt);
 
         stream = agent.streamEvents(
           {
-            messages: [
-              {
-                content: messageContent,
-                role: "user",
-              },
-            ],
+            messages: [userMessage],
           },
           {
             ...(run.threadId || run.canvasId || run.accessToken
