@@ -100,7 +100,8 @@ export function ChatSidebar({
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [atQuery, setAtQuery] = useState<string | null>(null);
+  const chatInputRef = useRef<import("./chat-input").ChatInputHandle>(null);
 
   const initialPromptSent = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -616,9 +617,10 @@ export function ChatSidebar({
 
         {/* Input */}
         <div className="relative">
-          {showImagePicker && onRequestCanvasImages && (
+          {atQuery !== null && onRequestCanvasImages && (
             <CanvasImagePicker
               items={onRequestCanvasImages()}
+              query={atQuery}
               onSelect={(item) => {
                 addCanvasRef({
                   assetId: item.assetId,
@@ -626,11 +628,14 @@ export function ChatSidebar({
                   mimeType: item.mimeType,
                   name: item.name,
                 });
+                chatInputRef.current?.clearAtQuery();
+                setAtQuery(null);
               }}
-              onClose={() => setShowImagePicker(false)}
+              onClose={() => setAtQuery(null)}
             />
           )}
           <ChatInput
+            ref={chatInputRef}
             onSend={handleSend}
             disabled={streaming || sessionsLoading}
             attachments={imageAttachments}
@@ -638,7 +643,7 @@ export function ChatSidebar({
             onRemoveAttachment={removeAttachment}
             onRetryAttachment={retryUpload}
             isUploading={isUploading}
-            onAtTrigger={() => setShowImagePicker(true)}
+            onAtQuery={onRequestCanvasImages ? setAtQuery : undefined}
           />
         </div>
       </div>
