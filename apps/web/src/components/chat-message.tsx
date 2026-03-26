@@ -47,6 +47,14 @@ export function ChatMessage({
                 alt="Attached image"
                 className="h-20 w-20 rounded-lg border border-[#E3E3E3] object-cover"
                 loading="lazy"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  img.style.display = "none";
+                  const fallback = document.createElement("div");
+                  fallback.className = "flex h-20 w-20 items-center justify-center rounded-lg border border-[#E3E3E3] bg-[#F7F7F7] text-[10px] text-[#A4A9B2]";
+                  fallback.textContent = "Failed";
+                  img.parentElement?.insertBefore(fallback, img.nextSibling);
+                }}
               />
             ))}
           </div>

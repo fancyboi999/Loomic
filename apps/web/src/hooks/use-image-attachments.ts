@@ -116,6 +116,43 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
     ]);
   }, []);
 
+  const retryUpload = useCallback(
+    (id: string) => {
+      setAttachments((prev) => {
+        const att = prev.find((a) => a.id === id);
+        if (!att?.file) return prev;
+        return prev.map((a) =>
+          a.id === id ? { ...a, uploading: true, error: undefined } : a,
+        );
+      });
+
+      // Find the file from current state and re-upload
+      const att = attachments.find((a) => a.id === id);
+      if (!att?.file) return;
+
+      uploadFile(accessTokenRef.current, att.file, projectId)
+        .then((res) => {
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id
+                ? { ...a, uploading: false, assetId: res.asset.id, url: res.url }
+                : a,
+            ),
+          );
+        })
+        .catch((err) => {
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id
+                ? { ...a, uploading: false, error: err instanceof Error ? err.message : "Upload failed" }
+                : a,
+            ),
+          );
+        });
+    },
+    [attachments, projectId],
+  );
+
   const removeAttachment = useCallback((id: string) => {
     setAttachments((prev) => {
       const att = prev.find((a) => a.id === id);
@@ -152,6 +189,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
     attachments,
     addFiles,
     addCanvasRef,
+    retryUpload,
     removeAttachment,
     clearAll,
     isUploading,

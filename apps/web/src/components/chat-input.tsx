@@ -11,6 +11,7 @@ type ChatInputProps = {
   attachments?: ImageAttachmentState[];
   onAddFiles?: (files: File[]) => void;
   onRemoveAttachment?: (id: string) => void;
+  onRetryAttachment?: (id: string) => void;
   isUploading?: boolean;
   onAtTrigger?: () => void;
 };
@@ -21,6 +22,7 @@ export function ChatInput({
   attachments,
   onAddFiles,
   onRemoveAttachment,
+  onRetryAttachment,
   isUploading,
   onAtTrigger,
 }: ChatInputProps) {
@@ -110,6 +112,7 @@ export function ChatInput({
           <ImageAttachmentBar
             attachments={attachments}
             onRemove={onRemoveAttachment}
+            onRetry={onRetryAttachment}
           />
         )}
         <textarea

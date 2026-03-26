@@ -118,6 +118,7 @@ export function ChatSidebar({
     attachments: imageAttachments,
     addFiles,
     addCanvasRef,
+    retryUpload,
     removeAttachment,
     clearAll: clearAttachments,
     isUploading,
@@ -635,6 +636,7 @@ export function ChatSidebar({
             attachments={imageAttachments}
             onAddFiles={addFiles}
             onRemoveAttachment={removeAttachment}
+            onRetryAttachment={retryUpload}
             isUploading={isUploading}
             onAtTrigger={() => setShowImagePicker(true)}
           />
