@@ -61,11 +61,13 @@ export function ChatInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
-      setValue(newValue);
-      // Detect @ trigger
+      // Detect @ trigger — remove the @ character and open picker
       if (onAtTrigger && newValue.endsWith("@")) {
+        setValue(newValue.slice(0, -1));
         onAtTrigger();
+        return;
       }
+      setValue(newValue);
     },
     [onAtTrigger],
   );
