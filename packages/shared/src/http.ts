@@ -159,11 +159,11 @@ export type ModelListResponse = z.infer<typeof modelListResponseSchema>;
 
 export const uploadResponseSchema = z.object({
   asset: assetObjectSchema,
-  signedUrl: z.string().min(1),
+  url: z.string().min(1),
 });
 
 export const assetSignedUrlResponseSchema = z.object({
-  signedUrl: z.string().min(1),
+  url: z.string().min(1),
 });
 
 export type UploadResponse = z.infer<typeof uploadResponseSchema>;
