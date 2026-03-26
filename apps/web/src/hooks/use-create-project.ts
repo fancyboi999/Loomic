@@ -1,0 +1,72 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { ImageAttachment } from "@loomic/shared";
+import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
+import { ApiAuthError, createProject } from "@/lib/server-api";
+
+/** sessionStorage key used to pass attachments from Home → Canvas auto-send. */
+export const INITIAL_ATTACHMENTS_KEY = "loomic:initial-attachments";
+
+/**
+ * Shared hook for creating an Untitled project and navigating to its canvas.
+ * Used by Home page, Projects page, and Canvas logo menu.
+ */
+export function useCreateProject() {
+  const { session, signOut } = useAuth();
+  const router = useRouter();
+  const { error: toastError } = useToast();
+  const [creating, setCreating] = useState(false);
+
+  const signOutRef = useRef(signOut);
+  signOutRef.current = signOut;
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  const create = useCallback(
+    async (opts?: { prompt?: string; attachments?: ImageAttachment[] }) => {
+      const token = session?.access_token;
+      if (!token || creating) return;
+
+      setCreating(true);
+      try {
+        const result = await createProject(token, { name: "Untitled" });
+        const canvasId = result.project.primaryCanvas.id;
+
+        // Persist attachments in sessionStorage so ChatSidebar can pick them
+        // up for the auto-send of initialPrompt on the canvas page.
+        if (opts?.attachments && opts.attachments.length > 0) {
+          try {
+            sessionStorage.setItem(
+              INITIAL_ATTACHMENTS_KEY,
+              JSON.stringify(opts.attachments),
+            );
+          } catch {
+            // sessionStorage write failure is non-fatal
+          }
+        } else {
+          sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
+        }
+
+        const url = opts?.prompt
+          ? `/canvas?id=${canvasId}&prompt=${encodeURIComponent(opts.prompt)}`
+          : `/canvas?id=${canvasId}`;
+        routerRef.current.push(url);
+      } catch (err) {
+        if (err instanceof ApiAuthError) {
+          await signOutRef.current();
+          routerRef.current.replace("/login");
+          return;
+        }
+        toastError("项目创建失败");
+        setCreating(false);
+      }
+    },
+    [session?.access_token, creating, toastError],
+  );
+
+  return { create, creating };
+}
