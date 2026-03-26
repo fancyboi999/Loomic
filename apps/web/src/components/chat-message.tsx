@@ -5,13 +5,50 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ContentBlock, ToolArtifact, ToolBlock } from "@loomic/shared";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 export type { ContentBlock, ToolArtifact };
 
 /** @deprecated Use ToolBlock from @loomic/shared instead */
 export type ToolActivity = ToolBlock; // backward compat
+
+const IMAGE_URL_RE = /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i;
+const SUPABASE_STORAGE_RE = /supabase\.\w+\/storage\/v1\//i;
+
+function isImageUrl(url: string): boolean {
+  return IMAGE_URL_RE.test(url) || SUPABASE_STORAGE_RE.test(url);
+}
+
+const markdownComponents: Components = {
+  a({ href, children }) {
+    if (href && isImageUrl(href)) {
+      return (
+        <img
+          src={href}
+          alt={typeof children === "string" ? children : "Image"}
+          className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
+          loading="lazy"
+        />
+      );
+    }
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">
+        {children}
+      </a>
+    );
+  },
+  img({ src, alt }) {
+    return (
+      <img
+        src={src}
+        alt={alt ?? "Image"}
+        className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
+        loading="lazy"
+      />
+    );
+  },
+};
 
 type ChatMessageProps = {
   role: "user" | "assistant";
@@ -114,7 +151,10 @@ export function ChatMessage({
               key={idx}
               className="markdown-content text-sm leading-[1.6] text-[#2F3640]"
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
                 {block.text}
               </ReactMarkdown>
               {isStreaming && idx === lastTextIdx && (
