@@ -151,8 +151,6 @@ async function extractFilesToStorage(
 // File resolution (load path): oss:// marker → base64 dataURL
 // ---------------------------------------------------------------------------
 
-const SIGNED_URL_EXPIRY_SECONDS = 3600;
-
 async function resolveFilesFromStorage(
   client: UserSupabaseClient,
   content: CanvasContent,
@@ -188,7 +186,7 @@ async function resolveFilesFromStorage(
     return content;
   }
 
-  // Batch-generate signed URLs instead of downloading each file
+  // Resolve public URLs instead of downloading each file
   // Group by bucket (normally all in one bucket)
   const byBucket = new Map<string, typeof ossEntries>();
   for (const entry of ossEntries) {
@@ -198,25 +196,15 @@ async function resolveFilesFromStorage(
   }
 
   for (const [bucket, entries] of byBucket) {
-    const paths = entries.map((e) => e.objectPath);
-    const { data } = await client.storage
-      .from(bucket)
-      .createSignedUrls(paths, SIGNED_URL_EXPIRY_SECONDS);
-
-    if (data) {
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i]!;
-        const signedEntry = data[i];
-        if (signedEntry?.signedUrl) {
-          // Return storageUrl instead of dataURL — frontend resolves lazily
-          updatedFiles[entry.fileId] = {
-            ...entry.fileData,
-            dataURL: undefined,
-            storageUrl: signedEntry.signedUrl,
-          };
-        }
-        // If signing failed, drop the file (same as before)
-      }
+    for (const entry of entries) {
+      const { data } = client.storage
+        .from(bucket)
+        .getPublicUrl(entry.objectPath);
+      updatedFiles[entry.fileId] = {
+        ...entry.fileData,
+        dataURL: undefined,
+        storageUrl: data.publicUrl,
+      };
     }
   }
 

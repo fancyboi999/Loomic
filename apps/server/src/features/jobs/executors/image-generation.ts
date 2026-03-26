@@ -90,14 +90,14 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
       );
     }
 
-    // Generate a short-lived signed URL (1 hour) for the result consumer
-    const { data: urlData } = await admin.storage
+    // Generate a public URL for the result consumer
+    const { data: urlData } = admin.storage
       .from("project-assets")
-      .createSignedUrl(objectPath, 3600);
+      .getPublicUrl(objectPath);
 
     return {
       asset_id: (assetRow as { id: string }).id,
-      signed_url: urlData?.signedUrl ?? null,
+      signed_url: urlData.publicUrl,
       object_path: objectPath,
       width: generated.width,
       height: generated.height,
