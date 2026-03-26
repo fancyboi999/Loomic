@@ -34,7 +34,7 @@ export const imageAttachmentSchema = z.object({
 export const runCreateRequestSchema = z.object({
   sessionId: sessionIdSchema,
   conversationId: conversationIdSchema,
-  prompt: z.string().min(1),
+  prompt: z.string(),
   canvasId: canvasIdSchema.optional(),
   attachments: z.array(imageAttachmentSchema).optional(),
 });

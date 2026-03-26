@@ -8,8 +8,7 @@ import {
   useState,
 } from "react";
 
-import type { ImageAttachment } from "@loomic/shared";
-import type { ImageAttachmentState } from "../hooks/use-image-attachments";
+import type { ImageAttachmentState, ReadyAttachment } from "../hooks/use-image-attachments";
 import { ImageAttachmentBar } from "./image-attachment-bar";
 
 export type HomePromptHandle = {
@@ -18,13 +17,13 @@ export type HomePromptHandle = {
 };
 
 type HomePromptProps = {
-  onSubmit: (prompt: string, attachments?: ImageAttachment[]) => void;
+  onSubmit: (prompt: string, attachments?: ReadyAttachment[]) => void;
   disabled?: boolean;
   attachments?: ImageAttachmentState[];
   onAddFiles?: (files: File[]) => void;
   onRemoveAttachment?: (id: string) => void;
   isUploading?: boolean;
-  readyAttachments?: ImageAttachment[];
+  readyAttachments?: ReadyAttachment[];
 };
 
 const toolbarButtons = [

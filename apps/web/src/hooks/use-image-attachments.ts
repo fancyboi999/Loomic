@@ -22,10 +22,16 @@ export type CanvasImageRef = {
   name?: string;
 };
 
+/** A fully-uploaded attachment ready to be sent, including its origin source. */
+export type ReadyAttachment = {
+  assetId: string;
+  url: string;
+  mimeType: string;
+  source: "upload" | "canvas-ref";
+};
+
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
-
-let attachmentCounter = 0;
 
 export function useImageAttachments(accessToken: string, projectId?: string) {
   const [attachments, setAttachments] = useState<ImageAttachmentState[]>([]);
@@ -41,7 +47,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
           continue;
         }
         if (file.size > MAX_FILE_SIZE_BYTES) {
-          const id = `att-${++attachmentCounter}`;
+          const id = crypto.randomUUID();
           newAttachments.push({
             id,
             file,
@@ -54,7 +60,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
           continue;
         }
 
-        const id = `att-${++attachmentCounter}`;
+        const id = crypto.randomUUID();
         const preview = URL.createObjectURL(file);
         newAttachments.push({
           id,
@@ -95,7 +101,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
   );
 
   const addCanvasRef = useCallback((ref: CanvasImageRef) => {
-    const id = `att-${++attachmentCounter}`;
+    const id = crypto.randomUUID();
     setAttachments((prev) => [
       ...prev,
       {
@@ -139,6 +145,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
       assetId: a.assetId!,
       url: a.url!,
       mimeType: a.mimeType,
+      source: a.source,
     }));
 
   return {

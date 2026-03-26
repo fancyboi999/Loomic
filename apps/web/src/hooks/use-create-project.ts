@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { ImageAttachment } from "@loomic/shared";
+import type { ReadyAttachment } from "@/hooks/use-image-attachments";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 import { ApiAuthError, createProject } from "@/lib/server-api";
@@ -27,7 +27,7 @@ export function useCreateProject() {
   routerRef.current = router;
 
   const create = useCallback(
-    async (opts?: { prompt?: string; attachments?: ImageAttachment[] }) => {
+    async (opts?: { prompt?: string; attachments?: ReadyAttachment[] }) => {
       const token = session?.access_token;
       if (!token || creating) return;
 

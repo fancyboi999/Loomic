@@ -190,11 +190,11 @@ function buildObjectPath(
   return `${workspaceId}/${timestamp}-${safeName}`;
 }
 
-function getAssetUrl(
+async function getAssetUrl(
   client: UserSupabaseClient,
   bucket: string,
   objectPath: string,
-): string | Promise<string> {
+): Promise<string> {
   if (PUBLIC_BUCKETS.has(bucket)) {
     const { data } = client.storage.from(bucket).getPublicUrl(objectPath);
     return data.publicUrl;

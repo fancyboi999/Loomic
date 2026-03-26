@@ -11,7 +11,7 @@ import type {
   TextBlock,
   ToolBlock,
 } from "@loomic/shared";
-import type { ImageAttachment } from "@loomic/shared";
+import type { ReadyAttachment } from "../hooks/use-image-attachments";
 import {
   createRun,
   createSession,
@@ -374,7 +374,7 @@ export function ChatSidebar({
   );
 
   const handleSend = useCallback(
-    async (text: string, attachmentsOverride?: ImageAttachment[]) => {
+    async (text: string, attachmentsOverride?: ReadyAttachment[]) => {
       const currentSessionId = activeSessionIdRef.current;
       if (streaming || !currentSessionId) return;
 
@@ -387,7 +387,7 @@ export function ChatSidebar({
         assetId: a.assetId,
         url: a.url,
         mimeType: a.mimeType,
-        source: "upload" as const,
+        source: a.source,
       }));
       const userMsg: Message = {
         id: `user-${Date.now()}`,
@@ -520,11 +520,11 @@ export function ChatSidebar({
     if (!initialPrompt || sessionsLoading || initialPromptSent.current) return;
     initialPromptSent.current = true;
 
-    let storedAttachments: ImageAttachment[] | undefined;
+    let storedAttachments: ReadyAttachment[] | undefined;
     try {
       const raw = sessionStorage.getItem(INITIAL_ATTACHMENTS_KEY);
       if (raw) {
-        storedAttachments = JSON.parse(raw) as ImageAttachment[];
+        storedAttachments = JSON.parse(raw) as ReadyAttachment[];
         sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
       }
     } catch {
