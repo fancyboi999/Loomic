@@ -14,7 +14,6 @@ import type {
 } from "../../supabase/user.js";
 
 const THUMBNAIL_BUCKET = "project-assets";
-const THUMBNAIL_URL_EXPIRY_SECONDS = 3600;
 const PROJECT_QUERY_FAILED_MESSAGE = "Unable to load projects.";
 const PROJECT_CREATE_FAILED_MESSAGE = "Unable to create project.";
 const PROJECT_DELETE_FAILED_MESSAGE = "Unable to delete project.";
@@ -217,7 +216,7 @@ export function createProjectService(options: {
         )
         .eq("workspace_id", workspace.id)
         .is("archived_at", null)
-        .order("created_at", { ascending: true });
+        .order("updated_at", { ascending: false });
 
       if (projectQueryError) {
         throw new ProjectServiceError(
@@ -252,8 +251,8 @@ export function createProjectService(options: {
         canvases.map((canvas) => [canvas.project_id, canvas]),
       );
 
-      // Generate signed thumbnail URLs for projects that have them
-      const thumbnailUrls = await generateThumbnailUrls(
+      // Generate public thumbnail URLs for projects that have them
+      const thumbnailUrls = generateThumbnailUrls(
         client,
         projects.filter((p) => p.thumbnail_path),
       );
@@ -319,11 +318,11 @@ export function createProjectService(options: {
         );
       }
 
-      const { data: urlData } = await client.storage
+      const { data: urlData } = client.storage
         .from(THUMBNAIL_BUCKET)
-        .createSignedUrl(objectPath, THUMBNAIL_URL_EXPIRY_SECONDS);
+        .getPublicUrl(objectPath);
 
-      return { thumbnailUrl: urlData?.signedUrl ?? "" };
+      return { thumbnailUrl: urlData.publicUrl };
     },
 
     async updateProject(user, projectId, input) {
@@ -490,34 +489,19 @@ function slugify(value: string) {
   return base ? `${base}-${suffix}` : `project-${suffix}`;
 }
 
-async function generateThumbnailUrls(
+function generateThumbnailUrls(
   client: UserSupabaseClient,
   projects: Array<{ id: string; thumbnail_path: string | null }>,
-): Promise<Map<string, string>> {
+): Map<string, string> {
   const urlMap = new Map<string, string>();
   if (projects.length === 0) return urlMap;
 
-  const pathToProjectId = new Map(
-    projects
-      .filter((p): p is typeof p & { thumbnail_path: string } => !!p.thumbnail_path)
-      .map((p) => [p.thumbnail_path, p.id]),
-  );
-
-  const paths = [...pathToProjectId.keys()];
-
-  const { data } = await client.storage
-    .from(THUMBNAIL_BUCKET)
-    .createSignedUrls(paths, THUMBNAIL_URL_EXPIRY_SECONDS);
-
-  if (data) {
-    for (const entry of data) {
-      if (entry.signedUrl && entry.path) {
-        const projectId = pathToProjectId.get(entry.path);
-        if (projectId) {
-          urlMap.set(projectId, entry.signedUrl);
-        }
-      }
-    }
+  for (const project of projects) {
+    if (!project.thumbnail_path) continue;
+    const { data } = client.storage
+      .from(THUMBNAIL_BUCKET)
+      .getPublicUrl(project.thumbnail_path);
+    urlMap.set(project.id, data.publicUrl);
   }
 
   return urlMap;
