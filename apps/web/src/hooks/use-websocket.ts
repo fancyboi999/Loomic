@@ -43,7 +43,12 @@ export function useWebSocket(
 
   const connect = useCallback(() => {
     const token = getToken();
-    if (!token || disposed.current) return;
+    if (disposed.current) return;
+    if (!token) {
+      // Token not yet available (auth loading) — retry shortly
+      reconnectTimer.current = setTimeout(connect, 500);
+      return;
+    }
 
     const serverBase = getServerBaseUrl();
     const wsUrl =

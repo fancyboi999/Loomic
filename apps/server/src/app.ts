@@ -111,7 +111,18 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
-  void app.register(websocket);
+  void app.register(async (instance) => {
+    await instance.register(websocket);
+    await registerWsRoute(instance, {
+      agentRuns,
+      agentRunMetadataService,
+      auth,
+      connectionManager,
+      settingsService,
+      threadService,
+      viewerService,
+    });
+  });
   const auth = options.auth ?? createSupabaseRequestAuthenticator(env);
   const createUserClient = createUserSupabaseClientFactory(env);
   let adminClient:
@@ -202,15 +213,6 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerRunRoutes(app, agentRuns, {
     agentRunMetadataService,
     auth,
-    settingsService,
-    threadService,
-    viewerService,
-  });
-  void registerWsRoute(app, {
-    agentRuns,
-    agentRunMetadataService,
-    auth,
-    connectionManager,
     settingsService,
     threadService,
     viewerService,
