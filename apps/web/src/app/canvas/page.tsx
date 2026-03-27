@@ -7,6 +7,7 @@ import type { ImageArtifact } from "@loomic/shared";
 import type { CanvasImageItem } from "../../components/canvas-image-picker";
 import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
+import { useWebSocket } from "../../hooks/use-websocket";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
 import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
@@ -53,6 +54,9 @@ function CanvasPageContent() {
   const accessToken = session?.access_token;
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
+
+  const getToken = useCallback(() => accessTokenRef.current ?? null, []);
+  const ws = useWebSocket(getToken);
 
   const handleApiReady = useCallback((api: any) => {
     excalidrawApiRef.current = api;
@@ -211,6 +215,7 @@ function CanvasPageContent() {
           accessToken={accessToken}
           initialContent={canvasData.content}
           onApiReady={handleApiReady}
+          ws={ws}
         />
         <CanvasEmptyHint
           excalidrawApi={excalidrawApi}
@@ -228,6 +233,7 @@ function CanvasPageContent() {
         initialSessionId={initialSessionId}
         onSessionChange={handleSessionChange}
         onRequestCanvasImages={handleRequestCanvasImages}
+        ws={ws}
       />
     </div>
   );
