@@ -86,9 +86,17 @@ export function useWebSocket(
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       setConnected(false);
       wsRef.current = null;
+
+      // 4001 = server rejected auth (token expired/invalid)
+      if (event.code === 4001) {
+        console.warn("[ws] Auth rejected (token expired?), stopping reconnect");
+        // Stop reconnecting — token is bad, need page refresh or re-login
+        return;
+      }
+
       if (!disposed.current) {
         const delay = Math.min(
           30_000,
@@ -154,7 +162,10 @@ export function useWebSocket(
   const sendCommand = useCallback(
     (action: string, payload: Record<string, unknown>) => {
       const ws = wsRef.current;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.error("[ws] Cannot send command: connection not open (readyState:", ws?.readyState, ")");
+        return;
+      }
       ws.send(JSON.stringify({ type: "command", action, payload }));
     },
     [],

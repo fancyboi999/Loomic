@@ -30,6 +30,7 @@ export async function registerWsRoute(
   const { agentRuns, connectionManager } = options;
 
   app.get("/api/ws", { websocket: true }, (socket: WebSocket, request: FastifyRequest) => {
+    console.log("[ws] handler entered, socket type:", socket?.constructor?.name);
     // Auth: extract token from query
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get("token");
@@ -57,13 +58,17 @@ async function authenticateAndBind(
     const fakeRequest = {
       headers: { authorization: `Bearer ${token}` },
     } as unknown as FastifyRequest;
+    console.log("[ws] authenticating...");
     const user = await options.auth!.authenticate(fakeRequest);
     if (!user) {
+      console.log("[ws] auth returned null, closing");
       socket.close(4001, "Unauthorized");
       return;
     }
     userId = user.id;
-  } catch {
+    console.log("[ws] auth OK, userId:", userId);
+  } catch (err) {
+    console.log("[ws] auth error:", err instanceof Error ? err.message : err);
     socket.close(4001, "Unauthorized");
     return;
   }
