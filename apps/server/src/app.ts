@@ -151,10 +151,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     (pgmq
       ? createJobService({ createUserClient, getAdminClient, pgmq })
       : undefined);
+  const connectionManager = options.connectionManager ?? new ConnectionManager();
   const agentRuns = createAgentRunService({
     agentPersistenceService,
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),
     agentRunMetadataService,
+    connectionManager,
     createUserClient,
     ...(options.agentModel ? { model: options.agentModel } : {}),
     ...(options.mockEventDelayMs === undefined
@@ -164,7 +166,6 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     ...(jobService ? { jobService } : {}),
     viewerService,
   });
-  const connectionManager = options.connectionManager ?? new ConnectionManager();
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);

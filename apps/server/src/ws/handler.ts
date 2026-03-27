@@ -73,8 +73,15 @@ async function authenticateAndBind(
 
   connectionManager.register(userId, socket);
 
-  // Heartbeat
+  // Heartbeat with pong timeout (spec §1.3: 60s no-pong → disconnect)
+  let lastPong = Date.now();
+  socket.on("pong", () => { lastPong = Date.now(); });
+
   const pingInterval = setInterval(() => {
+    if (Date.now() - lastPong > 60_000) {
+      socket.terminate();
+      return;
+    }
     if (socket.readyState === 1) {
       socket.ping();
     }
