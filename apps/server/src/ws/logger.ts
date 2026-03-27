@@ -1,9 +1,14 @@
+import { appendFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+
 /**
  * Structured logger for WebSocket + Agent pipeline.
  *
- * Outputs JSON lines compatible with Fastify's pino logger.
+ * Outputs JSON lines to both stdout and log file.
  * Each log entry includes: scope, event, timing (ms since scope start),
  * and optional context fields.
+ *
+ * Log file: apps/server/logs/pipeline.log (JSON lines, append mode)
  *
  * Usage:
  *   const log = createPipelineLogger("ws");
@@ -15,6 +20,12 @@
 type LogLevel = "info" | "warn" | "error";
 
 const LEVEL_NUM: Record<LogLevel, number> = { info: 30, warn: 40, error: 50 };
+const LEVEL_LABEL: Record<LogLevel, string> = { info: "INFO", warn: "WARN", error: "ERROR" };
+
+// Ensure log directory exists
+const LOG_DIR = join(import.meta.dirname ?? ".", "..", "..", "logs");
+try { mkdirSync(LOG_DIR, { recursive: true }); } catch { /* ignore */ }
+const LOG_FILE = join(LOG_DIR, "pipeline.log");
 
 export type PipelineLogger = {
   info: (event: string, ctx?: Record<string, unknown>) => void;
@@ -33,16 +44,24 @@ export function createPipelineLogger(
   const t0 = Date.now();
 
   function emit(level: LogLevel, event: string, ctx?: Record<string, unknown>) {
+    const now = Date.now();
     const entry = {
       level: LEVEL_NUM[level],
-      time: Date.now(),
+      time: now,
       scope,
       event,
       ...baseCtx,
       ...ctx,
     };
-    // Use process.stdout for consistent output (not swallowed by Fastify encapsulation)
-    process.stdout.write(JSON.stringify(entry) + "\n");
+    const line = JSON.stringify(entry) + "\n";
+
+    // stdout: human-friendly one-liner
+    const ts = new Date(now).toISOString().slice(11, 23);
+    const ctxStr = ctx ? " " + Object.entries(ctx).map(([k, v]) => `${k}=${v}`).join(" ") : "";
+    process.stdout.write(`${ts} [${LEVEL_LABEL[level]}] ${scope}.${event}${ctxStr}\n`);
+
+    // file: structured JSON lines
+    try { appendFileSync(LOG_FILE, line); } catch { /* ignore */ }
   }
 
   return {
