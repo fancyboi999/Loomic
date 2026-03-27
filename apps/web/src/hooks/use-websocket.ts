@@ -163,7 +163,7 @@ export function useWebSocket(
     (action: string, payload: Record<string, unknown>) => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.error("[ws] Cannot send command: connection not open (readyState:", ws?.readyState, ")");
+        console.warn("[ws] command queued — waiting for connection, readyState:", ws?.readyState);
         return;
       }
       ws.send(JSON.stringify({ type: "command", action, payload }));
