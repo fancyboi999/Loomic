@@ -28,7 +28,8 @@
     "@types/pg": "^8.20.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.19.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "ws": "^8.18.1"
   },
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
