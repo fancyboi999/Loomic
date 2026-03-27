@@ -1,6 +1,7 @@
 import type { StructuredTool } from "@langchain/core/tools";
 import type { BackendFactory, BackendProtocol } from "deepagents";
 
+import type { ConnectionManager } from "../../ws/connection-manager.js";
 import { createBrandKitTool } from "./brand-kit.js";
 import { createInspectCanvasTool } from "./inspect-canvas.js";
 import { createManipulateCanvasTool } from "./manipulate-canvas.js";
@@ -10,6 +11,7 @@ import {
   type SubmitImageJobFn,
 } from "./image-generate.js";
 import { createProjectSearchTool } from "./project-search.js";
+import { createScreenshotCanvasTool } from "./screenshot-canvas.js";
 import { createVideoGenerateTool } from "./video-generate.js";
 
 export { createImageGenerateTool } from "./image-generate.js";
@@ -22,7 +24,9 @@ export function createMainAgentTools(
   deps: {
     createUserClient: (accessToken: string) => any;
     brandKitId?: string | null;
+    connectionManager?: ConnectionManager;
     persistImage?: PersistImageFn;
+    preferredImageModel?: string;
     submitImageJob?: SubmitImageJobFn;
   },
 ) {
@@ -33,10 +37,14 @@ export function createMainAgentTools(
     createImageGenerateTool({
       ...(deps.persistImage ? { persistImage: deps.persistImage } : {}),
       ...(deps.submitImageJob ? { submitImageJob: deps.submitImageJob } : {}),
+      ...(deps.preferredImageModel ? { preferredImageModel: deps.preferredImageModel } : {}),
     }),
   ];
   if (deps.brandKitId) {
     tools.push(createBrandKitTool(deps, deps.brandKitId));
+  }
+  if (deps.connectionManager) {
+    tools.push(createScreenshotCanvasTool({ connectionManager: deps.connectionManager }));
   }
   return tools;
 }

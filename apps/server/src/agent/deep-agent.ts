@@ -5,6 +5,7 @@ import type { BackendFactory } from "deepagents";
 import { createDeepAgent } from "deepagents";
 
 import type { ServerEnv } from "../config/env.js";
+import type { ConnectionManager } from "../ws/connection-manager.js";
 import { createAgentBackendFactory } from "./backends/index.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import { createImageSubAgent, createVideoSubAgent } from "./sub-agents.js";
@@ -20,8 +21,10 @@ export type LoomicAgentFactory = (options: {
   brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
+  connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
+  imageModel?: string;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
   submitImageJob?: SubmitImageJobFn;
@@ -33,8 +36,10 @@ export function createLoomicDeepAgent(options: {
   brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
+  connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
+  imageModel?: string;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
   submitImageJob?: SubmitImageJobFn;
@@ -75,6 +80,7 @@ export function createLoomicDeepAgent(options: {
       createImageSubAgent({
         ...(options.persistImage ? { persistImage: options.persistImage } : {}),
         ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
+        ...(options.imageModel ? { preferredImageModel: options.imageModel } : {}),
       }),
       createVideoSubAgent(),
     ],
@@ -82,8 +88,10 @@ export function createLoomicDeepAgent(options: {
     tools: createMainAgentTools(backendFactory, {
       createUserClient,
       ...(options.brandKitId != null ? { brandKitId: options.brandKitId } : {}),
+      ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
       ...(options.persistImage ? { persistImage: options.persistImage } : {}),
       ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
+      ...(options.imageModel ? { preferredImageModel: options.imageModel } : {}),
     }),
   });
 }

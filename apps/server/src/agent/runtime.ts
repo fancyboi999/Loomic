@@ -15,6 +15,7 @@ import type { AgentRunMetadataService } from "../features/agent-runs/agent-run-s
 import type { JobService } from "../features/jobs/job-service.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type { AuthenticatedUser, UserSupabaseClient } from "../supabase/user.js";
+import type { ConnectionManager } from "../ws/connection-manager.js";
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import {
   type LoomicAgent,
@@ -35,6 +36,7 @@ type RuntimeRunRecord = RunCreateRequest & {
   accessToken?: string;
   consumed: boolean;
   controller: AbortController;
+  imageModel?: string;
   modelOverride?: string;
   runId: string;
   status: RuntimeRunStatus;
@@ -46,6 +48,7 @@ type CreateAgentRuntimeOptions = {
   agentPersistenceService?: AgentPersistenceService;
   agentFactory?: LoomicAgentFactory;
   agentRunMetadataService?: AgentRunMetadataService;
+  connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => unknown;
   env: ServerEnv;
   eventDelayMs?: number;
@@ -95,7 +98,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
     createRun(
       input: RunCreateRequest,
-      runOptions?: { accessToken?: string; model?: string; threadId?: string; userId?: string },
+      runOptions?: { accessToken?: string; imageModel?: string; model?: string; threadId?: string; userId?: string },
     ): RunCreateResponse {
       const runId = runIdFactory();
 
@@ -104,6 +107,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         ...(runOptions?.accessToken ? { accessToken: runOptions.accessToken } : {}),
         consumed: false,
         controller: new AbortController(),
+        ...(runOptions?.imageModel ? { imageModel: runOptions.imageModel } : {}),
         ...(runOptions?.model ? { modelOverride: runOptions.model } : {}),
         ...(runOptions?.threadId ? { threadId: runOptions.threadId } : {}),
         ...(runOptions?.userId ? { userId: runOptions.userId } : {}),
@@ -357,7 +361,9 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(brandKitId ? { brandKitId } : {}),
           ...(run.canvasId ? { canvasId: run.canvasId } : {}),
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
+          ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
           env: options.env,
+          ...(run.imageModel ? { imageModel: run.imageModel } : {}),
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
           ...(submitImageJob ? { submitImageJob } : {}),
@@ -393,12 +399,13 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             messages: [userMessage],
           },
           {
-            ...(run.threadId || run.canvasId || run.accessToken
+            ...(run.threadId || run.canvasId || run.accessToken || run.userId
               ? {
                   configurable: {
                     ...(run.threadId ? { thread_id: run.threadId } : {}),
                     ...(run.canvasId ? { canvas_id: run.canvasId } : {}),
                     ...(run.accessToken ? { access_token: run.accessToken } : {}),
+                    ...(run.userId ? { user_id: run.userId } : {}),
                   },
                 }
               : {}),
