@@ -1,5 +1,6 @@
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import multipart from "@fastify/multipart";
+import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
 import type { LoomicAgentFactory } from "./agent/deep-agent.js";
@@ -61,12 +62,14 @@ import { registerGenerateRoutes } from "./http/generate.js";
 import { registerHealthRoutes } from "./http/health.js";
 import { registerImageProxyRoute } from "./http/image-proxy.js";
 import { registerModelRoutes } from "./http/models.js";
+import { registerImageModelRoutes } from "./http/image-models.js";
 import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSettingsRoutes } from "./http/settings.js";
-import { registerSseRoutes } from "./http/sse.js";
 import { registerUploadRoutes } from "./http/uploads.js";
 import { registerViewerRoutes } from "./http/viewer.js";
+import { ConnectionManager } from "./ws/connection-manager.js";
+import { registerWsRoute } from "./ws/handler.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
 import {
   createSupabaseRequestAuthenticator,
@@ -83,6 +86,7 @@ export type BuildAppOptions = {
   brandKitService?: BrandKitService;
   canvasService?: CanvasService;
   chatService?: ChatService;
+  connectionManager?: ConnectionManager;
   env?: Partial<ServerEnv>;
   jobService?: JobService;
   uploadService?: UploadService;
@@ -107,6 +111,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void app.register(multipart, {
     limits: { fileSize: 10 * 1024 * 1024 },
   });
+  void app.register(websocket);
   const auth = options.auth ?? createSupabaseRequestAuthenticator(env);
   const createUserClient = createUserSupabaseClientFactory(env);
   let adminClient:
@@ -159,6 +164,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     ...(jobService ? { jobService } : {}),
     viewerService,
   });
+  const connectionManager = options.connectionManager ?? new ConnectionManager();
 
   app.addHook("onRequest", async (request, reply) => {
     const corsResult = evaluateCors(request, env.webOrigin);
@@ -199,7 +205,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     threadService,
     viewerService,
   });
-  void registerSseRoutes(app, agentRuns, env);
+  void registerWsRoute(app, {
+    agentRuns,
+    agentRunMetadataService,
+    auth,
+    connectionManager,
+    settingsService,
+    threadService,
+    viewerService,
+  });
   void registerViewerRoutes(app, {
     auth,
     createUserClient,
@@ -223,6 +237,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerModelRoutes(app);
+  void registerImageModelRoutes(app);
   void registerChatRoutes(app, {
     auth,
     chatService,
