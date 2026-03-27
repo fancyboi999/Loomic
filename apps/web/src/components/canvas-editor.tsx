@@ -6,13 +6,16 @@ import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { WebSocketHandle } from "../hooks/use-websocket";
 import { saveCanvas, uploadThumbnail } from "../lib/server-api";
-import { CanvasAIToolbar } from "./canvas-ai-toolbar";
+import { getSupabaseBrowserClient } from "../lib/supabase-browser";
+import { CanvasToolMenu } from "./canvas-tool-menu";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
   { ssr: false },
 );
+
 
 type CanvasEditorProps = {
   canvasId: string;
@@ -24,6 +27,7 @@ type CanvasEditorProps = {
     files: Record<string, Record<string, unknown>>;
   };
   onApiReady?: (api: any) => void;
+  ws?: WebSocketHandle;
 };
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -36,6 +40,7 @@ export function CanvasEditor({
   accessToken,
   initialContent,
   onApiReady,
+  ws,
 }: CanvasEditorProps) {
   const { resolvedTheme } = useTheme();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,6 +171,94 @@ export function CanvasEditor({
     [canvasId, projectId, excalidrawApi],
   );
 
+  // Register screenshot RPC handler so the server can request canvas captures
+  useEffect(() => {
+    if (!ws || !excalidrawApi) return;
+
+    const cleanup = ws.registerRPC(
+      "canvas.screenshot",
+      async (params) => {
+        const { mode, region, max_dimension = 1024 } = params as {
+          mode: string;
+          region?: { x: number; y: number; width: number; height: number };
+          max_dimension?: number;
+        };
+
+        const allElements = excalidrawApi
+          .getSceneElements()
+          .filter((e: any) => !e.isDeleted);
+        const appState = excalidrawApi.getAppState();
+        const files = excalidrawApi.getFiles();
+
+        let elements = allElements;
+
+        if (mode === "region" && region) {
+          elements = allElements.filter((el: any) => {
+            const ex = (el.x as number) ?? 0;
+            const ey = (el.y as number) ?? 0;
+            const ew = (el.width as number) ?? 0;
+            const eh = (el.height as number) ?? 0;
+            return !(
+              ex + ew < region.x ||
+              ex > region.x + region.width ||
+              ey + eh < region.y ||
+              ey > region.y + region.height
+            );
+          });
+        } else if (mode === "viewport") {
+          const zoom = (appState.zoom?.value as number) ?? 1;
+          const sx = -((appState.scrollX as number) ?? 0);
+          const sy = -((appState.scrollY as number) ?? 0);
+          const vw = ((appState.width as number) ?? 1920) / zoom;
+          const vh = ((appState.height as number) ?? 1080) / zoom;
+          elements = allElements.filter((el: any) => {
+            const ex = (el.x as number) ?? 0;
+            const ey = (el.y as number) ?? 0;
+            const ew = (el.width as number) ?? 0;
+            const eh = (el.height as number) ?? 0;
+            return !(
+              ex + ew < sx || ex > sx + vw || ey + eh < sy || ey > sy + vh
+            );
+          });
+        }
+
+        const { exportToBlob } = await import("@excalidraw/excalidraw");
+        const blob = await exportToBlob({
+          elements,
+          appState: { ...appState, exportBackground: true },
+          files,
+          maxWidthOrHeight: max_dimension,
+          mimeType: "image/png",
+        });
+
+        // Upload to Supabase Storage
+        const supabase = getSupabaseBrowserClient();
+        const path = `screenshots/${canvasId}/${Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from("canvases")
+          .upload(path, blob, { contentType: "image/png", upsert: false });
+
+        if (uploadError) {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("canvases")
+          .getPublicUrl(path);
+
+        // Get dimensions from the exported blob
+        const bmp = await createImageBitmap(blob);
+        const width = bmp.width;
+        const height = bmp.height;
+        bmp.close();
+
+        return { url: urlData.publicUrl, width, height };
+      },
+    );
+
+    return cleanup;
+  }, [ws, excalidrawApi, canvasId]);
+
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -186,7 +279,7 @@ export function CanvasEditor({
         excalidrawAPI={handleExcalidrawApi}
       />
       {excalidrawApi && (
-        <CanvasAIToolbar
+        <CanvasToolMenu
           accessToken={accessToken}
           excalidrawApi={excalidrawApi}
         />
