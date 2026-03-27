@@ -91,10 +91,12 @@ export function useWebSocket(
       wsRef.current = null;
 
       // 4001 = server rejected auth (token expired/invalid)
+      // Still reconnect — getToken() will fetch the latest token from
+      // Supabase auth (which auto-refreshes). If the token is truly
+      // invalid, auth will keep failing but the exponential backoff
+      // prevents hammering the server.
       if (event.code === 4001) {
-        console.warn("[ws] Auth rejected (token expired?), stopping reconnect");
-        // Stop reconnecting — token is bad, need page refresh or re-login
-        return;
+        console.warn("[ws] Auth rejected, will retry with fresh token");
       }
 
       if (!disposed.current) {
