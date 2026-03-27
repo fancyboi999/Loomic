@@ -193,11 +193,19 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ]);
   });
 
-  it("suppresses artifacts for generate_image (inner sub-agent tool) — parent tool carries them", async () => {
-    // generate_image is treated as an inner sub-agent tool whose artifacts are
-    // re-emitted by the parent "task" tool with placement info. The stream
-    // adapter deliberately suppresses artifacts at this level to avoid duplicates.
+  it("suppresses artifacts for generate_image when nested inside a sub-agent parent", async () => {
+    // When generate_image runs inside image_generate (sub-agent), its artifacts
+    // are suppressed because the parent will re-emit them with placement info.
     const stream = makeStream([
+      // Parent sub-agent starts first
+      {
+        event: "on_tool_start",
+        name: "image_generate",
+        data: { input: { task: "generate a sunset" } },
+        run_id: "parent_run",
+        metadata: { tool_call_id: "parent_call" },
+      },
+      // Inner tool starts
       {
         event: "on_tool_start",
         name: "generate_image",
@@ -205,6 +213,7 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
         run_id: "tool_run_img",
         metadata: { tool_call_id: "tool_call_img" },
       },
+      // Inner tool ends — should be suppressed
       {
         event: "on_tool_end",
         name: "generate_image",
@@ -224,6 +233,89 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
         run_id: "tool_run_img",
         metadata: { tool_call_id: "tool_call_img" },
       },
+      // Parent sub-agent ends — carries artifact with placement
+      {
+        event: "on_tool_end",
+        name: "image_generate",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              url: "https://cdn.example.com/sunset.png",
+              mimeType: "image/png",
+              title: "Sunset",
+              placement: { x: 100, y: 200, width: 512, height: 512 },
+            }),
+            name: "image_generate",
+            tool_call_id: "parent_call",
+          }),
+        },
+        run_id: "parent_run",
+        metadata: { tool_call_id: "parent_call" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const innerCompleted = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "generate_image",
+    ) as any;
+    expect(innerCompleted).toBeDefined();
+    // Inner tool artifacts suppressed
+    expect(innerCompleted.artifacts).toBeUndefined();
+
+    const parentCompleted = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "image_generate",
+    ) as any;
+    expect(parentCompleted).toBeDefined();
+    // Parent carries the artifact with placement
+    expect(parentCompleted.artifacts).toEqual([
+      expect.objectContaining({
+        type: "image",
+        url: "https://cdn.example.com/sunset.png",
+        placement: { x: 100, y: 200, width: 512, height: 512 },
+      }),
+    ]);
+  });
+
+  it("does NOT suppress artifacts for direct generate_image call (no sub-agent parent)", async () => {
+    // When the main model calls generate_image directly (not inside a
+    // sub-agent), artifacts must be emitted so the image appears on canvas.
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "generate_image",
+        data: { input: { prompt: "a cute kitten" } },
+        run_id: "tool_run_direct",
+        metadata: { tool_call_id: "tool_call_direct" },
+      },
+      {
+        event: "on_tool_end",
+        name: "generate_image",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Generated a kitten image",
+              imageUrl: "https://cdn.example.com/kitten.png",
+              mimeType: "image/png",
+              width: 1024,
+              height: 1024,
+              placement: { x: 60, y: 240, width: 420, height: 420 },
+            }),
+            name: "generate_image",
+            tool_call_id: "tool_call_direct",
+          }),
+        },
+        run_id: "tool_run_direct",
+        metadata: { tool_call_id: "tool_call_direct" },
+      },
     ]);
 
     const events = await collectEvents(
@@ -240,8 +332,14 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
       (e: any) => e.type === "tool.completed" && e.toolName === "generate_image",
     ) as any;
     expect(completed).toBeDefined();
-    // artifacts suppressed — parent task tool will carry them with placement
-    expect(completed.artifacts).toBeUndefined();
+    // Direct call — artifacts NOT suppressed
+    expect(completed.artifacts).toEqual([
+      expect.objectContaining({
+        type: "image",
+        url: "https://cdn.example.com/kitten.png",
+        placement: { x: 60, y: 240, width: 420, height: 420 },
+      }),
+    ]);
   });
 
   it("extracts image artifacts from a non-inner-tool with imageUrl output", async () => {
@@ -299,6 +397,60 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ]);
   });
 
+  it("extracts placement from legacy imageUrl format", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "image_task",
+        data: { input: {} },
+        run_id: "tool_run_legacy_placement",
+        metadata: { tool_call_id: "tool_call_lp" },
+      },
+      {
+        event: "on_tool_end",
+        name: "image_task",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Generated image",
+              imageUrl: "https://cdn.example.com/placed.png",
+              mimeType: "image/png",
+              width: 1024,
+              height: 1024,
+              placement: { x: 50, y: 100, width: 400, height: 400 },
+            }),
+            name: "image_task",
+            tool_call_id: "tool_call_lp",
+          }),
+        },
+        run_id: "tool_run_legacy_placement",
+        metadata: { tool_call_id: "tool_call_lp" },
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "conversation_123",
+        now: () => "2026-03-23T12:00:00.000Z",
+        runId: "run_123",
+        sessionId: "session_123",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "image_task",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.artifacts).toEqual([
+      expect.objectContaining({
+        type: "image",
+        url: "https://cdn.example.com/placed.png",
+        placement: { x: 50, y: 100, width: 400, height: 400 },
+      }),
+    ]);
+  });
+
   it("does not produce artifacts for non-image tool output", async () => {
     const stream = makeStream([
       {
@@ -341,6 +493,57 @@ describe("deep-agent stream adapter (streamEvents v2)", () => {
     ) as any;
     expect(completed).toBeDefined();
     expect(completed.artifacts).toBeUndefined();
+  });
+
+  it("extracts screenshot artifact from tool output with screenshotUrl", async () => {
+    const stream = makeStream([
+      {
+        event: "on_tool_start",
+        name: "screenshot_canvas",
+        data: { input: { mode: "full", max_dimension: 1024 } },
+        run_id: "tool_screenshot_1",
+      },
+      {
+        event: "on_tool_end",
+        name: "screenshot_canvas",
+        data: {
+          output: new ToolMessage({
+            content: JSON.stringify({
+              summary: "Canvas screenshot captured (1024x768, mode: full)",
+              screenshotUrl: "https://storage.example.com/screenshots/test.png",
+              width: 1024,
+              height: 768,
+              mode: "full",
+            }),
+            name: "screenshot_canvas",
+            tool_call_id: "tc_1",
+          }),
+        },
+        run_id: "tool_screenshot_1",
+      },
+    ]);
+
+    const events = await collectEvents(
+      adaptDeepAgentStream({
+        conversationId: "c1",
+        now: () => "2026-03-27T00:00:00.000Z",
+        runId: "run_1",
+        sessionId: "s1",
+        stream,
+      }),
+    );
+
+    const completed = events.find(
+      (e: any) => e.type === "tool.completed" && e.toolName === "screenshot_canvas",
+    ) as any;
+    expect(completed).toBeDefined();
+    expect(completed.artifacts).toBeDefined();
+    expect(completed.artifacts[0].type).toBe("image");
+    expect(completed.artifacts[0].url).toBe(
+      "https://storage.example.com/screenshots/test.png",
+    );
+    expect(completed.artifacts[0].width).toBe(1024);
+    expect(completed.artifacts[0].height).toBe(768);
   });
 
   it("does not produce artifacts for failed image generation", async () => {

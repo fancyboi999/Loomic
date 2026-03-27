@@ -33,6 +33,14 @@ type AdaptDeepAgentStreamOptions = {
   stream: AsyncIterable<LangChainStreamEvent | unknown>;
 };
 
+/**
+ * Sub-agent parent tool names whose inner tools should have their
+ * artifacts suppressed (the parent re-emits them with placement).
+ */
+const SUB_AGENT_PARENT_TOOLS = new Set(["image_generate", "video_generate"]);
+/** Inner tools that may be suppressed when running inside a sub-agent. */
+const INNER_SUB_AGENT_TOOLS = new Set(["generate_image", "generate_video"]);
+
 export async function* adaptDeepAgentStream(
   options: AdaptDeepAgentStreamOptions,
 ): AsyncGenerator<StreamEvent> {
@@ -40,6 +48,8 @@ export async function* adaptDeepAgentStream(
   const seenCompletedToolCalls = new Set<string>();
   const seenStreamedMessageIds = new Set<string>();
   const seenStartedToolCalls = new Set<string>();
+  /** Tracks active sub-agent parent runs so we can detect nested inner tools. */
+  const activeSubAgentRuns = new Set<string>();
 
   yield {
     conversationId: options.conversationId,
@@ -144,6 +154,11 @@ export async function* adaptDeepAgentStream(
             ? (rawInput as Record<string, unknown>)
             : undefined;
 
+        // Track sub-agent parent tools so we can detect nested inner calls.
+        if (SUB_AGENT_PARENT_TOOLS.has(toolName)) {
+          activeSubAgentRuns.add(toolCallId);
+        }
+
         yield {
           runId: options.runId,
           timestamp: now(),
@@ -166,12 +181,13 @@ export async function* adaptDeepAgentStream(
 
         const output = evt.data?.output;
 
-        // Sub-agent inner tools (e.g. generate_image inside image_generate
-        // sub-agent) emit duplicate artifacts that the parent "task" tool
-        // will re-emit with placement info. Skip artifacts for known inner
-        // tool names to avoid showing duplicates in chat.
-        const isInnerSubAgentTool = toolName === "generate_image" || toolName === "generate_video";
-        const extractedArtifacts = isInnerSubAgentTool ? undefined : extractArtifacts(output);
+        // When an inner tool (e.g. generate_image) runs inside an active
+        // sub-agent parent (e.g. image_generate), suppress its artifacts
+        // because the parent will re-emit them with placement info.
+        // Direct calls to generate_image (no active parent) are NOT suppressed.
+        const isNestedInSubAgent =
+          INNER_SUB_AGENT_TOOLS.has(toolName) && activeSubAgentRuns.size > 0;
+        const extractedArtifacts = isNestedInSubAgent ? undefined : extractArtifacts(output);
         const extractedOutput = extractOutput(output, (extractedArtifacts?.length ?? 0) > 0);
         yield {
           output: extractedOutput,
@@ -183,6 +199,11 @@ export async function* adaptDeepAgentStream(
           toolName,
           type: "tool.completed",
         };
+
+        // Clean up sub-agent parent tracking after its tool.completed is emitted.
+        if (SUB_AGENT_PARENT_TOOLS.has(toolName)) {
+          activeSubAgentRuns.delete(toolCallId);
+        }
 
         if (toolName === "manipulate_canvas") {
           yield {
@@ -253,6 +274,7 @@ function unwrapCommandOutput(
 const ARTIFACT_KEYS = new Set([
   "url",
   "imageUrl",
+  "screenshotUrl",
   "mimeType",
   "width",
   "height",
@@ -349,6 +371,24 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
     if (typeof record.title === "string" && record.title.length > 0) {
       candidate.title = record.title;
     }
+    if (record.placement && typeof record.placement === "object") {
+      candidate.placement = record.placement;
+    }
+    const result = imageArtifactSchema.safeParse(candidate);
+    if (result.success) {
+      artifacts.push(result.data);
+    }
+  }
+
+  // Screenshot format: tool response with screenshotUrl
+  if (artifacts.length === 0 && typeof record.screenshotUrl === "string") {
+    const candidate: Record<string, unknown> = {
+      type: "image" as const,
+      url: record.screenshotUrl,
+      mimeType: "image/png",
+      width: typeof record.width === "number" ? record.width : 1024,
+      height: typeof record.height === "number" ? record.height : 1024,
+    };
     const result = imageArtifactSchema.safeParse(candidate);
     if (result.success) {
       artifacts.push(result.data);
