@@ -44,6 +44,12 @@ export function useWebSocket(
   const connect = useCallback(() => {
     const token = getToken();
     if (disposed.current) return;
+    // Close any existing connection before creating a new one
+    if (wsRef.current) {
+      wsRef.current.onclose = null; // prevent reconnect from old socket
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     if (!token) {
       // Token not yet available (auth loading) — retry shortly
       reconnectTimer.current = setTimeout(connect, 500);
