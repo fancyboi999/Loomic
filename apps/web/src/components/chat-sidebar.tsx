@@ -652,7 +652,7 @@ export function ChatSidebar({
         {/* Disconnected banner */}
         {!ws.connected && (
           <div className="flex items-center gap-2 px-4 py-2 bg-[#F5F5F5] border-b border-black/[0.04]">
-            <div className="h-1.5 w-1.5 rounded-full bg-[#A4A9B2] animate-pulse" />
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-[pulse_1.2s_ease-in-out_infinite]" />
             <span className="text-[11px] text-[#A4A9B2]">连接已断开，正在重连...</span>
           </div>
         )}
