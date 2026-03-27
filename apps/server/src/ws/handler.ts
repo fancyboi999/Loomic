@@ -168,6 +168,10 @@ async function handleRunCommand(
   accessToken: string,
   services: RegisterWsOptions,
 ) {
+  // ── Performance timing ──
+  const t0 = Date.now();
+  const lap = (label: string) => console.log(`[perf:server] ${label}: ${Date.now() - t0}ms`);
+
   const authenticatedUser = { id: userId, accessToken, email: "", userMetadata: {} };
 
   // Resolve session thread (same logic as runs.ts)
@@ -183,6 +187,7 @@ async function handleRunCommand(
       // Fall through -- unauthenticated or missing session
     }
   }
+  lap("thread resolved");
 
   // Resolve per-workspace model (same logic as runs.ts)
   let model: string | undefined;
@@ -198,6 +203,7 @@ async function handleRunCommand(
       // Fall through to server default
     }
   }
+  lap("model resolved");
 
   const response = agentRuns.createRun(payload, {
     accessToken,
@@ -206,6 +212,7 @@ async function handleRunCommand(
     ...(payload.imageModel ? { imageModel: payload.imageModel } : {}),
     ...(threadId ? { threadId } : {}),
   });
+  lap("createRun done");
 
   // Persist run metadata
   if (threadId && services.agentRunMetadataService) {
@@ -220,6 +227,7 @@ async function handleRunCommand(
       // Non-fatal
     }
   }
+  lap("metadata persisted");
 
   // Send ack
   socket.send(
@@ -229,12 +237,19 @@ async function handleRunCommand(
       payload: response,
     }),
   );
+  lap("ack sent");
 
   // Stream events via WS push
   try {
+    let firstEvent = true;
     for await (const event of agentRuns.streamRun(response.runId)) {
+      if (firstEvent) {
+        lap("first stream event");
+        firstEvent = false;
+      }
       connectionManager.push(userId, event);
     }
+    lap("stream completed");
   } catch (error) {
     connectionManager.push(userId, {
       type: "run.failed",

@@ -140,6 +140,10 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       run.consumed = true;
       run.status = "running";
 
+      // ── Performance timing ──
+      const rt0 = Date.now();
+      const rlap = (label: string) => console.log(`[perf:runtime] ${label}: ${Date.now() - rt0}ms`);
+
       try {
         await updatePersistedRunStatus(
           options.agentRunMetadataService,
@@ -161,6 +165,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           run.threadId && options.agentPersistenceService
             ? await options.agentPersistenceService.getPersistence()
             : null;
+        rlap("persistence init");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
@@ -357,6 +362,8 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           }
         }
 
+        rlap("brand kit resolved");
+
         agent = resolvedAgentFactory({
           ...(brandKitId ? { brandKitId } : {}),
           ...(run.canvasId ? { canvasId: run.canvasId } : {}),
@@ -369,6 +376,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(submitImageJob ? { submitImageJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
+        rlap("agent factory done");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
@@ -394,6 +402,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             })
           : new HumanMessage(run.prompt);
 
+        rlap("streamEvents call start");
         stream = agent.streamEvents(
           {
             messages: [userMessage],
@@ -413,6 +422,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             version: "v2",
           },
         );
+        rlap("streamEvents call returned");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
