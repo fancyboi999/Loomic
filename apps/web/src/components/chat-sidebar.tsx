@@ -12,8 +12,8 @@ import type {
   ToolBlock,
 } from "@loomic/shared";
 import type { ReadyAttachment } from "../hooks/use-image-attachments";
+import type { WebSocketHandle } from "../hooks/use-websocket";
 import {
-  createRun,
   createSession,
   deleteSession as deleteSessionApi,
   fetchMessages,
@@ -21,8 +21,8 @@ import {
   saveMessage,
   updateSessionTitle,
 } from "../lib/server-api";
-import { streamEvents } from "../lib/stream-events";
 import { useImageAttachments } from "../hooks/use-image-attachments";
+import { useImageModelPreference } from "../hooks/use-image-model-preference";
 import { INITIAL_ATTACHMENTS_KEY } from "../hooks/use-create-project";
 import { CanvasImagePicker, type CanvasImageItem } from "./canvas-image-picker";
 import { ChatInput } from "./chat-input";
@@ -47,6 +47,7 @@ type ChatSidebarProps = {
   initialSessionId?: string | undefined;
   onSessionChange?: (sessionId: string) => void;
   onRequestCanvasImages?: () => CanvasImageItem[];
+  ws: WebSocketHandle;
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -94,6 +95,7 @@ export function ChatSidebar({
   initialSessionId,
   onSessionChange,
   onRequestCanvasImages,
+  ws,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -125,6 +127,10 @@ export function ChatSidebar({
     isUploading,
     readyAttachments,
   } = useImageAttachments(accessToken);
+
+  const { activeImageModel } = useImageModelPreference();
+  const activeImageModelRef = useRef(activeImageModel);
+  activeImageModelRef.current = activeImageModel;
 
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const isResizing = useRef(false);
@@ -436,22 +442,39 @@ export function ChatSidebar({
       abortRef.current = false;
 
       try {
-        const run = await createRun(
-          {
-            sessionId: currentSessionId,
-            conversationId: canvasId,
-            prompt: text,
-            canvasId,
-            ...(currentAttachments.length > 0 ? { attachments: currentAttachments } : {}),
-          },
-          {
-            accessToken: accessTokenRef.current,
-          },
-        );
+        // Start run via WebSocket
+        const runId = await new Promise<string>((resolve) => {
+          ws.startRun(
+            {
+              sessionId: currentSessionId,
+              conversationId: canvasId,
+              prompt: text,
+              canvasId,
+              ...(currentAttachments.length > 0
+                ? { attachments: currentAttachments }
+                : {}),
+              ...(activeImageModelRef.current
+                ? { imageModel: activeImageModelRef.current }
+                : {}),
+            },
+            (ack) => resolve(ack.payload.runId as string),
+          );
+        });
         clearAttachments();
 
-        for await (const event of streamEvents(run.runId)) {
-          if (abortRef.current) break;
+        // Listen for events via WebSocket
+        let resolveStream: () => void;
+        const streamDone = new Promise<void>((r) => {
+          resolveStream = r;
+        });
+
+        const cleanup = ws.onEvent((event) => {
+          if (event.runId !== runId) return;
+          if (abortRef.current) {
+            resolveStream();
+            return;
+          }
+
           handleStreamEvent(event, assistantId);
 
           // Fire canvas insertion callback for image artifacts.
@@ -473,7 +496,18 @@ export function ChatSidebar({
           if (event.type === "canvas.sync" && onCanvasSync) {
             onCanvasSync();
           }
-        }
+
+          if (
+            event.type === "run.completed" ||
+            event.type === "run.failed" ||
+            event.type === "run.canceled"
+          ) {
+            resolveStream();
+          }
+        });
+
+        await streamDone;
+        cleanup();
 
         // Derive flat content + full blocks from the final message state
         const finalMsg = messagesRef.current.find(
@@ -491,7 +525,9 @@ export function ChatSidebar({
             role: "assistant",
             content: flatContent,
             contentBlocks: finalBlocks,
-          }).catch((err) => console.error("[chat] Failed to save assistant message:", err));
+          }).catch((err) =>
+            console.error("[chat] Failed to save assistant message:", err),
+          );
         }
       } catch {
         setMessages((prev) =>
@@ -512,7 +548,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments],
+    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments, ws],
   );
 
   // Auto-send initial prompt from Home page (once, after sessions load).
@@ -558,7 +594,13 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex h-full shrink-0" style={{ width: sidebarWidth }}>
+    <div
+      className="flex h-full shrink-0"
+      style={{ width: sidebarWidth }}
+      onKeyDown={(e) => e.stopPropagation()}
+      onKeyUp={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
       {/* Resize handle */}
       <div
         className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-[#D7DCE3] to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-[#BBC3CD] hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-[#9EA8B5] active:shadow-[1px_0_16px_rgba(15,23,42,0.14)]"
