@@ -12,6 +12,7 @@ import type { SettingsService } from "../features/settings/settings-service.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type { RequestAuthenticator } from "../supabase/user.js";
 import type { ConnectionManager } from "./connection-manager.js";
+import { createPipelineLogger } from "./logger.js";
 
 type RegisterWsOptions = {
   agentRuns: AgentRunService;
@@ -30,7 +31,6 @@ export async function registerWsRoute(
   const { agentRuns, connectionManager } = options;
 
   app.get("/api/ws", { websocket: true }, (socket: WebSocket, request: FastifyRequest) => {
-    // Auth: extract token from query
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get("token");
 
@@ -39,7 +39,6 @@ export async function registerWsRoute(
       return;
     }
 
-    // Authenticate asynchronously, close if invalid
     void authenticateAndBind(socket, token, request, options, agentRuns, connectionManager);
   });
 }
@@ -52,6 +51,8 @@ async function authenticateAndBind(
   agentRuns: AgentRunService,
   connectionManager: ConnectionManager,
 ) {
+  const log = createPipelineLogger("ws");
+
   let userId: string;
   try {
     const fakeRequest = {
@@ -59,16 +60,18 @@ async function authenticateAndBind(
     } as unknown as FastifyRequest;
     const user = await options.auth!.authenticate(fakeRequest);
     if (!user) {
+      log.warn("auth_rejected", { reason: "invalid_token" });
       socket.close(4001, "Unauthorized");
       return;
     }
     userId = user.id;
-  } catch {
+    log.info("connected", { userId });
+  } catch (err) {
+    log.warn("auth_error", { error: err instanceof Error ? err.message : String(err) });
     socket.close(4001, "Unauthorized");
     return;
   }
 
-  // Socket may have closed during async auth
   if (socket.readyState !== 1) return;
 
   connectionManager.register(userId, socket);
@@ -79,6 +82,7 @@ async function authenticateAndBind(
 
   const pingInterval = setInterval(() => {
     if (Date.now() - lastPong > 60_000) {
+      log.warn("pong_timeout", { userId });
       socket.terminate();
       return;
     }
@@ -124,7 +128,6 @@ async function authenticateAndBind(
 
       if (msg.action === "agent.run") {
         const p = msg.payload;
-        // Prefer fresh token from command payload over stale WS connection token
         const runToken = p.accessToken ?? token;
         void handleRunCommand(userId, {
           sessionId: p.sessionId,
@@ -135,6 +138,7 @@ async function authenticateAndBind(
           ...(p.imageModel !== undefined ? { imageModel: p.imageModel } : {}),
         }, socket, agentRuns, connectionManager, runToken, options);
       } else if (msg.action === "agent.cancel") {
+        log.info("run_cancel", { userId, runId: msg.payload.runId });
         const cancelResult = agentRuns.cancelRun(msg.payload.runId);
         if (!cancelResult) {
           socket.send(JSON.stringify({ type: "error", message: `Run not found: ${msg.payload.runId}` }));
@@ -144,11 +148,13 @@ async function authenticateAndBind(
   });
 
   socket.on("close", () => {
+    log.info("disconnected", { userId });
     clearInterval(pingInterval);
     connectionManager.remove(userId);
   });
 
   socket.on("error", () => {
+    log.error("socket_error", { userId });
     clearInterval(pingInterval);
     connectionManager.remove(userId);
   });
@@ -170,15 +176,13 @@ async function handleRunCommand(
   accessToken: string,
   services: RegisterWsOptions,
 ) {
-  // ── Performance timing ──
-  const t0 = Date.now();
-  const lap = (label: string) => console.log(`[perf:server] ${label}: ${Date.now() - t0}ms`);
+  const log = createPipelineLogger("agent.run", { userId, sessionId: payload.sessionId });
+  log.info("started", { prompt: payload.prompt.slice(0, 80) });
 
   const authenticatedUser = { id: userId, accessToken, email: "", userMetadata: {} };
 
-  // Resolve thread + model in parallel (independent queries)
+  // Resolve thread + model in parallel
   const [threadId, model] = await Promise.all([
-    // Thread resolution
     (async (): Promise<string | undefined> => {
       if (!services.threadService) return undefined;
       try {
@@ -191,7 +195,6 @@ async function handleRunCommand(
         return undefined;
       }
     })(),
-    // Model resolution
     (async (): Promise<string | undefined> => {
       if (!services.settingsService || !services.viewerService) return undefined;
       try {
@@ -206,7 +209,7 @@ async function handleRunCommand(
       }
     })(),
   ]);
-  lap("thread + model resolved (parallel)");
+  log.lap("resolve", { threadId: !!threadId, model });
 
   const response = agentRuns.createRun(payload, {
     accessToken,
@@ -215,14 +218,15 @@ async function handleRunCommand(
     ...(payload.imageModel ? { imageModel: payload.imageModel } : {}),
     ...(threadId ? { threadId } : {}),
   });
-  lap("createRun done");
+  const runId = response.runId;
+  log.lap("run_created", { runId });
 
   // Persist run metadata
   if (threadId && services.agentRunMetadataService) {
     try {
       await services.agentRunMetadataService.createAcceptedRun({
         ...(model ? { model } : {}),
-        runId: response.runId,
+        runId,
         sessionId: payload.sessionId,
         threadId,
       });
@@ -230,7 +234,6 @@ async function handleRunCommand(
       // Non-fatal
     }
   }
-  lap("metadata persisted");
 
   // Send ack
   socket.send(
@@ -240,23 +243,24 @@ async function handleRunCommand(
       payload: response,
     }),
   );
-  lap("ack sent");
+  log.lap("ack_sent", { runId });
 
   // Stream events via WS push
   try {
     let firstEvent = true;
-    for await (const event of agentRuns.streamRun(response.runId)) {
+    for await (const event of agentRuns.streamRun(runId)) {
       if (firstEvent) {
-        lap("first stream event");
+        log.lap("first_token", { runId });
         firstEvent = false;
       }
       connectionManager.push(userId, event);
     }
-    lap("stream completed");
+    log.lap("stream_done", { runId });
   } catch (error) {
+    log.error("stream_error", { runId, error: error instanceof Error ? error.message : "unknown" });
     connectionManager.push(userId, {
       type: "run.failed",
-      runId: response.runId,
+      runId,
       error: {
         code: "run_failed",
         message: error instanceof Error ? error.message : "Stream failed",

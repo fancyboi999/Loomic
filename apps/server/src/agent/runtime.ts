@@ -11,6 +11,7 @@ import type {
 } from "@loomic/shared";
 
 import type { ServerEnv } from "../config/env.js";
+import { createPipelineLogger } from "../ws/logger.js";
 import type { AgentRunMetadataService } from "../features/agent-runs/agent-run-service.js";
 import type { JobService } from "../features/jobs/job-service.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
@@ -140,9 +141,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       run.consumed = true;
       run.status = "running";
 
-      // ── Performance timing ──
-      const rt0 = Date.now();
-      const rlap = (label: string) => console.log(`[perf:runtime] ${label}: ${Date.now() - rt0}ms`);
+      const rlog = createPipelineLogger("runtime", { runId });
 
       try {
         await updatePersistedRunStatus(
@@ -165,7 +164,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           run.threadId && options.agentPersistenceService
             ? await options.agentPersistenceService.getPersistence()
             : null;
-        rlap("persistence init");
+        rlog.lap("persistence_init");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
@@ -373,7 +372,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           }
         }
 
-        rlap("brand kit resolved");
+        rlog.lap("brand_kit_resolved");
 
         agent = resolvedAgentFactory({
           ...(brandKitId ? { brandKitId } : {}),
@@ -387,7 +386,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(submitImageJob ? { submitImageJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
-        rlap("agent factory done");
+        rlog.lap("agent_factory_done");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
@@ -413,7 +412,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             })
           : new HumanMessage(run.prompt);
 
-        rlap("streamEvents call start");
+        rlog.lap("stream_call_start");
         stream = agent.streamEvents(
           {
             messages: [userMessage],
@@ -433,7 +432,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             version: "v2",
           },
         );
-        rlap("streamEvents call returned");
+        rlog.lap("stream_call_returned");
       } catch (error) {
         const failedEvent = toFailedEvent(runId, now, error);
         run.status = "failed";
