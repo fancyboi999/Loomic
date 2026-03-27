@@ -4,11 +4,10 @@ import { join } from "node:path";
 /**
  * Structured logger for WebSocket + Agent pipeline.
  *
- * Outputs JSON lines to both stdout and log file.
- * Each log entry includes: scope, event, timing (ms since scope start),
- * and optional context fields.
+ * - stdout: human-readable one-liner with color-coded level
+ * - file: JSON lines, one file per day (pipeline-YYYY-MM-DD.log)
  *
- * Log file: apps/server/logs/pipeline.log (JSON lines, append mode)
+ * Log directory: apps/server/logs/
  *
  * Usage:
  *   const log = createPipelineLogger("ws");
@@ -25,7 +24,12 @@ const LEVEL_LABEL: Record<LogLevel, string> = { info: "INFO", warn: "WARN", erro
 // Ensure log directory exists
 const LOG_DIR = join(import.meta.dirname ?? ".", "..", "..", "logs");
 try { mkdirSync(LOG_DIR, { recursive: true }); } catch { /* ignore */ }
-const LOG_FILE = join(LOG_DIR, "pipeline.log");
+
+/** Returns today's log file path: pipeline-YYYY-MM-DD.log */
+function getLogFile(): string {
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return join(LOG_DIR, `pipeline-${date}.log`);
+}
 
 export type PipelineLogger = {
   info: (event: string, ctx?: Record<string, unknown>) => void;
@@ -60,8 +64,8 @@ export function createPipelineLogger(
     const ctxStr = ctx ? " " + Object.entries(ctx).map(([k, v]) => `${k}=${v}`).join(" ") : "";
     process.stdout.write(`${ts} [${LEVEL_LABEL[level]}] ${scope}.${event}${ctxStr}\n`);
 
-    // file: structured JSON lines
-    try { appendFileSync(LOG_FILE, line); } catch { /* ignore */ }
+    // file: structured JSON lines (daily rotation)
+    try { appendFileSync(getLogFile(), line); } catch { /* ignore */ }
   }
 
   return {
