@@ -478,10 +478,11 @@ export function ChatSidebar({
           handleStreamEvent(event, assistantId);
 
           // Fire canvas insertion callback for image artifacts.
-          // insertImageOnCanvas handles smart placement when placement is absent.
+          // Skip screenshot_canvas — those are for the agent to see, not for canvas insertion.
           if (
             event.type === "tool.completed" &&
             event.artifacts &&
+            event.toolName !== "screenshot_canvas" &&
             onImageGenerated
           ) {
             for (const artifact of event.artifacts) {
