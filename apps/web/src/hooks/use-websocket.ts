@@ -87,14 +87,15 @@ export function useWebSocket(
     };
 
     ws.onclose = (event) => {
+      // Only handle close for the CURRENT connection.
+      // React Strict Mode creates two connections; when the server replaces
+      // the old one, its close event fires after remount resets disposed=false.
+      // Without this guard, we'd enter a reconnect loop.
+      if (wsRef.current !== ws) return;
+
       setConnected(false);
       wsRef.current = null;
 
-      // 4001 = server rejected auth (token expired/invalid)
-      // Still reconnect — getToken() will fetch the latest token from
-      // Supabase auth (which auto-refreshes). If the token is truly
-      // invalid, auth will keep failing but the exponential backoff
-      // prevents hammering the server.
       if (event.code === 4001) {
         console.warn("[ws] Auth rejected, will retry with fresh token");
       }
