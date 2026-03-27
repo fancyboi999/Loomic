@@ -30,7 +30,6 @@ export async function registerWsRoute(
   const { agentRuns, connectionManager } = options;
 
   app.get("/api/ws", { websocket: true }, (socket: WebSocket, request: FastifyRequest) => {
-    console.log("[ws] handler entered, socket type:", socket?.constructor?.name);
     // Auth: extract token from query
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get("token");
@@ -58,17 +57,13 @@ async function authenticateAndBind(
     const fakeRequest = {
       headers: { authorization: `Bearer ${token}` },
     } as unknown as FastifyRequest;
-    console.log("[ws] authenticating...");
     const user = await options.auth!.authenticate(fakeRequest);
     if (!user) {
-      console.log("[ws] auth returned null, closing");
       socket.close(4001, "Unauthorized");
       return;
     }
     userId = user.id;
-    console.log("[ws] auth OK, userId:", userId);
-  } catch (err) {
-    console.log("[ws] auth error:", err instanceof Error ? err.message : err);
+  } catch {
     socket.close(4001, "Unauthorized");
     return;
   }
@@ -129,6 +124,8 @@ async function authenticateAndBind(
 
       if (msg.action === "agent.run") {
         const p = msg.payload;
+        // Prefer fresh token from command payload over stale WS connection token
+        const runToken = p.accessToken ?? token;
         void handleRunCommand(userId, {
           sessionId: p.sessionId,
           conversationId: p.conversationId,
@@ -136,7 +133,7 @@ async function authenticateAndBind(
           ...(p.canvasId !== undefined ? { canvasId: p.canvasId } : {}),
           ...(p.attachments !== undefined ? { attachments: p.attachments } : {}),
           ...(p.imageModel !== undefined ? { imageModel: p.imageModel } : {}),
-        }, socket, agentRuns, connectionManager, token, options);
+        }, socket, agentRuns, connectionManager, runToken, options);
       } else if (msg.action === "agent.cancel") {
         const cancelResult = agentRuns.cancelRun(msg.payload.runId);
         if (!cancelResult) {

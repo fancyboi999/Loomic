@@ -37,6 +37,8 @@ export const runCreateRequestSchema = z.object({
   prompt: z.string(),
   canvasId: canvasIdSchema.optional(),
   attachments: z.array(imageAttachmentSchema).optional(),
+  imageModel: z.string().optional(),
+  accessToken: z.string().optional(),
 });
 
 export const runCreateResponseSchema = z.object({
