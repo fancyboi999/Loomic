@@ -442,6 +442,9 @@ export function ChatSidebar({
       abortRef.current = false;
 
       try {
+        // ── Performance timing ──
+        const perf = { t0Send: performance.now(), tAck: 0, tFirstToken: 0, gotFirstToken: false };
+
         // Start run via WebSocket
         const runId = await new Promise<string>((resolve) => {
           ws.startRun(
@@ -457,7 +460,11 @@ export function ChatSidebar({
                 ? { imageModel: activeImageModelRef.current }
                 : {}),
             },
-            (ack) => resolve(ack.payload.runId as string),
+            (ack) => {
+              perf.tAck = performance.now();
+              console.log(`[perf] send → ack: ${(perf.tAck - perf.t0Send).toFixed(0)}ms`);
+              resolve(ack.payload.runId as string);
+            },
           );
         });
         clearAttachments();
@@ -473,6 +480,16 @@ export function ChatSidebar({
           if (abortRef.current) {
             resolveStream();
             return;
+          }
+
+          // Track first token timing
+          if (!perf.gotFirstToken && event.type === "message.delta") {
+            perf.tFirstToken = performance.now();
+            perf.gotFirstToken = true;
+            console.log(
+              `[perf] send → first token: ${(perf.tFirstToken - perf.t0Send).toFixed(0)}ms` +
+              ` (ack→token: ${(perf.tFirstToken - perf.tAck).toFixed(0)}ms)`,
+            );
           }
 
           handleStreamEvent(event, assistantId);
