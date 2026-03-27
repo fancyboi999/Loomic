@@ -478,9 +478,7 @@ export function ChatSidebar({
           handleStreamEvent(event, assistantId);
 
           // Fire canvas insertion callback for image artifacts.
-          // Sub-agent (image_generate) results include placement; direct
-          // generate_image calls may not. For artifacts without placement,
-          // supply a default so images still land on the canvas.
+          // insertImageOnCanvas handles smart placement when placement is absent.
           if (
             event.type === "tool.completed" &&
             event.artifacts &&
@@ -488,10 +486,7 @@ export function ChatSidebar({
           ) {
             for (const artifact of event.artifacts) {
               if (artifact.type === "image") {
-                const withPlacement = artifact.placement
-                  ? artifact
-                  : { ...artifact, placement: { x: 100, y: 100, width: artifact.width ?? 512, height: artifact.height ?? 512 } };
-                onImageGenerated(withPlacement as ImageArtifact);
+                onImageGenerated(artifact as ImageArtifact);
               }
             }
           }
