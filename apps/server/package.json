@@ -25,15 +25,18 @@
     "@loomic/config": "workspace:*",
     "@types/node": "^22.13.10",
     "@types/pg": "^8.20.0",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.19.3",
     "vitest": "^3.2.4"
   },
   "scripts": {
     "build": "node ../../scripts/validate-foundation-app.mjs build",
     "predev": "pnpm --filter @loomic/shared build",
-    "dev": "node --watch --env-file=../../.env.local --import tsx ./src/server.ts & node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & wait",
+    "dev": "node --watch --env-file=../../.env.local --import tsx ./src/server.ts & WORKER_ID=w1 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & wait",
     "dev:server": "node --watch --env-file=../../.env.local --import tsx ./src/server.ts",
     "dev:worker": "node --watch --env-file=../../.env.local --import tsx ./src/worker.ts",
+    "dev:workers:2": "WORKER_ID=w1 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & WORKER_ID=w2 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & wait",
+    "dev:workers:3": "WORKER_ID=w1 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & WORKER_ID=w2 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & WORKER_ID=w3 node --watch --env-file=../../.env.local --import tsx ./src/worker.ts & wait",
     "worker": "node --env-file=../../.env.local --import tsx ./src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
