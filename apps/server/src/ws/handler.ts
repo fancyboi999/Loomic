@@ -174,36 +174,37 @@ async function handleRunCommand(
 
   const authenticatedUser = { id: userId, accessToken, email: "", userMetadata: {} };
 
-  // Resolve session thread (same logic as runs.ts)
-  let threadId: string | undefined;
-  if (services.threadService) {
-    try {
-      const sessionThread = await services.threadService.resolveOwnedSessionThread(
-        authenticatedUser,
-        payload.sessionId,
-      );
-      threadId = sessionThread.threadId;
-    } catch {
-      // Fall through -- unauthenticated or missing session
-    }
-  }
-  lap("thread resolved");
-
-  // Resolve per-workspace model (same logic as runs.ts)
-  let model: string | undefined;
-  if (services.settingsService && services.viewerService) {
-    try {
-      const viewer = await services.viewerService.ensureViewer(authenticatedUser);
-      const settings = await services.settingsService.getWorkspaceSettings(
-        authenticatedUser,
-        viewer.workspace.id,
-      );
-      model = settings.defaultModel;
-    } catch {
-      // Fall through to server default
-    }
-  }
-  lap("model resolved");
+  // Resolve thread + model in parallel (independent queries)
+  const [threadId, model] = await Promise.all([
+    // Thread resolution
+    (async (): Promise<string | undefined> => {
+      if (!services.threadService) return undefined;
+      try {
+        const sessionThread = await services.threadService.resolveOwnedSessionThread(
+          authenticatedUser,
+          payload.sessionId,
+        );
+        return sessionThread.threadId;
+      } catch {
+        return undefined;
+      }
+    })(),
+    // Model resolution
+    (async (): Promise<string | undefined> => {
+      if (!services.settingsService || !services.viewerService) return undefined;
+      try {
+        const viewer = await services.viewerService.ensureViewer(authenticatedUser);
+        const settings = await services.settingsService.getWorkspaceSettings(
+          authenticatedUser,
+          viewer.workspace.id,
+        );
+        return settings.defaultModel;
+      } catch {
+        return undefined;
+      }
+    })(),
+  ]);
+  lap("thread + model resolved (parallel)");
 
   const response = agentRuns.createRun(payload, {
     accessToken,

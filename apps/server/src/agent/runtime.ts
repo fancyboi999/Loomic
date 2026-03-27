@@ -338,27 +338,38 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           };
         }
 
-        // Resolve brand kit ID from canvas → project → brand_kit_id
+        // Resolve brand kit ID from canvas → project in a single joined query
         let brandKitId: string | null = null;
         if (run.canvasId && run.accessToken && options.createUserClient) {
           try {
             const client = options.createUserClient(run.accessToken) as any;
             const { data: canvas } = await client
               .from("canvases")
-              .select("project_id")
+              .select("project_id, projects!inner(brand_kit_id)")
               .eq("id", run.canvasId)
               .maybeSingle();
-
-            if (canvas?.project_id) {
-              const { data: project } = await client
-                .from("projects")
-                .select("brand_kit_id")
-                .eq("id", canvas.project_id)
-                .maybeSingle();
-              brandKitId = project?.brand_kit_id ?? null;
-            }
+            brandKitId = canvas?.projects?.brand_kit_id ?? null;
           } catch (err) {
-            console.warn("Failed to resolve brand kit ID:", err);
+            // Fallback: joined query may fail if FK isn't exposed via PostgREST
+            // In that case, try the two-step approach
+            try {
+              const client = options.createUserClient(run.accessToken) as any;
+              const { data: c } = await client
+                .from("canvases")
+                .select("project_id")
+                .eq("id", run.canvasId)
+                .maybeSingle();
+              if (c?.project_id) {
+                const { data: p } = await client
+                  .from("projects")
+                  .select("brand_kit_id")
+                  .eq("id", c.project_id)
+                  .maybeSingle();
+                brandKitId = p?.brand_kit_id ?? null;
+              }
+            } catch (err2) {
+              console.warn("Failed to resolve brand kit ID:", err2);
+            }
           }
         }
 
