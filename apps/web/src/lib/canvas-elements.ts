@@ -148,13 +148,36 @@ export async function insertImageOnCanvas(
     width = artifact.placement.width;
     height = artifact.placement.height;
   } else {
-    // Fallback: viewport center
+    // Smart auto-placement: viewport center if empty, next to elements if not
     const scaled = scaleToFit(artifact.width, artifact.height, 600);
-    const center = getViewportCenter(api.getAppState());
-    x = center.x - scaled.width / 2;
-    y = center.y - scaled.height / 2;
     width = scaled.width;
     height = scaled.height;
+
+    const elements = api.getSceneElements().filter((el: any) => !el.isDeleted);
+
+    if (elements.length === 0) {
+      // Empty canvas → viewport center
+      const center = getViewportCenter(api.getAppState());
+      x = center.x - width / 2;
+      y = center.y - height / 2;
+    } else {
+      // Has elements → place to the right of the rightmost element with gap
+      const GAP = 40;
+      let maxRight = -Infinity;
+      let rightEdgeY = 0;
+
+      for (const el of elements) {
+        const elRight = (el.x ?? 0) + (el.width ?? 0);
+        if (elRight > maxRight) {
+          maxRight = elRight;
+          // Vertically align center of new image with center of rightmost element
+          rightEdgeY = (el.y ?? 0) + (el.height ?? 0) / 2;
+        }
+      }
+
+      x = maxRight + GAP;
+      y = rightEdgeY - height / 2;
+    }
   }
 
   const element = createExcalidrawImageElement({
