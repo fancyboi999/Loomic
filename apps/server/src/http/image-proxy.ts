@@ -5,6 +5,27 @@ import type { FastifyInstance } from "fastify";
  * Used by the frontend to load generated images into Excalidraw canvas.
  */
 export function registerImageProxyRoute(app: FastifyInstance) {
+  // Build allowed domains list: static CDNs + dynamic Supabase host
+  const staticAllowed = [
+    "replicate.delivery",
+    "replicate.com",
+    "pbxt.replicate.delivery",
+    "supabase.co",
+  ];
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const dynamicAllowed = supabaseUrl
+    ? (() => {
+        try {
+          return [new URL(supabaseUrl).hostname];
+        } catch {
+          return [];
+        }
+      })()
+    : [];
+
+  const allowed = [...staticAllowed, ...dynamicAllowed];
+
   app.get<{
     Querystring: { url: string };
   }>("/api/proxy-image", async (request, reply) => {
@@ -13,14 +34,6 @@ export function registerImageProxyRoute(app: FastifyInstance) {
     if (!url || typeof url !== "string") {
       return reply.status(400).send({ error: "Missing url parameter" });
     }
-
-    // Only allow proxying from known image CDNs and Supabase Storage
-    const allowed = [
-      "replicate.delivery",
-      "replicate.com",
-      "pbxt.replicate.delivery",
-      "supabase.co",
-    ];
 
     let parsedUrl: URL;
     try {

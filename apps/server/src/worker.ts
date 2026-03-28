@@ -3,6 +3,7 @@ import { bootstrap } from "global-agent";
 // Enable HTTP proxy for all outbound requests if GLOBAL_AGENT_HTTP_PROXY is set
 bootstrap();
 
+import { randomUUID } from "node:crypto";
 import { loadServerEnv } from "./config/env.js";
 import { createPgmqClient, type PgmqMessage } from "./queue/pgmq-client.js";
 import { createJobService } from "./features/jobs/job-service.js";
@@ -60,34 +61,49 @@ async function main() {
     env,
   };
 
+  const concurrency = env.workerConcurrency ?? 3;
   const pollIntervalMs = env.workerPollIntervalMs ?? 2000;
-  const maxBatchSize = env.workerMaxBatchSize ?? 5;
+  const workerId = env.workerId ?? randomUUID().slice(0, 8);
+  const tag = `[worker:${workerId}]`;
 
   let running = true;
+  const inFlight = new Set<Promise<void>>();
 
-  // Graceful shutdown
+  // Graceful shutdown — wait for in-flight jobs then exit
   const shutdown = async () => {
-    console.log("[worker] Shutting down...");
+    console.log(`${tag} Shutting down, waiting for ${inFlight.size} in-flight jobs...`);
     running = false;
+    if (inFlight.size > 0) {
+      await Promise.allSettled(inFlight);
+    }
     await pgmq.shutdown();
+    console.log(`${tag} Shutdown complete.`);
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
-  console.log(`[worker] Started. Polling ${QUEUES.join(", ")} every ${pollIntervalMs}ms`);
+  console.log(
+    `${tag} Started. concurrency=${concurrency}, poll=${pollIntervalMs}ms, queues=[${QUEUES.join(", ")}]`,
+  );
 
   while (running) {
     for (const queue of QUEUES) {
       try {
+        // Only read as many as we have capacity for
+        const available = concurrency - inFlight.size;
+        if (available <= 0) break;
+
         const vt = VT_BY_QUEUE[queue] ?? 120;
-        const messages = await pgmq.read(queue, vt, maxBatchSize);
+        const messages = await pgmq.read(queue, vt, available);
 
         for (const msg of messages) {
-          await processMessage(queue, msg, ctx);
+          const task = processMessage(queue, msg, ctx, tag)
+            .finally(() => inFlight.delete(task));
+          inFlight.add(task);
         }
       } catch (err) {
-        console.error(`[worker] Error polling ${queue}:`, err);
+        console.error(`${tag} Error polling ${queue}:`, err);
       }
     }
 
@@ -99,21 +115,22 @@ async function processMessage(
   queue: string,
   msg: PgmqMessage,
   ctx: ExecutorContext,
+  tag: string,
 ) {
   const jobId = msg.message.job_id as string;
   const jobType = (msg.message.job_type as BackgroundJobType) ?? QUEUE_TO_TYPE[queue];
 
   if (!jobId || !jobType) {
-    console.error(`[worker] Invalid message in ${queue}:`, msg.message);
+    console.error(`${tag} Invalid message in ${queue}:`, msg.message);
     await ctx.pgmq.archive(queue, msg.msg_id);
     return;
   }
 
-  console.log(`[worker] Processing job ${jobId} (${jobType})`);
+  console.log(`${tag} Processing job ${jobId} (${jobType})`);
 
   const executor = getExecutor(jobType);
   if (!executor) {
-    console.error(`[worker] No executor for job type: ${jobType}`);
+    console.error(`${tag} No executor for job type: ${jobType}`);
     await ctx.jobService.markFailed(jobId, "no_executor", `No executor registered for ${jobType}`);
     await ctx.pgmq.archive(queue, msg.msg_id);
     return;
@@ -129,7 +146,7 @@ async function processMessage(
     const result = await executor(jobId, msg.message as Record<string, unknown>, ctx);
     await ctx.jobService.markSucceeded(jobId, result);
     await ctx.pgmq.deleteMsg(queue, msg.msg_id);
-    console.log(`[worker] Job ${jobId} succeeded`);
+    console.log(`${tag} Job ${jobId} succeeded`);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorCode = (err as { code?: string })?.code ?? "executor_error";
@@ -137,11 +154,11 @@ async function processMessage(
     if (attempt_count >= max_attempts) {
       await ctx.jobService.markDeadLetter(jobId, errorCode, errorMessage);
       await ctx.pgmq.archive(queue, msg.msg_id);
-      console.error(`[worker] Job ${jobId} dead-lettered after ${attempt_count} attempts: ${errorMessage}`);
+      console.error(`${tag} Job ${jobId} dead-lettered after ${attempt_count} attempts: ${errorMessage}`);
     } else {
       await ctx.jobService.markFailed(jobId, errorCode, errorMessage);
       // Message will re-appear after VT expires for retry
-      console.warn(`[worker] Job ${jobId} failed (attempt ${attempt_count}/${max_attempts}): ${errorMessage}`);
+      console.warn(`${tag} Job ${jobId} failed (attempt ${attempt_count}/${max_attempts}): ${errorMessage}`);
     }
   }
 }

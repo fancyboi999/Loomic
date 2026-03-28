@@ -25,6 +25,7 @@ const imageGenerateResponseSchema = z.object({
 
 export function createImageSubAgent(deps?: {
   persistImage?: PersistImageFn;
+  preferredImageModel?: string;
   submitImageJob?: SubmitImageJobFn;
 }): SubAgent {
   return {

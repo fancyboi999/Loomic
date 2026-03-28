@@ -34,14 +34,18 @@ export function createScreenshotCanvasTool(deps: {
     description:
       "Take a visual screenshot of the canvas to inspect layout, design quality, color harmony, and spatial relationships. Use this to visually verify your changes or understand the current canvas state. Supports full canvas, specific region, or current viewport capture.",
     schema: screenshotCanvasSchema,
-    func: async (input, _runManager, config) => {
+    responseFormat: "content_and_artifact",
+    func: async (input, _runManager, config): Promise<any> => {
       const userId = (config as any)?.configurable?.user_id;
 
       if (!userId) {
-        return JSON.stringify({
-          error: "no_user_context",
-          message: "screenshot_canvas requires a user context to communicate with the browser.",
-        });
+        return [
+          JSON.stringify({
+            error: "no_user_context",
+            message: "screenshot_canvas requires a user context to communicate with the browser.",
+          }),
+          {},
+        ];
       }
 
       try {
@@ -56,19 +60,29 @@ export function createScreenshotCanvasTool(deps: {
           timeout,
         );
 
-        return JSON.stringify({
-          summary: `Canvas screenshot captured (${result.width}x${result.height}, mode: ${input.mode})`,
-          screenshotUrl: result.url,
-          width: result.width,
-          height: result.height,
-          mode: input.mode,
-        });
+        const summary = `Canvas screenshot captured (${result.width}x${result.height}, mode: ${input.mode})`;
+
+        // Return multimodal content: text summary + inline image
+        // The model receives the image directly for visual understanding
+        return [
+          [
+            { type: "text", text: summary },
+            {
+              type: "image_url",
+              image_url: { url: result.url, detail: "high" },
+            },
+          ],
+          {},
+        ];
       } catch (error) {
         const message = error instanceof Error ? error.message : "Screenshot failed";
-        return JSON.stringify({
-          error: "screenshot_failed",
-          message: `Screenshot failed: ${message}`,
-        });
+        return [
+          JSON.stringify({
+            error: "screenshot_failed",
+            message: `Screenshot failed: ${message}`,
+          }),
+          {},
+        ];
       }
     },
   });

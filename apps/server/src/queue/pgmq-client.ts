@@ -22,6 +22,9 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
     connectionString: databaseUrl,
     max: 5,
     idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
 
   return {

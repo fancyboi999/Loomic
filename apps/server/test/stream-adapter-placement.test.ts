@@ -57,10 +57,12 @@ describe("stream adapter placement extraction", () => {
   });
 
   it("still extracts legacy imageUrl format", async () => {
+    // Use a non-inner tool name — generate_image is an inner sub-agent tool
+    // whose artifacts are intentionally suppressed (parent task tool re-emits them)
     const stream = makeStream([
       {
         event: "on_tool_end",
-        name: "generate_image",
+        name: "image_task",
         data: {
           output: new ToolMessage({
             content: JSON.stringify({
@@ -69,7 +71,7 @@ describe("stream adapter placement extraction", () => {
               width: 1024,
               height: 1024,
             }),
-            name: "generate_image",
+            name: "image_task",
             tool_call_id: "tc2",
           }),
         },

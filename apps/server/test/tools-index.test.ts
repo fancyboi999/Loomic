@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 describe("tool exports", () => {
-  it("createMainAgentTools returns inspect_canvas and project_search only", async () => {
+  it("createMainAgentTools returns core tools including generate_image", async () => {
     const { createMainAgentTools } = await import("../src/agent/tools/index.js");
     const mockBackend = {} as any;
     const mockCreateUserClient = (() => {}) as any;
@@ -9,7 +9,6 @@ describe("tool exports", () => {
     const names = tools.map((t: any) => t.name);
     expect(names).toContain("inspect_canvas");
     expect(names).toContain("project_search");
-    expect(names).not.toContain("generate_image");
-    expect(names).not.toContain("generate_video");
+    expect(names).toContain("generate_image");
   });
 });
