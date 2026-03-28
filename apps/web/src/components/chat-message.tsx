@@ -393,15 +393,15 @@ export function ChatMessage({
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <span>思考中</span>
           <span
-            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-muted-foreground animate-bounce-dot"
             style={{ animationDelay: "0ms" }}
           />
           <span
-            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-muted-foreground animate-bounce-dot"
             style={{ animationDelay: "150ms" }}
           />
           <span
-            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-muted-foreground animate-bounce-dot"
             style={{ animationDelay: "300ms" }}
           />
         </div>
@@ -420,7 +420,7 @@ export function ChatMessage({
                 {block.text}
               </ReactMarkdown>
               {isStreaming && idx === lastTextIdx && (
-                <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-accent animate-pulse rounded-full" />
+                <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-foreground animate-pulse rounded-full" />
               )}
             </div>
           );

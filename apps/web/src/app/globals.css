@@ -62,12 +62,12 @@
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
     --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.53 0.21 281);
-    --accent-foreground: oklch(1 0 0);
+    --accent: oklch(0.90 0.17 115);
+    --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.53 0.21 281);
+    --ring: oklch(0.90 0.17 115);
     --border-light: oklch(0.94 0 0);
     --input-border: oklch(0.84 0 0);
     --chart-1: oklch(0.87 0 0);
@@ -148,7 +148,7 @@
 
 /* ── Accent glow utility ── */
 @utility accent-glow {
-  box-shadow: 0 0 20px oklch(0.53 0.21 281 / 0.15);
+  box-shadow: 0 0 20px oklch(0.90 0.17 115 / 0.25);
 }
 
 @keyframes shimmer {
