@@ -1,0 +1,23 @@
+# Fly.io configuration for Loomic Worker (PGMQ consumer)
+# Deploy: fly deploy --config fly.worker.toml
+# Region: nrt (Tokyo) — same as Supabase for low latency
+
+app = "loomic-worker"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "apps/server/Dockerfile"
+
+[processes]
+  worker = "node --import tsx src/worker.ts"
+
+[env]
+  WORKER_ID = "fly-w1"
+
+# No HTTP service — worker is a background process
+# Fly keeps it running as a "machine" without a public port
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

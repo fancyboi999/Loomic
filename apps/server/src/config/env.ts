@@ -26,6 +26,8 @@ export type ServerEnv = {
   volcesApiKey?: string;
   volcesBaseUrl?: string;
   webOrigin: string;
+  workerConcurrency?: number;
+  workerId?: string;
   workerPollIntervalMs?: number;
   workerMaxBatchSize?: number;
 };
@@ -64,6 +66,11 @@ export function loadServerEnv(
     overrides.volcesApiKey ?? normalizeOptionalString(source.VOLCES_API_KEY);
   const volcesBaseUrl =
     overrides.volcesBaseUrl ?? normalizeOptionalString(source.VOLCES_BASE_URL);
+  const workerConcurrency = overrides.workerConcurrency ??
+    (source.WORKER_CONCURRENCY
+      ? parseInt(source.WORKER_CONCURRENCY, 10) : undefined);
+  const workerId = overrides.workerId ??
+    normalizeOptionalString(source.WORKER_ID);
   const workerPollIntervalMs = overrides.workerPollIntervalMs ??
     (source.WORKER_POLL_INTERVAL_MS
       ? parseInt(source.WORKER_POLL_INTERVAL_MS, 10) : undefined);
@@ -79,7 +86,7 @@ export function loadServerEnv(
       overrides.agentModel ??
       parseAgentModel(source.LOOMIC_AGENT_MODEL) ??
       DEFAULT_AGENT_MODEL,
-    port: overrides.port ?? parsePort(source.LOOMIC_SERVER_PORT),
+    port: overrides.port ?? parsePort(source.LOOMIC_SERVER_PORT ?? source.PORT),
     version: overrides.version ?? readServerVersion(),
     webOrigin:
       overrides.webOrigin ?? source.LOOMIC_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN,
@@ -96,6 +103,8 @@ export function loadServerEnv(
     ...(replicateApiToken ? { replicateApiToken } : {}),
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
+    ...(workerConcurrency ? { workerConcurrency } : {}),
+    ...(workerId ? { workerId } : {}),
     ...(workerPollIntervalMs ? { workerPollIntervalMs } : {}),
     ...(workerMaxBatchSize ? { workerMaxBatchSize } : {}),
   };
