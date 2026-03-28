@@ -21,7 +21,7 @@ export function CanvasAIToolbar({
     <>
       {/* AI toolbar buttons — top-right, below the nav bar */}
       <div
-        className="absolute top-3 right-3 z-20 flex gap-0.5 rounded-xl p-1 bg-white/75 backdrop-blur-lg border border-black/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+        className="absolute top-3 right-3 z-20 flex gap-0.5 rounded-xl p-1 bg-card/75 backdrop-blur-lg border border-border shadow-card"
       >
         <button
           onClick={() =>
@@ -30,7 +30,7 @@ export function CanvasAIToolbar({
           className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm transition-colors cursor-pointer ${
             activePanel === "image"
               ? "bg-violet-100 text-violet-700"
-              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
+              : "text-foreground/60 hover:bg-muted hover:text-foreground"
           }`}
           title="AI Image"
         >
@@ -53,7 +53,7 @@ export function CanvasAIToolbar({
           className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm transition-colors cursor-pointer ${
             activePanel === "video"
               ? "bg-violet-100 text-violet-700"
-              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
+              : "text-foreground/60 hover:bg-muted hover:text-foreground"
           }`}
           title="AI Video (Coming soon)"
         >
@@ -82,12 +82,12 @@ export function CanvasAIToolbar({
         </div>
       )}
       {activePanel === "video" && (
-        <div className="absolute top-14 right-3 z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
+        <div className="absolute top-14 right-3 z-50 w-80 rounded-xl bg-card shadow-xl border border-border p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-[#2F3640]">AI Video</h3>
+            <h3 className="text-sm font-semibold text-foreground">AI Video</h3>
             <button
               onClick={() => setActivePanel(null)}
-              className="text-[#A4A9B2] hover:text-[#2F3640] transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <svg
                 className="h-4 w-4"
@@ -98,7 +98,7 @@ export function CanvasAIToolbar({
               </svg>
             </button>
           </div>
-          <p className="text-sm text-[#A4A9B2]">Coming soon</p>
+          <p className="text-sm text-muted-foreground">Coming soon</p>
         </div>
       )}
     </>

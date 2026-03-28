@@ -5,8 +5,8 @@ export function HomeProjectsSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {/* New project card placeholder */}
-      <div className="aspect-[286/208] rounded-xl bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)] sm:rounded-2xl">
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#0C0C0D]/[0.04]">
+      <div className="aspect-[286/208] rounded-xl bg-card p-3 shadow-card sm:rounded-2xl">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted">
           <Skeleton className="h-6 w-6 rounded-full" />
           <Skeleton className="h-3 w-14" />
         </div>
@@ -14,7 +14,7 @@ export function HomeProjectsSkeleton() {
 
       {/* Project card skeletons */}
       {Array.from({ length: 4 }, (_, i) => (
-        <div key={i} className="aspect-[286/208] rounded-lg bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+        <div key={i} className="aspect-[286/208] rounded-lg bg-card p-3 shadow-card">
           <Skeleton className="aspect-[395/227] w-full rounded-lg" />
           <div className="mt-3 space-y-1.5">
             <Skeleton className="h-3.5 w-3/4" />

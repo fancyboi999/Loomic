@@ -152,7 +152,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
     }, []);
 
     return (
-      <div className="overflow-hidden rounded-2xl border-[0.5px] border-[rgba(82,109,135,0.145)] bg-[#F7F7F7] shadow-[0_4px_8px_rgba(0,0,0,0.04)]">
+      <div className="overflow-hidden rounded-2xl border-[0.5px] border-border bg-muted shadow-[0_4px_8px_rgba(0,0,0,0.04)]">
         {attachments && onRemoveAttachment && (
           <ImageAttachmentBar
             attachments={attachments}
@@ -169,7 +169,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
           placeholder="让 Loomic 帮你设计..."
           disabled={disabled}
           rows={2}
-          className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-[#0E1014] placeholder:text-neutral-400 focus:outline-none disabled:opacity-50"
+          className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
         />
 
         <div className="flex items-center justify-between px-3 pb-3">
@@ -194,7 +194,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] transition-colors hover:bg-black/[0.04]"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] border-border text-foreground transition-colors hover:bg-muted"
                 >
                   <svg
                     className="h-[14px] w-[14px]"
@@ -212,7 +212,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                 type="button"
                 disabled
                 title="Attach"
-                className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
+                className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors"
               >
                 <svg
                   className="h-[14px] w-[14px]"
@@ -240,8 +240,8 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                         title={btn.name}
                         className={`flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] transition-colors ${
                           preference.mode === "manual"
-                            ? "border-[#363636] bg-[#363636] text-white"
-                            : "border-[#C4C4C4] text-[#363636] hover:bg-black/[0.04]"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-foreground hover:bg-muted"
                         }`}
                       >
                         <svg
@@ -268,7 +268,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                     type="button"
                     disabled
                     title={btn.name}
-                    className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
+                    className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors"
                   >
                     <svg
                       className="h-[14px] w-[14px]"
@@ -289,8 +289,8 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
               disabled={disabled || isUploading || !hasContent}
               className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
                 hasContent && !disabled && !isUploading
-                  ? "bg-[#2F3640] text-white hover:bg-[#4A535F] active:bg-[#191E26]"
-                  : "cursor-not-allowed bg-[#2F3640] text-white opacity-30"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/80 hover:accent-glow active:bg-primary/90"
+                  : "cursor-not-allowed bg-primary text-primary-foreground opacity-30"
               }`}
             >
               <svg

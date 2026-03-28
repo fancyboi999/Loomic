@@ -188,13 +188,13 @@ export default function HomePage() {
         {/* Logo + brand name */}
         <motion.div variants={fadeUp} custom={0} className="mb-4 flex items-center gap-2">
           <LoomicLogo className="size-8 text-black" />
-          <span className="text-xl font-semibold text-[#0E1014]">Loomic</span>
+          <span className="text-xl font-semibold text-foreground">Loomic</span>
         </motion.div>
 
-        <motion.h1 variants={fadeUp} custom={1} className="mb-2 text-2xl font-bold text-[#0E1014]">
+        <motion.h1 variants={fadeUp} custom={1} className="mb-2 text-2xl font-bold text-foreground">
           让创意设计更简单
         </motion.h1>
-        <motion.p variants={fadeUp} custom={2} className="mb-8 text-base text-[#A8A8A8]">
+        <motion.p variants={fadeUp} custom={2} className="mb-8 text-base text-muted-foreground">
           你的 AI 设计助手，从想法到作品
         </motion.p>
 
@@ -219,7 +219,7 @@ export default function HomePage() {
             onClick={handlePillClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 transition-colors hover:bg-neutral-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted"
           >
             <SparkleIcon className="h-3 w-3" />
             设计
@@ -235,10 +235,10 @@ export default function HomePage() {
           transition={{ delay: 0.5, duration: 0.4, ease: "easeOut" }}
           className="mb-4 flex items-center justify-between"
         >
-          <h2 className="text-lg font-medium text-[#141414]">最近项目</h2>
+          <h2 className="text-lg font-medium text-foreground">最近项目</h2>
           <Link
             href="/projects"
-            className="flex items-center gap-1 text-base text-[#919191] transition-colors hover:text-[#141414]"
+            className="flex items-center gap-1 text-base text-muted-foreground transition-colors hover:text-foreground"
           >
             查看全部
             <span className="flex h-6 w-6 -rotate-90 items-center justify-center">
@@ -266,13 +266,13 @@ export default function HomePage() {
               type="button"
               disabled={creating}
               onClick={() => createNewProject()}
-              className="aspect-[286/208] cursor-pointer rounded-xl bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-md sm:rounded-2xl"
+              className="aspect-[286/208] cursor-pointer rounded-xl bg-card p-3 shadow-card transition-shadow duration-300 hover:shadow-md sm:rounded-2xl"
             >
-              <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#0C0C0D]/[0.04]">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-[#0E1014]">
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-foreground">
                   <path fill="currentColor" fillRule="evenodd" d="M6.417 2.917a.583.583 0 0 1 1.166 0v3.5h3.5a.583.583 0 0 1 0 1.166h-3.5v3.5a.583.583 0 1 1-1.166 0v-3.5h-3.5a.583.583 0 1 1 0-1.166h3.5z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm font-semibold text-[#0E1014]">新建项目</span>
+                <span className="text-sm font-semibold text-foreground">新建项目</span>
               </div>
             </motion.button>
 
@@ -282,7 +282,7 @@ export default function HomePage() {
                 key={project.id}
                 variants={cardItem}
                 whileHover={{ y: -4 }}
-                className="group relative aspect-[286/208] cursor-pointer rounded-lg bg-white p-3 text-left shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-md"
+                className="group relative aspect-[286/208] cursor-pointer rounded-lg bg-card p-3 text-left shadow-card transition-shadow duration-300 hover:shadow-md"
                 onClick={() =>
                   router.push(`/canvas?id=${project.primaryCanvas.id}`)
                 }
@@ -299,7 +299,7 @@ export default function HomePage() {
                   <Trash2 size={14} />
                 </button>
                 {/* Thumbnail */}
-                <div className="aspect-[395/227] w-full overflow-hidden rounded-lg bg-[#0C0C0D]/[0.04]">
+                <div className="aspect-[395/227] w-full overflow-hidden rounded-lg bg-muted">
                   {project.thumbnailUrl && (
                     <img
                       src={project.thumbnailUrl}
@@ -314,11 +314,11 @@ export default function HomePage() {
                 </div>
                 {/* Info */}
                 <div className="mt-3 flex items-center justify-between">
-                  <div className="truncate text-sm text-[#141414]">
+                  <div className="truncate text-sm text-foreground">
                     {project.name}
                   </div>
                 </div>
-                <div className="mt-0.5 text-[11px] text-[#919191]">
+                <div className="mt-0.5 text-[11px] text-muted-foreground">
                   更新于 {formatDate(project.updatedAt)}
                 </div>
               </motion.div>

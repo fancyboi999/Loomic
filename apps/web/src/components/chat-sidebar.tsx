@@ -606,7 +606,7 @@ export function ChatSidebar({
         <button
           onClick={onToggle}
           type="button"
-          className="group inline-flex items-center gap-1 rounded-xl bg-white/80 backdrop-blur-sm border border-black/[0.06] px-2.5 py-1.5 text-xs text-[#2F3640]/60 shadow-sm hover:bg-white hover:text-[#2F3640] transition-colors cursor-pointer"
+          className="group inline-flex items-center gap-1 rounded-xl bg-card/80 backdrop-blur-sm border border-border px-2.5 py-1.5 text-xs text-foreground/60 shadow-sm hover:bg-card hover:text-foreground transition-colors cursor-pointer"
         >
           <svg className="size-3.5" viewBox="0 0 24 24" fill="none">
             <path
@@ -634,14 +634,14 @@ export function ChatSidebar({
     >
       {/* Resize handle */}
       <div
-        className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-[#D7DCE3] to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-[#BBC3CD] hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-[#9EA8B5] active:shadow-[1px_0_16px_rgba(15,23,42,0.14)]"
+        className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-border to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-muted-foreground/40 hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-muted-foreground/60 active:shadow-[1px_0_16px_rgba(15,23,42,0.14)]"
         onMouseDown={handleMouseDown}
       />
-      <div className="flex flex-1 flex-col bg-white min-w-0">
+      <div className="flex flex-1 flex-col bg-card min-w-0">
         {/* Header */}
         <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
           <div className="flex items-center gap-1 min-w-0">
-            <h2 className="text-sm font-semibold text-[#2F3640] shrink-0">Chat</h2>
+            <h2 className="text-sm font-semibold text-foreground shrink-0">Chat</h2>
             {!sessionsLoading && (
               <SessionSelector
                 sessions={sessions}
@@ -654,7 +654,7 @@ export function ChatSidebar({
           </div>
           <button
             onClick={onToggle}
-            className="rounded-md p-1.5 text-[#A4A9B2] hover:bg-[#F5F5F5] hover:text-[#2F3640] transition-colors shrink-0"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
             title="Collapse panel"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -665,9 +665,9 @@ export function ChatSidebar({
 
         {/* Disconnected banner */}
         {!ws.connected && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-[#F5F5F5] border-b border-black/[0.04]">
+          <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
             <div className="h-2 w-2 rounded-full bg-red-500 animate-[pulse_1.2s_ease-in-out_infinite]" />
-            <span className="text-[11px] text-[#A4A9B2]">连接已断开，正在重连...</span>
+            <span className="text-[11px] text-muted-foreground">连接已断开，正在重连...</span>
           </div>
         )}
 
@@ -675,7 +675,7 @@ export function ChatSidebar({
         <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
           {sessionsLoading ? (
             <div className="flex h-full items-center justify-center">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E3E3] border-t-[#2F3640]" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
             </div>
           ) : messages.length === 0 ? (
             <ChatSkills onSend={handleSend} />

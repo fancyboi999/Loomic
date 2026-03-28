@@ -163,7 +163,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   return (
     <div className="px-2 pb-2">
       <div
-        className="flex min-h-[120px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-2 transition-[border] focus-within:border-[#C0C0C0]"
+        className="flex min-h-[120px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-border bg-card p-2 transition-[border] focus-within:border-border"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
@@ -184,7 +184,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           placeholder='Start with an idea, or type "@" to mention'
           rows={1}
           style={{ scrollbarWidth: "none" }}
-          className="min-h-[48px] max-h-60 resize-none bg-transparent px-1 text-sm leading-[1.8] text-[#141414] placeholder:text-[#A4A9B2] focus:outline-none [&::-webkit-scrollbar]:hidden"
+          className="min-h-[48px] max-h-60 resize-none bg-transparent px-1 text-sm leading-[1.8] text-foreground placeholder:text-muted-foreground focus:outline-none [&::-webkit-scrollbar]:hidden"
         />
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -201,7 +201,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[#A4A9B2] transition-colors hover:bg-black/[0.04] hover:text-[#525252]"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Attach images"
                 >
                   <svg
@@ -223,8 +223,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 title="Image model"
                 className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
                   preference.mode === "manual"
-                    ? "bg-[#0C0C0D] text-white"
-                    : "text-[#A4A9B2] hover:bg-black/[0.04] hover:text-[#525252]"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <svg className="h-[14px] w-[14px]" viewBox="0 0 24 24" fill="currentColor">
@@ -241,7 +241,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           <button
             onClick={handleSubmit}
             disabled={disabled || !hasContent || isUploading}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0C0C0D] text-white transition-opacity hover:opacity-80 disabled:opacity-20 disabled:cursor-not-allowed"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-20 disabled:cursor-not-allowed"
           >
             <svg
               className="h-3.5 w-3.5"

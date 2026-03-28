@@ -197,7 +197,7 @@ export function ImageGeneratorPanel({
     <div
       ref={panelRef}
       style={{ left: screenX, top: screenY }}
-      className="fixed z-[100] w-[450px] rounded-xl border-[0.5px] border-[#E3E3E3] bg-white/95 p-2 shadow-[0_2px_8px_rgba(0,0,0,0.12)] backdrop-blur-lg"
+      className="fixed z-[100] w-[450px] rounded-xl border-[0.5px] border-border bg-card/95 p-2 shadow-card backdrop-blur-lg"
       onKeyDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
@@ -215,7 +215,7 @@ export function ImageGeneratorPanel({
         placeholder="今天我们要创作什么"
         disabled={loading}
         style={{ scrollbarWidth: "none" }}
-        className="min-h-[74px] max-h-[140px] w-full resize-none border-none bg-transparent p-1 text-[14px] leading-[18px] text-[#141414] placeholder:text-[#9CA3AF] focus:outline-none [&::-webkit-scrollbar]:hidden"
+        className="min-h-[74px] max-h-[140px] w-full resize-none border-none bg-transparent p-1 text-[14px] leading-[18px] text-foreground placeholder:text-muted-foreground focus:outline-none [&::-webkit-scrollbar]:hidden"
       />
 
       {error && (
@@ -233,7 +233,7 @@ export function ImageGeneratorPanel({
             <button
               type="button"
               onClick={() => setShowModelDropdown((v) => !v)}
-              className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-[#525252] transition-colors hover:bg-black/[0.04]"
+              className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted"
             >
               {currentModel?.iconUrl && (
                 <img
@@ -242,11 +242,11 @@ export function ImageGeneratorPanel({
                   className="h-3.5 w-3.5 rounded-full"
                 />
               )}
-              <span className="text-[#2F3640]">
+              <span className="text-foreground">
                 {currentModel?.displayName ?? model.split("/").pop()}
               </span>
               <svg
-                className="h-3 w-3 text-[#9CA3AF]"
+                className="h-3 w-3 text-muted-foreground"
                 viewBox="0 0 12 24"
                 fill="currentColor"
               >
@@ -254,13 +254,13 @@ export function ImageGeneratorPanel({
               </svg>
             </button>
             {showModelDropdown && (
-              <div className="absolute bottom-full left-0 z-50 mb-1 max-h-[280px] w-[260px] overflow-y-auto rounded-xl border-[0.5px] border-[#E3E3E3] bg-white py-1 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+              <div className="absolute bottom-full left-0 z-50 mb-1 max-h-[280px] w-[260px] overflow-y-auto rounded-xl border-[0.5px] border-border bg-card py-1 shadow-card">
                 {models.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => handleModelChange(m.id)}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-[#F2F3F5] ${m.id === model ? "bg-[#F2F3F5]" : ""}`}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted ${m.id === model ? "bg-muted" : ""}`}
                   >
                     {m.iconUrl && (
                       <img
@@ -269,10 +269,10 @@ export function ImageGeneratorPanel({
                         className="h-3.5 w-3.5 rounded-full"
                       />
                     )}
-                    <span className="text-[#2F3640]">{m.displayName}</span>
+                    <span className="text-foreground">{m.displayName}</span>
                     {m.id === model && (
                       <svg
-                        className="ml-auto h-3 w-3 text-[#2F3640]"
+                        className="ml-auto h-3 w-3 text-foreground"
                         viewBox="0 0 14 14"
                         fill="currentColor"
                       >
@@ -315,8 +315,8 @@ export function ImageGeneratorPanel({
           <button
             type="button"
             onClick={() => refInputRef.current?.click()}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.04] ${
-              refImages.length > 0 ? "text-[#2F3640]" : "text-[#9CA3AF] hover:text-[#525252]"
+            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted ${
+              refImages.length > 0 ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
             title="Add reference image"
           >
@@ -330,12 +330,12 @@ export function ImageGeneratorPanel({
                   <img
                     src={img.dataUrl}
                     alt="ref"
-                    className="h-7 w-7 rounded object-cover border border-[#E3E3E3]"
+                    className="h-7 w-7 rounded object-cover border border-border"
                   />
                   <button
                     type="button"
                     onClick={() => setRefImages((prev) => prev.filter((r) => r.id !== img.id))}
-                    className="absolute -top-1 -right-1 hidden group-hover:flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#2F3640] text-white text-[8px]"
+                    className="absolute -top-1 -right-1 hidden group-hover:flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[8px]"
                   >
                     ×
                   </button>
@@ -352,13 +352,13 @@ export function ImageGeneratorPanel({
             <button
               type="button"
               onClick={() => setShowQualityDropdown((v) => !v)}
-              className="flex h-8 items-center gap-0.5 rounded-lg px-2 text-xs text-[#525252] transition-colors hover:bg-black/[0.04]"
+              className="flex h-8 items-center gap-0.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted"
             >
-              <span className="text-[#2F3640]">
+              <span className="text-foreground">
                 {QUALITIES.find((q) => q.value === quality)?.label ?? "2K"}
               </span>
               <svg
-                className="h-3 w-3 text-[#9CA3AF]"
+                className="h-3 w-3 text-muted-foreground"
                 viewBox="0 0 12 24"
                 fill="currentColor"
               >
@@ -366,13 +366,13 @@ export function ImageGeneratorPanel({
               </svg>
             </button>
             {showQualityDropdown && (
-              <div className="absolute bottom-full right-0 z-50 mb-1 rounded-lg border-[0.5px] border-[#E3E3E3] bg-white py-1 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+              <div className="absolute bottom-full right-0 z-50 mb-1 rounded-lg border-[0.5px] border-border bg-card py-1 shadow-card">
                 {QUALITIES.map((q) => (
                   <button
                     key={q.value}
                     type="button"
                     onClick={() => handleQualityChange(q.value)}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-[#F2F3F5] ${q.value === quality ? "bg-[#F2F3F5] text-[#2F3640]" : "text-[#525252]"}`}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-muted ${q.value === quality ? "bg-muted text-foreground" : "text-muted-foreground"}`}
                   >
                     {q.label}
                   </button>
@@ -386,11 +386,11 @@ export function ImageGeneratorPanel({
             <button
               type="button"
               onClick={() => setShowRatioDropdown((v) => !v)}
-              className="flex h-8 items-center gap-0.5 rounded-lg px-2 text-xs text-[#525252] transition-colors hover:bg-black/[0.04]"
+              className="flex h-8 items-center gap-0.5 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted"
             >
-              <span className="text-[#2F3640]">{aspectRatio}</span>
+              <span className="text-foreground">{aspectRatio}</span>
               <svg
-                className="h-3 w-3 text-[#9CA3AF]"
+                className="h-3 w-3 text-muted-foreground"
                 viewBox="0 0 12 24"
                 fill="currentColor"
               >
@@ -398,13 +398,13 @@ export function ImageGeneratorPanel({
               </svg>
             </button>
             {showRatioDropdown && (
-              <div className="absolute bottom-full right-0 z-50 mb-1 rounded-lg border-[0.5px] border-[#E3E3E3] bg-white py-1 shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+              <div className="absolute bottom-full right-0 z-50 mb-1 rounded-lg border-[0.5px] border-border bg-card py-1 shadow-card">
                 {ASPECT_RATIOS.map((r) => (
                   <button
                     key={r}
                     type="button"
                     onClick={() => handleAspectRatioChange(r)}
-                    className={`flex w-full items-center px-3 py-1.5 text-xs transition-colors hover:bg-[#F2F3F5] ${r === aspectRatio ? "bg-[#F2F3F5] text-[#2F3640]" : "text-[#525252]"}`}
+                    className={`flex w-full items-center px-3 py-1.5 text-xs transition-colors hover:bg-muted ${r === aspectRatio ? "bg-muted text-foreground" : "text-muted-foreground"}`}
                   >
                     {r}
                   </button>
@@ -418,7 +418,7 @@ export function ImageGeneratorPanel({
             type="button"
             onClick={() => void handleGenerate()}
             disabled={!prompt.trim() || loading}
-            className="flex h-8 min-w-12 items-center justify-center gap-1 rounded-full bg-[#2F3640] p-2 text-white transition-colors hover:bg-[#4A535F] disabled:cursor-not-allowed disabled:bg-[#D1D5DB]"
+            className="flex h-8 min-w-12 items-center justify-center gap-1 rounded-full bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/80 hover:accent-glow disabled:cursor-not-allowed disabled:bg-[#D1D5DB]"
           >
             {loading ? (
               <div className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white" />

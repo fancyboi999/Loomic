@@ -26,6 +26,8 @@
     --color-destructive: var(--destructive);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
+    --color-border-light: var(--border-light);
+    --color-input-border: var(--input-border);
     --color-muted-foreground: var(--muted-foreground);
     --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -60,12 +62,14 @@
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
     --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --accent: oklch(0.53 0.21 281);
+    --accent-foreground: oklch(1 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    --ring: oklch(0.53 0.21 281);
+    --border-light: oklch(0.94 0 0);
+    --input-border: oklch(0.84 0 0);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -126,6 +130,25 @@
   html {
     @apply font-sans;
     }
+}
+
+/* ── Shadow utilities ── */
+@utility shadow-subtle {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+@utility shadow-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+@utility shadow-card-hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+@utility shadow-float {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Accent glow utility ── */
+@utility accent-glow {
+  box-shadow: 0 0 20px oklch(0.53 0.21 281 / 0.15);
 }
 
 @keyframes shimmer {
@@ -240,13 +263,13 @@
 }
 .markdown-content code {
   font-size: 0.8125rem;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--color-muted);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 .markdown-content pre {
-  background-color: #f5f5f5;
+  background-color: var(--color-muted);
   border-radius: 0.5rem;
   padding: 0.75rem 1rem;
   overflow-x: auto;
@@ -259,20 +282,20 @@
   border-radius: 0;
 }
 .markdown-content blockquote {
-  border-left: 3px solid #e3e3e3;
+  border-left: 3px solid var(--color-border);
   padding-left: 0.75rem;
-  color: #6b7280;
+  color: var(--color-muted-foreground);
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
 }
 .markdown-content hr {
   border: none;
-  border-top: 1px solid #e3e3e3;
+  border-top: 1px solid var(--color-border);
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
 }
 .markdown-content a {
-  color: #2563eb;
+  color: var(--color-accent);
   text-decoration: underline;
 }
 .markdown-content table {
@@ -283,12 +306,12 @@
 }
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid #e3e3e3;
+  border: 1px solid var(--color-border);
   padding: 0.375rem 0.75rem;
   text-align: left;
 }
 .markdown-content th {
-  background-color: #f5f5f5;
+  background-color: var(--color-muted);
   font-weight: 600;
 }
 

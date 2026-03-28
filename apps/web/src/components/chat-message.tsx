@@ -235,7 +235,7 @@ function ImagePill({ src, name }: { src: string; name: string }) {
         onClick={() => setLightbox(true)}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="inline-flex h-[22px] items-center gap-1 rounded-md px-1 mx-0.5 border-[0.5px] border-[#919191] text-[#363636] hover:bg-[#0C0C0D0A] cursor-pointer align-middle"
+        className="inline-flex h-[22px] items-center gap-1 rounded-md px-1 mx-0.5 border-[0.5px] border-muted-foreground text-foreground hover:bg-muted cursor-pointer align-middle"
       >
         <span className="inline-block relative h-3.5 w-3.5 shrink-0 overflow-hidden rounded-sm">
           <img
@@ -245,7 +245,7 @@ function ImagePill({ src, name }: { src: string; name: string }) {
             className="h-full w-full object-cover"
           />
         </span>
-        <span className="max-w-[100px] truncate text-[11px] leading-none text-[#2F3640]">{name}</span>
+        <span className="max-w-[100px] truncate text-[11px] leading-none text-foreground">{name}</span>
       </span>
       {/* Hover preview — portal to body, auto direction */}
       {preview && createPortal(
@@ -261,7 +261,7 @@ function ImagePill({ src, name }: { src: string; name: string }) {
           <img
             src={src}
             alt={name}
-            className="max-h-[240px] max-w-[240px] rounded-lg border border-[#E3E3E3] object-contain bg-white shadow-xl"
+            className="max-h-[240px] max-w-[240px] rounded-lg border border-border object-contain bg-card shadow-xl"
           />
         </div>,
         document.body,
@@ -290,7 +290,7 @@ const markdownComponents: Components = {
         <ChatImage
           src={href}
           alt={typeof children === "string" ? children : "Image"}
-          className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
+          className="my-2 max-w-[280px] rounded-lg border border-border"
         />
       );
     }
@@ -305,7 +305,7 @@ const markdownComponents: Components = {
       <ChatImage
         src={src ?? ""}
         alt={alt ?? "Image"}
-        className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
+        className="my-2 max-w-[280px] rounded-lg border border-border"
       />
     );
   },
@@ -337,7 +337,7 @@ export function ChatMessage({
         className="flex w-full flex-col items-end gap-2 pl-10"
       >
         {text && (
-          <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#363636]">
+          <div className="inline-block rounded-xl bg-muted px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-foreground">
             <span className="cursor-text select-text [word-break:break-word]">{text}</span>
             {imageBlocks.length > 0 && (
               <span className="inline">
@@ -353,7 +353,7 @@ export function ChatMessage({
           </div>
         )}
         {!text && imageBlocks.length > 0 && (
-          <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5">
+          <div className="inline-block rounded-xl bg-muted px-3 py-2.5">
             {imageBlocks.map((block, idx) => (
               <ImagePill
                 key={idx}
@@ -390,18 +390,18 @@ export function ChatMessage({
       className="flex w-full flex-col gap-2 pr-10"
     >
       {showThinking && (
-        <div className="flex items-center gap-1 text-sm text-[#A4A9B2]">
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <span>思考中</span>
           <span
-            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
             style={{ animationDelay: "0ms" }}
           />
           <span
-            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
             style={{ animationDelay: "150ms" }}
           />
           <span
-            className="inline-block h-1 w-1 rounded-full bg-[#A4A9B2] animate-bounce-dot"
+            className="inline-block h-1 w-1 rounded-full bg-accent animate-bounce-dot"
             style={{ animationDelay: "300ms" }}
           />
         </div>
@@ -411,7 +411,7 @@ export function ChatMessage({
           return (
             <div
               key={idx}
-              className="markdown-content text-sm leading-[1.6] text-[#2F3640]"
+              className="markdown-content text-sm leading-[1.6] text-foreground"
             >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -420,7 +420,7 @@ export function ChatMessage({
                 {block.text}
               </ReactMarkdown>
               {isStreaming && idx === lastTextIdx && (
-                <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-[#2F3640] animate-pulse rounded-full" />
+                <span className="inline-block w-[2px] h-[14px] ml-0.5 -mb-[2px] bg-accent animate-pulse rounded-full" />
               )}
             </div>
           );
@@ -525,32 +525,32 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
   return (
     <div ref={containerRef} className="space-y-1.5">
       {/* Layer 1: Status line */}
-      <div className="flex items-center gap-1.5 text-[12px] text-[#A4A9B2]">
+      <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
         {block.status === "running" ? (
-          <div className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-[#A4A9B2]/30 border-t-[#A4A9B2]" />
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-muted-foreground/30 border-t-muted-foreground" />
         ) : (
           <svg className="h-3.5 w-3.5 text-emerald-500" viewBox="0 0 16 16" fill="currentColor">
             <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
           </svg>
         )}
-        <span className="font-medium text-[#525252]">{config.label}</span>
+        <span className="font-medium text-muted-foreground">{config.label}</span>
       </div>
 
       {/* Layer 2: Output card */}
       {showCard && (
-        <div className="rounded-xl border-[0.5px] border-[#E5E6EC] p-3">
+        <div className="rounded-xl border-[0.5px] border-border p-3">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 shrink-0 rounded-lg bg-[#F5F5F7] p-1.5 text-[#8B929D]">
+            <div className="mt-0.5 shrink-0 rounded-lg bg-muted p-1.5 text-muted-foreground">
               <ToolIcon type={config.icon} className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-[#2F3640] line-clamp-1">
+              <div className="text-sm font-semibold text-foreground line-clamp-1">
                 {cardTitle}
               </div>
               {previewLines.length > 0 && (
                 <div className="mt-0.5 space-y-px">
                   {previewLines.map((line, i) => (
-                    <div key={i} className="text-[11px] text-[#8B929D] truncate">
+                    <div key={i} className="text-[11px] text-muted-foreground truncate">
                       {line}
                     </div>
                   ))}
@@ -563,7 +563,7 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
             <button
               type="button"
               onClick={handleOpenPanel}
-              className="mt-2 flex items-center gap-0.5 text-[12px] text-[#A4A9B2] hover:text-[#525252] transition-colors cursor-pointer"
+              className="mt-2 flex items-center gap-0.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M9.78 11.78a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 0-1.06l3.5-3.5a.75.75 0 0 1 1.06 1.06L6.56 8l3.22 3.22a.75.75 0 0 1 0 1.06Z" />
@@ -627,20 +627,20 @@ function ToolDetailPanel({
         initial={{ opacity: 0, x: 24, scale: 0.97 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
         transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="fixed top-1/2 -translate-y-1/2 w-[520px] max-h-[640px] min-h-[240px] rounded-2xl bg-white shadow-lg overflow-hidden flex flex-col"
+        className="fixed top-1/2 -translate-y-1/2 w-[520px] max-h-[640px] min-h-[240px] rounded-2xl bg-card shadow-lg overflow-hidden flex flex-col"
         style={{ right: rightOffset }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 shrink-0">
           <div className="flex items-center gap-2">
-            <ToolIcon type={config.icon} className="h-4 w-4 text-[#8B929D]" />
-            <h3 className="text-sm font-semibold text-[#2F3640]">{config.label}</h3>
+            <ToolIcon type={config.icon} className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">{config.label}</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-[#A4A9B2] hover:bg-black/[0.04] hover:text-[#2F3640] transition-colors cursor-pointer"
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M18 6 6 18M6 6l12 12" />
@@ -656,7 +656,7 @@ function ToolDetailPanel({
               <button
                 type="button"
                 onClick={() => setInputExpanded((v) => !v)}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#8B929D] hover:text-[#2F3640] transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg
                   className={`h-3 w-3 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
@@ -670,11 +670,11 @@ function ToolDetailPanel({
               {inputExpanded && (
                 <div className="mt-2 space-y-1.5">
                   {Object.entries(block.input!).map(([key, value]) => (
-                    <div key={key} className="rounded-lg bg-[#F8F8FA] px-3 py-2">
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-[#A4A9B2]">
+                    <div key={key} className="rounded-lg bg-muted px-3 py-2">
+                      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         {formatParamName(key)}
                       </div>
-                      <div className="mt-0.5 text-xs text-[#2F3640] break-all whitespace-pre-wrap">
+                      <div className="mt-0.5 text-xs text-foreground break-all whitespace-pre-wrap">
                         {formatParamValue(value)}
                       </div>
                     </div>
@@ -689,8 +689,8 @@ function ToolDetailPanel({
             <ToolOutputRenderer toolName={block.toolName} output={block.output} />
           ) : block.outputSummary ? (
             <div>
-              <div className="text-xs font-medium text-[#8B929D] mb-2">输出</div>
-              <div className="rounded-lg bg-[#F8F8FA] px-3 py-2.5 text-sm leading-relaxed text-[#2F3640] whitespace-pre-wrap break-words">
+              <div className="text-xs font-medium text-muted-foreground mb-2">输出</div>
+              <div className="rounded-lg bg-muted px-3 py-2.5 text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">
                 {block.outputSummary}
               </div>
             </div>
@@ -699,7 +699,7 @@ function ToolDetailPanel({
           {/* Image artifacts */}
           {block.artifacts && block.artifacts.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-[#8B929D] mb-2">附件</div>
+              <div className="text-xs font-medium text-muted-foreground mb-2">附件</div>
               <div className="flex flex-wrap gap-2">
                 {block.artifacts.map((artifact) =>
                   artifact.type === "image" ? (
@@ -707,7 +707,7 @@ function ToolDetailPanel({
                       key={artifact.url}
                       src={artifact.url}
                       alt={artifact.title ?? "Generated image"}
-                      className="max-w-[200px] rounded-lg border border-[#E3E3E3]"
+                      className="max-w-[200px] rounded-lg border border-border"
                     />
                   ) : null,
                 )}
@@ -738,14 +738,14 @@ function ToolOutputRenderer({ toolName, output }: { toolName: string; output: Re
   if (isSimple && entries.length > 0) {
     return (
       <div>
-        <div className="text-xs font-medium text-[#8B929D] mb-2">输出</div>
+        <div className="text-xs font-medium text-muted-foreground mb-2">输出</div>
         <div className="space-y-2">
           {entries.map(([key, value]) => (
-            <div key={key} className="rounded-lg bg-[#F8F8FA] px-3 py-2">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-[#A4A9B2]">
+            <div key={key} className="rounded-lg bg-muted px-3 py-2">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {formatParamName(key)}
               </div>
-              <div className="mt-0.5 text-sm text-[#2F3640] whitespace-pre-wrap break-words">
+              <div className="mt-0.5 text-sm text-foreground whitespace-pre-wrap break-words">
                 {value === null ? "—" : String(value)}
               </div>
             </div>
@@ -758,7 +758,7 @@ function ToolOutputRenderer({ toolName, output }: { toolName: string; output: Re
   // Complex objects / arrays — formatted JSON with syntax highlighting
   return (
     <div>
-      <div className="text-xs font-medium text-[#8B929D] mb-2">输出</div>
+      <div className="text-xs font-medium text-muted-foreground mb-2">输出</div>
       <div className="rounded-xl bg-[#1E1E1E] px-4 py-3 overflow-x-auto max-h-[360px] overflow-y-auto">
         <pre className="text-[12px] leading-5 text-[#D4D4D4] whitespace-pre-wrap break-all font-mono">
           {JSON.stringify(output, null, 2)}
@@ -791,9 +791,9 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
     <div className="space-y-4">
       {data.kit_name && (
         <div>
-          <div className="text-base font-semibold text-[#2F3640]">{data.kit_name}</div>
+          <div className="text-base font-semibold text-foreground">{data.kit_name}</div>
           {data.design_guidance && (
-            <div className="mt-0.5 text-xs text-[#8B929D]">{data.design_guidance}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">{data.design_guidance}</div>
           )}
         </div>
       )}
@@ -801,15 +801,15 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
       {/* Colors */}
       {colors.length > 0 && (
         <div>
-          <div className="text-xs font-medium text-[#8B929D] mb-2">Color</div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">Color</div>
           <div className="flex flex-wrap gap-3">
             {colors.map((color, i) => (
               <div key={i} className="flex flex-col items-center gap-1.5">
                 <div
-                  className="h-16 w-16 rounded-xl border border-black/[0.06] shadow-sm"
+                  className="h-16 w-16 rounded-xl border border-border shadow-sm"
                   style={{ backgroundColor: color.hex }}
                 />
-                <span className="text-[10px] font-medium text-[#525252]">{color.hex}</span>
+                <span className="text-[10px] font-medium text-muted-foreground">{color.hex}</span>
               </div>
             ))}
           </div>
@@ -819,15 +819,15 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
       {/* Fonts */}
       {fonts.length > 0 && (
         <div>
-          <div className="text-xs font-medium text-[#8B929D] mb-2">Fonts</div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">Fonts</div>
           <div className="grid grid-cols-2 gap-2">
             {fonts.map((font, i) => (
-              <div key={i} className="rounded-xl bg-[#F5F5F7] px-3 py-3">
-                <div className="text-[10px] text-[#8B929D] mb-1">{font.name}</div>
-                <div className="text-sm text-[#2F3640]" style={{ fontFamily: font.family }}>
+              <div key={i} className="rounded-xl bg-muted px-3 py-3">
+                <div className="text-[10px] text-muted-foreground mb-1">{font.name}</div>
+                <div className="text-sm text-foreground" style={{ fontFamily: font.family }}>
                   ABCDEFGHIJKLM
                 </div>
-                <div className="text-xs text-[#2F3640] mt-0.5" style={{ fontFamily: font.family }}>
+                <div className="text-xs text-foreground mt-0.5" style={{ fontFamily: font.family }}>
                   abcdefghijklmnopqrstuvwxyz
                 </div>
               </div>
@@ -839,10 +839,10 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
       {/* Logos & Images */}
       {(logos.length > 0 || images.length > 0) && (
         <div>
-          <div className="text-xs font-medium text-[#8B929D] mb-2">Photography</div>
+          <div className="text-xs font-medium text-muted-foreground mb-2">Photography</div>
           <div className="grid grid-cols-2 gap-2">
             {logos.map((logo, i) => (
-              <div key={`logo-${i}`} className="overflow-hidden rounded-xl border border-black/[0.04]">
+              <div key={`logo-${i}`} className="overflow-hidden rounded-xl border border-border">
                 <img
                   src={logo.url}
                   alt={logo.name ?? "Logo"}
@@ -850,12 +850,12 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
                   loading="lazy"
                 />
                 {logo.name && (
-                  <div className="px-2 py-1.5 text-[10px] text-[#8B929D] truncate">{logo.name}</div>
+                  <div className="px-2 py-1.5 text-[10px] text-muted-foreground truncate">{logo.name}</div>
                 )}
               </div>
             ))}
             {images.map((img, i) => (
-              <div key={`img-${i}`} className="overflow-hidden rounded-xl border border-black/[0.04]">
+              <div key={`img-${i}`} className="overflow-hidden rounded-xl border border-border">
                 <img
                   src={img.url}
                   alt={img.name ?? "Image"}
@@ -863,7 +863,7 @@ function BrandKitOutput({ data }: { data: BrandKitData }) {
                   loading="lazy"
                 />
                 {img.name && (
-                  <div className="px-2 py-1.5 text-[10px] text-[#8B929D] truncate">{img.name}</div>
+                  <div className="px-2 py-1.5 text-[10px] text-muted-foreground truncate">{img.name}</div>
                 )}
               </div>
             ))}

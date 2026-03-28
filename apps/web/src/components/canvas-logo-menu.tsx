@@ -181,10 +181,10 @@ export function CanvasLogoMenu({
         }}
       >
         <DropdownMenuTrigger
-          className="flex items-center justify-center size-8 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm border border-black/[0.06] hover:bg-white transition-colors cursor-pointer outline-none"
+          className="flex items-center justify-center size-8 rounded-xl bg-card/80 backdrop-blur-sm shadow-sm border border-border hover:bg-card transition-colors cursor-pointer outline-none"
           aria-label="菜单"
         >
-          <LoomicLogo className="size-5 text-[#0C0C0D]" />
+          <LoomicLogo className="size-5 text-foreground" />
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" sideOffset={6} className="w-56">

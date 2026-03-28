@@ -70,7 +70,7 @@ function NavButton({
       {active && (
         <motion.span
           layoutId="sidebar-active"
-          className="absolute inset-0 rounded-full bg-black/[0.08]"
+          className="absolute inset-0 rounded-full bg-accent/10 border-l-2 border-accent"
           transition={{ type: "spring", stiffness: 350, damping: 30 }}
         />
       )}
@@ -78,7 +78,7 @@ function NavButton({
         viewBox={vb}
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
-        className={`relative h-5 w-5 ${active ? "text-black/90" : "text-black/50"}`}
+        className={`relative h-5 w-5 ${active ? "text-foreground" : "text-muted-foreground"}`}
         whileHover={{ scale: 1.15 }}
         whileTap={{ scale: 0.9 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
@@ -100,7 +100,7 @@ export function AppSidebar() {
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <aside className="flex h-screen w-[60px] flex-col items-center border-r border-black/[0.06] bg-white py-3 gap-1">
+    <aside className="flex h-screen w-[60px] flex-col items-center border-r border-border bg-card py-3 gap-1">
       {/* Logo */}
       <Link
         href="/home"

@@ -80,13 +80,13 @@ export function ImageModelPreferencePopover({
         bottom: pos.above ? window.innerHeight - pos.top : undefined,
         left: pos.left,
       }}
-      className="fixed z-[9999] w-[340px] rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+      className="fixed z-[9999] w-[340px] rounded-xl border-[0.5px] border-border bg-card p-1 shadow-card"
     >
       <div className="flex flex-col gap-3 py-2">
         {/* Header */}
         <div className="flex flex-col gap-2 px-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#2F3640]">
+            <span className="text-sm font-semibold text-foreground">
               Image Model
             </span>
             <button
@@ -96,19 +96,19 @@ export function ImageModelPreferencePopover({
               }
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 preference.mode === "auto"
-                  ? "bg-[#2F3640] text-white"
-                  : "bg-[#F2F3F5] text-[#4a535f] hover:bg-[#E5E6E8]"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  preference.mode === "auto" ? "bg-[#4ADE80]" : "bg-[#9CA3AF]"
+                  preference.mode === "auto" ? "bg-[#4ADE80]" : "bg-muted-foreground"
                 }`}
               />
               {preference.mode === "auto" ? "Auto" : "Manual"}
             </button>
           </div>
-          <span className="text-[11px] text-[#86909C]">
+          <span className="text-[11px] text-muted-foreground">
             {preference.mode === "auto"
               ? "Agent automatically selects the best model for each task"
               : "Using fixed model for all image generation"}
@@ -125,8 +125,8 @@ export function ImageModelPreferencePopover({
                 key={m.id}
                 type="button"
                 onClick={() => setModel(m.id)}
-                className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[#F2F3F5] ${
-                  selected ? "bg-[#F2F3F5]" : ""
+                className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted ${
+                  selected ? "bg-muted" : ""
                 }`}
               >
                 {m.iconUrl && (
@@ -137,16 +137,16 @@ export function ImageModelPreferencePopover({
                   />
                 )}
                 <div className="flex flex-1 flex-col">
-                  <span className="text-[13px] font-medium text-[#2F3640]">
+                  <span className="text-[13px] font-medium text-foreground">
                     {m.displayName}
                   </span>
-                  <span className="text-[11px] leading-tight text-[#4A535F]">
+                  <span className="text-[11px] leading-tight text-muted-foreground">
                     {m.description}
                   </span>
                 </div>
                 {selected && (
                   <svg
-                    className="h-3.5 w-3.5 shrink-0 text-[#2F3640]"
+                    className="h-3.5 w-3.5 shrink-0 text-foreground"
                     viewBox="0 0 14 14"
                     fill="currentColor"
                   >

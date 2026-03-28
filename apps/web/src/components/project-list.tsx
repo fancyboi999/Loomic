@@ -28,7 +28,7 @@ export function ProjectList({
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-lg font-medium text-[#141414]">项目</h1>
+        <h1 className="text-lg font-medium text-foreground">项目</h1>
       </div>
 
       {/* Card grid */}
@@ -36,13 +36,13 @@ export function ProjectList({
         {/* "+ 新建项目" card */}
         <div
           onClick={onCreateClick}
-          className="aspect-[286/208] cursor-pointer rounded-xl bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 hover:shadow-md sm:rounded-2xl"
+          className="aspect-[286/208] cursor-pointer rounded-xl bg-card p-3 shadow-card transition-all duration-300 hover:shadow-md sm:rounded-2xl"
         >
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#0C0C0D]/[0.04]">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-[#0E1014]">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-foreground">
               <path fill="currentColor" fillRule="evenodd" d="M6.417 2.917a.583.583 0 0 1 1.166 0v3.5h3.5a.583.583 0 0 1 0 1.166h-3.5v3.5a.583.583 0 1 1-1.166 0v-3.5h-3.5a.583.583 0 1 1 0-1.166h3.5z" clipRule="evenodd" />
             </svg>
-            <span className="text-sm font-semibold text-[#0E1014]">新建项目</span>
+            <span className="text-sm font-semibold text-foreground">新建项目</span>
           </div>
         </div>
 
@@ -53,8 +53,8 @@ export function ProjectList({
             onClick={() =>
               router.push(`/canvas?id=${project.primaryCanvas.id}`)
             }
-            className={`group relative aspect-[286/208] rounded-lg bg-white p-3 cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 hover:shadow-md${
-              highlightId === project.id ? " ring-2 ring-neutral-300" : ""
+            className={`group relative aspect-[286/208] rounded-lg bg-card p-3 cursor-pointer shadow-card transition-all duration-300 hover:shadow-md${
+              highlightId === project.id ? " ring-2 ring-border" : ""
             }`}
           >
             {/* Trash icon — hover reveal */}
@@ -70,7 +70,7 @@ export function ProjectList({
             </button>
 
             {/* Thumbnail */}
-            <div className="aspect-[395/227] w-full overflow-hidden rounded-lg bg-[#0C0C0D]/[0.04]">
+            <div className="aspect-[395/227] w-full overflow-hidden rounded-lg bg-muted">
               {project.thumbnailUrl && (
                 <img
                   src={project.thumbnailUrl}
@@ -85,11 +85,11 @@ export function ProjectList({
             </div>
             {/* Info */}
             <div className="mt-3 flex items-center justify-between">
-              <div className="text-sm truncate text-[#141414]">
+              <div className="text-sm truncate text-foreground">
                 {project.name}
               </div>
             </div>
-            <div className="mt-0.5 text-[11px] text-[#919191]">
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
               更新于 {formatDate(project.updatedAt)}
             </div>
           </div>
