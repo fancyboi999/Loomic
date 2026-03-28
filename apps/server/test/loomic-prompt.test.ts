@@ -18,6 +18,13 @@ describe("LOOMIC_SYSTEM_PROMPT", () => {
   });
 
   it("contains behavioral boundaries", () => {
-    expect(LOOMIC_SYSTEM_PROMPT).toContain("不要猜测");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("不是猜测补全");
+  });
+
+  it("contains image input detection instructions", () => {
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("参考图片处理");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("<input_images>");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("asset_id");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("inputImages");
   });
 });
