@@ -147,7 +147,18 @@ export async function runImageGenerate(
   input: ImageGenerateInput,
   persistImage?: PersistImageFn,
   submitImageJob?: SubmitImageJobFn,
+  attachmentMap?: Record<string, string>,
 ): Promise<ImageGenerateResult> {
+  // Resolve assetId references in inputImages to base64 data URIs
+  if (input.inputImages?.length && attachmentMap) {
+    input = {
+      ...input,
+      inputImages: input.inputImages.map((ref) =>
+        attachmentMap[ref] ?? ref,
+      ),
+    };
+  }
+
   // Job mode: submit to PGMQ and wait for worker to complete
   if (submitImageJob) {
     try {
@@ -259,11 +270,15 @@ export function createImageGenerateTool(deps?: {
     : "No models available";
 
   return tool(
-    async (input: ImageGenerateInput) => {
+    async (input: ImageGenerateInput, config) => {
+      const attachmentMap =
+        (config as any)?.configurable?.user_attachment_map as
+          Record<string, string> | undefined;
       return await runImageGenerate(
         input,
         deps?.persistImage,
         deps?.submitImageJob,
+        attachmentMap,
       );
     },
     {
