@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import { LoadingScreen } from "@/components/loading-screen";
+import { PageTransition } from "@/components/page-transition";
 
 export default function WorkspaceLayout({
   children,
@@ -33,7 +34,9 @@ export default function WorkspaceLayout({
   return (
     <div className="flex h-screen">
       <AppSidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto">
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 }

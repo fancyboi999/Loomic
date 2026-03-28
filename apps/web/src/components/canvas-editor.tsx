@@ -231,28 +231,21 @@ export function CanvasEditor({
           mimeType: "image/png",
         });
 
-        // Upload to Supabase Storage
-        const supabase = getSupabaseBrowserClient();
-        const path = `screenshots/${canvasId}/${Date.now()}.png`;
-        const { error: uploadError } = await supabase.storage
-          .from("canvases")
-          .upload(path, blob, { contentType: "image/png", upsert: false });
+        // Convert blob to base64 data URL directly (no upload needed —
+        // the image is passed inline to the model for visual understanding)
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to convert screenshot to data URL"));
+          reader.readAsDataURL(blob);
+        });
 
-        if (uploadError) {
-          throw new Error(`Upload failed: ${uploadError.message}`);
-        }
-
-        const { data: urlData } = supabase.storage
-          .from("canvases")
-          .getPublicUrl(path);
-
-        // Get dimensions from the exported blob
         const bmp = await createImageBitmap(blob);
         const width = bmp.width;
         const height = bmp.height;
         bmp.close();
 
-        return { url: urlData.publicUrl, width, height };
+        return { url: dataUrl, width, height };
       },
     );
 

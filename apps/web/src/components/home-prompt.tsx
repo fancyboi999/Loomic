@@ -10,6 +10,8 @@ import {
 
 import type { ImageAttachmentState, ReadyAttachment } from "../hooks/use-image-attachments";
 import { ImageAttachmentBar } from "./image-attachment-bar";
+import { ImageModelPreferencePopover } from "./image-model-preference";
+import { useImageModelPreference } from "../hooks/use-image-model-preference";
 
 export type HomePromptHandle = {
   /** Programmatically set the textarea value (e.g. from an example pill). */
@@ -75,6 +77,9 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
     const [value, setValue] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [modelPopoverOpen, setModelPopoverOpen] = useState(false);
+    const agentBtnRef = useRef<HTMLButtonElement>(null);
+    const { preference } = useImageModelPreference();
 
     useImperativeHandle(ref, () => ({
       fill(text: string) {
@@ -124,6 +129,21 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
       [handleSubmit],
     );
 
+    const handlePaste = useCallback(
+      (e: React.ClipboardEvent) => {
+        if (!onAddFiles) return;
+        const files = Array.from(e.clipboardData.items)
+          .filter((item) => item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter((f): f is File => f !== null);
+        if (files.length > 0) {
+          e.preventDefault();
+          onAddFiles(files);
+        }
+      },
+      [onAddFiles],
+    );
+
     const handleInput = useCallback(() => {
       const textarea = textareaRef.current;
       if (!textarea) return;
@@ -144,6 +164,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onInput={handleInput}
           placeholder="让 Loomic 帮你设计..."
           disabled={disabled}
@@ -208,25 +229,59 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-0.5">
-              {toolbarButtons.slice(1).map((btn) => (
-                <button
-                  key={btn.name}
-                  type="button"
-                  disabled
-                  title={btn.name}
-                  className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
-                >
-                  <svg
-                    className="h-[14px] w-[14px]"
-                    viewBox={btn.viewBox}
-                    fill="currentColor"
-                    role="img"
-                    aria-label={btn.name}
+              {toolbarButtons.slice(1).map((btn) => {
+                if (btn.name === "Agent") {
+                  return (
+                    <div key={btn.name} className="relative">
+                      <button
+                        ref={agentBtnRef}
+                        type="button"
+                        onClick={() => setModelPopoverOpen((prev) => !prev)}
+                        title={btn.name}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] transition-colors ${
+                          preference.mode === "manual"
+                            ? "border-[#363636] bg-[#363636] text-white"
+                            : "border-[#C4C4C4] text-[#363636] hover:bg-black/[0.04]"
+                        }`}
+                      >
+                        <svg
+                          className="h-[14px] w-[14px]"
+                          viewBox={btn.viewBox}
+                          fill="currentColor"
+                          role="img"
+                          aria-label={btn.name}
+                        >
+                          <path d={btn.path} />
+                        </svg>
+                      </button>
+                      <ImageModelPreferencePopover
+                        open={modelPopoverOpen}
+                        onClose={() => setModelPopoverOpen(false)}
+                        anchorRef={agentBtnRef}
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={btn.name}
+                    type="button"
+                    disabled
+                    title={btn.name}
+                    className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-[#C4C4C4] text-[#363636] opacity-30 transition-colors"
                   >
-                    <path d={btn.path} />
-                  </svg>
-                </button>
-              ))}
+                    <svg
+                      className="h-[14px] w-[14px]"
+                      viewBox={btn.viewBox}
+                      fill="currentColor"
+                      role="img"
+                      aria-label={btn.name}
+                    >
+                      <path d={btn.path} />
+                    </svg>
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"

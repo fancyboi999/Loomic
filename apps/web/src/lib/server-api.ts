@@ -412,6 +412,22 @@ export type GenerateImageResponse = {
   height: number;
 };
 
+export type ImageModelInfo = {
+  id: string;
+  displayName: string;
+  description: string;
+  provider: string;
+  iconUrl?: string;
+};
+
+export async function fetchImageModels(): Promise<{ models: ImageModelInfo[] }> {
+  const response = await fetch(`${getServerBaseUrl()}/api/image-models`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image models: ${response.status}`);
+  }
+  return (await response.json()) as { models: ImageModelInfo[] };
+}
+
 export async function generateImageDirect(
   accessToken: string,
   prompt: string,
