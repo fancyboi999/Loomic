@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -47,7 +48,7 @@ const SETTINGS_ITEM: NavItem = {
 };
 
 // ---------------------------------------------------------------------------
-// Reusable nav-button
+// Reusable nav-button with active indicator
 // ---------------------------------------------------------------------------
 
 function NavButton({
@@ -63,20 +64,27 @@ function NavButton({
     <Link
       href={item.href}
       title={item.label}
-      className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-        active
-          ? "bg-black/[0.08] text-black/90"
-          : "text-black/50 hover:bg-black/[0.04]"
-      }`}
+      className="relative flex h-9 w-9 items-center justify-center rounded-full"
     >
-      <svg
+      {/* Animated active background */}
+      {active && (
+        <motion.span
+          layoutId="sidebar-active"
+          className="absolute inset-0 rounded-full bg-black/[0.08]"
+          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+        />
+      )}
+      <motion.svg
         viewBox={vb}
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5"
+        className={`relative h-5 w-5 ${active ? "text-black/90" : "text-black/50"}`}
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
         <path d={item.icon} />
-      </svg>
+      </motion.svg>
     </Link>
   );
 }
@@ -99,7 +107,13 @@ export function AppSidebar() {
         title="Loomic"
         className="mb-1 flex h-9 w-9 items-center justify-center"
       >
-        <LoomicLogo className="size-7 text-black" />
+        <motion.div
+          whileHover={{ scale: 1.1, rotate: 8 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        >
+          <LoomicLogo className="size-7 text-black" />
+        </motion.div>
       </Link>
 
       {/* Top nav items */}

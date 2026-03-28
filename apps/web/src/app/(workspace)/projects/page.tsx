@@ -4,15 +4,14 @@ import type { WorkspaceSummary, ProjectSummary } from "@loomic/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { LoadingScreen } from "@/components/loading-screen";
 import { ProjectList } from "@/components/project-list";
 import { ProjectsSkeleton } from "@/components/skeletons/projects-skeleton";
+import { useCreateProject } from "@/hooks/use-create-project";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchViewer,
   fetchProjects,
-  createProject,
-  deleteProject,
   ApiAuthError,
 } from "@/lib/server-api";
 import { Button } from "@/components/ui/button";
@@ -20,12 +19,12 @@ import { Button } from "@/components/ui/button";
 export default function ProjectsPage() {
   const { session, signOut } = useAuth();
   const router = useRouter();
+  const { create: createNewProject, creating } = useCreateProject();
 
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   // Ref pattern: prevent token refresh from cascading through dependency arrays
@@ -70,27 +69,12 @@ export default function ProjectsPage() {
     loadData();
   }, [loadData]);
 
-  async function handleCreate(data: { name: string; description?: string }) {
-    const token = getToken();
-    if (!token) return;
-    const result = await createProject(token, data);
-    // Refresh list and highlight new project
-    setHighlightId(result.project.id);
-    setTimeout(() => setHighlightId(null), 3000);
-    try {
-      const updated = await fetchProjects(token);
-      setProjects(updated.projects);
-    } catch {
-      // Refresh failed but project was created -- add it manually
-      setProjects((prev) => [result.project, ...prev]);
-    }
-  }
-
-  async function handleDelete(projectId: string) {
-    const token = getToken();
-    if (!token) return;
-    await deleteProject(token, projectId);
+  const handleDeleted = useCallback((projectId: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
+  }, []);
+
+  if (creating) {
+    return <LoadingScreen />;
   }
 
   if (loadError) {
@@ -115,13 +99,8 @@ export default function ProjectsPage() {
       <ProjectList
         projects={projects}
         highlightId={highlightId}
-        onCreateClick={() => setDialogOpen(true)}
-        onDelete={handleDelete}
-      />
-      <CreateProjectDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSubmit={handleCreate}
+        onCreateClick={() => createNewProject()}
+        onDeleted={handleDeleted}
       />
     </div>
   );

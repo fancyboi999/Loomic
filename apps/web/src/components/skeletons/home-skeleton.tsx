@@ -3,20 +3,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Skeleton placeholder for the recent projects section on the home page. */
 export function HomeProjectsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {/* New project card placeholder */}
-      <div className="flex aspect-[286/208] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#E3E3E3]">
-        <span className="text-2xl text-[#E3E3E3]">+</span>
-        <Skeleton className="h-3 w-12" />
+      <div className="aspect-[286/208] rounded-xl bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)] sm:rounded-2xl">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-[#0C0C0D]/[0.04]">
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-3 w-14" />
+        </div>
       </div>
 
       {/* Project card skeletons */}
-      {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} className="overflow-hidden rounded-lg bg-white">
-          <Skeleton className="aspect-[395/227] rounded-lg" />
-          <div className="px-1 py-2 space-y-1.5">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="aspect-[286/208] rounded-lg bg-white p-3 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
+          <Skeleton className="aspect-[395/227] w-full rounded-lg" />
+          <div className="mt-3 space-y-1.5">
+            <Skeleton className="h-3.5 w-3/4" />
+            <Skeleton className="h-2.5 w-1/2" />
           </div>
         </div>
       ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { CanvasImageGenPanel } from "./canvas-image-gen-panel";
 
@@ -16,56 +16,26 @@ export function CanvasAIToolbar({
   const [activePanel, setActivePanel] = useState<"image" | "video" | null>(
     null,
   );
-  const [toolbarLeft, setToolbarLeft] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Track the Excalidraw toolbar section position and anchor AI buttons right after it
-  useEffect(() => {
-    const update = () => {
-      const section = document.querySelector(".excalidraw section");
-      const parent = containerRef.current?.parentElement;
-      if (!section || !parent) return;
-      const sectionRect = section.getBoundingClientRect();
-      const parentRect = parent.getBoundingClientRect();
-      setToolbarLeft(sectionRect.right - parentRect.left + 8);
-    };
-
-    update();
-    const observer = new ResizeObserver(update);
-    const excalidraw = document.querySelector(".excalidraw");
-    if (excalidraw) observer.observe(excalidraw);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
 
   return (
-    <div ref={containerRef}>
-      {/* AI toolbar buttons — dynamically anchored to Excalidraw toolbar's right edge */}
+    <>
+      {/* AI toolbar buttons — top-right, below the nav bar */}
       <div
-        className="absolute top-[20px] z-50 flex gap-0.5 rounded-lg bg-white p-1"
-        style={{
-          left: toolbarLeft ?? undefined,
-          visibility: toolbarLeft ? "visible" : "hidden",
-          boxShadow:
-            "rgba(0,0,0,0.17) 0px 0px 1px, rgba(0,0,0,0.08) 0px 0px 3px, rgba(0,0,0,0.05) 0px 4px 8px",
-        }}
+        className="absolute top-3 right-3 z-20 flex gap-0.5 rounded-xl p-1 bg-white/75 backdrop-blur-lg border border-black/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
       >
         <button
           onClick={() =>
             setActivePanel(activePanel === "image" ? null : "image")
           }
-          className={`flex items-center justify-center h-9 w-9 rounded-md text-sm transition-colors ${
+          className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm transition-colors cursor-pointer ${
             activePanel === "image"
               ? "bg-violet-100 text-violet-700"
-              : "text-[#1b1b1f] hover:bg-[#ececf4]"
+              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
           }`}
           title="AI Image"
         >
           <svg
-            className="h-[18px] w-[18px]"
+            className="h-4 w-4"
             viewBox="0 0 24 24"
             fill="none"
           >
@@ -80,15 +50,15 @@ export function CanvasAIToolbar({
           onClick={() =>
             setActivePanel(activePanel === "video" ? null : "video")
           }
-          className={`flex items-center justify-center h-9 w-9 rounded-md text-sm transition-colors ${
+          className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm transition-colors cursor-pointer ${
             activePanel === "video"
               ? "bg-violet-100 text-violet-700"
-              : "text-[#1b1b1f] hover:bg-[#ececf4]"
+              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
           }`}
           title="AI Video (Coming soon)"
         >
           <svg
-            className="h-[18px] w-[18px]"
+            className="h-4 w-4"
             viewBox="0 0 24 24"
             fill="none"
           >
@@ -103,10 +73,7 @@ export function CanvasAIToolbar({
 
       {/* Floating panels — anchored below the AI toolbar */}
       {activePanel === "image" && (
-        <div
-          className="absolute top-[68px] z-50"
-          style={{ left: toolbarLeft ?? undefined }}
-        >
+        <div className="absolute top-14 right-3 z-50">
           <CanvasImageGenPanel
             accessToken={accessToken}
             excalidrawApi={excalidrawApi}
@@ -115,10 +82,7 @@ export function CanvasAIToolbar({
         </div>
       )}
       {activePanel === "video" && (
-        <div
-          className="absolute top-[68px] z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4"
-          style={{ left: toolbarLeft ?? undefined }}
-        >
+        <div className="absolute top-14 right-3 z-50 w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-[#2F3640]">AI Video</h3>
             <button
@@ -137,6 +101,6 @@ export function CanvasAIToolbar({
           <p className="text-sm text-[#A4A9B2]">Coming soon</p>
         </div>
       )}
-    </div>
+    </>
   );
 }

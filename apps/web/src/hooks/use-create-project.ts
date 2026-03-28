@@ -31,6 +31,22 @@ export function useCreateProject() {
       const token = session?.access_token;
       if (!token || creating) return;
 
+      // Persist attachments in sessionStorage BEFORE window.open so the
+      // new tab's cloned sessionStorage already contains them.
+      // (sessionStorage is per-tab; new tabs get a snapshot at open time.)
+      if (opts?.attachments && opts.attachments.length > 0) {
+        try {
+          sessionStorage.setItem(
+            INITIAL_ATTACHMENTS_KEY,
+            JSON.stringify(opts.attachments),
+          );
+        } catch {
+          // sessionStorage write failure is non-fatal
+        }
+      } else {
+        sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
+      }
+
       // Open the new tab synchronously within the user gesture so the
       // browser popup-blocker doesn't intervene. We'll set the real URL
       // once the API call returns.
@@ -40,21 +56,6 @@ export function useCreateProject() {
       try {
         const result = await createProject(token, { name: "Untitled" });
         const canvasId = result.project.primaryCanvas.id;
-
-        // Persist attachments in sessionStorage so ChatSidebar can pick them
-        // up for the auto-send of initialPrompt on the canvas page.
-        if (opts?.attachments && opts.attachments.length > 0) {
-          try {
-            sessionStorage.setItem(
-              INITIAL_ATTACHMENTS_KEY,
-              JSON.stringify(opts.attachments),
-            );
-          } catch {
-            // sessionStorage write failure is non-fatal
-          }
-        } else {
-          sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
-        }
 
         const url = opts?.prompt
           ? `/canvas?id=${canvasId}&prompt=${encodeURIComponent(opts.prompt)}`

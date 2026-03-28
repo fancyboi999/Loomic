@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 
 import {
@@ -11,6 +12,7 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useToast } from "./toast";
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -23,6 +25,7 @@ export function CreateProjectDialog({
   onOpenChange,
   onSubmit,
 }: CreateProjectDialogProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,6 +47,7 @@ export function CreateProjectDialog({
       }
       await onSubmit(payload);
       // Success -- reset and close
+      toastSuccess("项目创建成功");
       setName("");
       setDescription("");
       onOpenChange(false);
@@ -54,9 +58,11 @@ export function CreateProjectDialog({
           setError("A project with this name already exists. Try a different name.");
         } else {
           setError("Failed to create project. Please try again.");
+          toastError("项目创建失败");
         }
       } else {
         setError("Failed to create project. Please try again.");
+        toastError("项目创建失败");
       }
     } finally {
       setLoading(false);
@@ -98,11 +104,20 @@ export function CreateProjectDialog({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden text-sm text-destructive"
+                role="alert"
+              >
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
           <div className="flex justify-end gap-2">
             <Button
               type="button"

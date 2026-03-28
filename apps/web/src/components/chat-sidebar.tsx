@@ -576,9 +576,10 @@ export function ChatSidebar({
   // Auto-send initial prompt from Home page (once, after sessions load AND WS connects).
   // Reads any attachments stored in sessionStorage by useCreateProject and
   // clears them immediately so they are consumed exactly once.
+  // Uses setTimeout(0) so StrictMode cleanup can cancel the send before it
+  // fires on the first (doomed) mount — the real send happens on the second mount.
   useEffect(() => {
     if (!initialPrompt || sessionsLoading || !ws.connected || initialPromptSent.current) return;
-    initialPromptSent.current = true;
 
     let storedAttachments: ReadyAttachment[] | undefined;
     try {
@@ -591,7 +592,12 @@ export function ChatSidebar({
       // Malformed JSON or unavailable storage — proceed without attachments
     }
 
-    void handleSend(initialPrompt, storedAttachments);
+    const timer = setTimeout(() => {
+      initialPromptSent.current = true;
+      void handleSend(initialPrompt, storedAttachments);
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [initialPrompt, sessionsLoading, ws.connected, handleSend]);
 
   if (!open) {
