@@ -16,6 +16,7 @@ import { EditableProjectName } from "../../components/editable-project-name";
 import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
 import { BrandKitSelector } from "../../components/brand-kit-selector";
+import { CanvasBottomBar } from "../../components/canvas-bottom-bar";
 
 function CanvasPageContent() {
   const searchParams = useSearchParams();
@@ -221,6 +222,7 @@ function CanvasPageContent() {
           excalidrawApi={excalidrawApi}
           onOpenChat={() => setChatOpen(true)}
         />
+        <CanvasBottomBar excalidrawApi={excalidrawApi} />
       </div>
       <ChatSidebar
         accessToken={accessToken}

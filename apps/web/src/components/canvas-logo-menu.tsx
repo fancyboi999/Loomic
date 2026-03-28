@@ -10,8 +10,6 @@ import {
   Redo2,
   Trash2,
   Undo2,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -264,32 +262,6 @@ export function CanvasLogoMenu({
             <DropdownMenuItem onClick={() => excalidrawApi?.scrollToContent()}>
               <Maximize2 className="size-4" />
               显示画布所有元素
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (!excalidrawApi) return;
-                const z = excalidrawApi.getAppState().zoom.value;
-                excalidrawApi.updateScene({
-                  appState: { zoom: { value: Math.min(z * 1.1, 30) } },
-                });
-              }}
-            >
-              <ZoomIn className="size-4" />
-              放大
-              <DropdownMenuShortcut>⌘+</DropdownMenuShortcut>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (!excalidrawApi) return;
-                const z = excalidrawApi.getAppState().zoom.value;
-                excalidrawApi.updateScene({
-                  appState: { zoom: { value: Math.max(z / 1.1, 0.1) } },
-                });
-              }}
-            >
-              <ZoomOut className="size-4" />
-              缩小
-              <DropdownMenuShortcut>⌘-</DropdownMenuShortcut>
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
