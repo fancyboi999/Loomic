@@ -1,7 +1,10 @@
 const defaultServerBaseUrl = "http://localhost:3001";
 
 export function getServerBaseUrl() {
-  return resolveServerBaseUrl(process.env);
+  // Must access process.env.NEXT_PUBLIC_* directly — webpack DefinePlugin
+  // only replaces direct references, not indirect access via a variable.
+  const configuredUrl = process.env.NEXT_PUBLIC_SERVER_BASE_URL?.trim();
+  return configuredUrl || defaultServerBaseUrl;
 }
 
 export type WebEnv = {
@@ -10,28 +13,25 @@ export type WebEnv = {
   supabaseUrl: string;
 };
 
-export function loadWebEnv(
-  overrides: Partial<WebEnv> = {},
-  source: NodeJS.ProcessEnv = process.env,
-): WebEnv {
+export function loadWebEnv(overrides: Partial<WebEnv> = {}): WebEnv {
   return {
-    serverBaseUrl: overrides.serverBaseUrl ?? resolveServerBaseUrl(source),
+    serverBaseUrl: overrides.serverBaseUrl ?? getServerBaseUrl(),
     supabaseUrl:
       overrides.supabaseUrl ??
-      parseRequiredBrowserEnv(
+      requireEnv(
         "NEXT_PUBLIC_SUPABASE_URL",
-        source.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
       ),
     supabaseAnonKey:
       overrides.supabaseAnonKey ??
-      parseRequiredBrowserEnv(
+      requireEnv(
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-        source.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       ),
   };
 }
 
-function parseRequiredBrowserEnv(name: string, value: string | undefined) {
+function requireEnv(name: string, value: string | undefined) {
   const normalizedValue = value?.trim();
 
   if (!normalizedValue) {
@@ -39,9 +39,4 @@ function parseRequiredBrowserEnv(name: string, value: string | undefined) {
   }
 
   return normalizedValue;
-}
-
-function resolveServerBaseUrl(source: NodeJS.ProcessEnv) {
-  const configuredUrl = source.NEXT_PUBLIC_SERVER_BASE_URL?.trim();
-  return configuredUrl || defaultServerBaseUrl;
 }

@@ -32,7 +32,7 @@ const fadeUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { delay: i * 0.1, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
   }),
 };
 
@@ -108,6 +108,7 @@ export default function HomePage() {
     attachments: imageAttachments,
     addFiles,
     removeAttachment,
+    clearAll: clearAttachments,
     isUploading,
     readyAttachments,
   } = useImageAttachments(session?.access_token ?? "");
@@ -152,12 +153,14 @@ export default function HomePage() {
   // Prompt submit → create project → navigate to canvas
   // -----------------------------------------------------------------------
   const handlePromptSubmit = useCallback(
-    (prompt: string, attachments?: ReadyAttachment[]) =>
+    (prompt: string, attachments?: ReadyAttachment[]) => {
+      clearAttachments();
       createNewProject({
         prompt,
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
-      }),
-    [createNewProject],
+      });
+    },
+    [createNewProject, clearAttachments],
   );
 
   // -----------------------------------------------------------------------
@@ -303,6 +306,9 @@ export default function HomePage() {
                       alt=""
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                       loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   )}
                 </div>
