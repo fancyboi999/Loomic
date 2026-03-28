@@ -26,6 +26,41 @@ import {
 import type { AgentPersistenceService } from "./persistence/index.js";
 import { adaptDeepAgentStream } from "./stream-adapter.js";
 
+/**
+ * Build the text portion of a user message, appending <input_images> XML
+ * tags when attachments are present so the LLM can reference them by assetId.
+ */
+export function buildUserMessage(
+  prompt: string,
+  attachments: Array<{ assetId: string; url: string; mimeType: string }>,
+): { text: string } {
+  if (!attachments.length) return { text: prompt };
+
+  const imageXml = attachments
+    .map(
+      (a, i) =>
+        `<image index="${i + 1}" asset_id="${a.assetId}" mime_type="${a.mimeType}" />`,
+    )
+    .join("\n  ");
+
+  const xml = `\n\n<input_images count="${attachments.length}">\n  ${imageXml}\n</input_images>`;
+  return { text: prompt + xml };
+}
+
+/**
+ * Build a lookup map from assetId to base64 data URI.
+ * Stored in configurable so tools can resolve assetId references.
+ */
+export function buildAttachmentDataMap(
+  downloaded: Array<{ assetId: string; mimeType: string; base64: string }>,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const d of downloaded) {
+    map[d.assetId] = `data:${d.mimeType};base64,${d.base64}`;
+  }
+  return map;
+}
+
 type RuntimeRunStatus =
   | "accepted"
   | "canceled"
@@ -399,24 +434,28 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       try {
         const hasAttachments = run.attachments && run.attachments.length > 0;
         let userMessage: HumanMessage;
+        let attachmentDataMap: Record<string, string> = {};
+
         if (hasAttachments) {
-          // Convert image URLs to base64 data URLs so external LLM providers
-          // (Azure, etc.) can access them — they can't reach localhost URLs.
+          // Download images and build parallel data structures:
+          // 1. imageBlocks: base64 content parts for LLM vision
+          // 2. downloaded: assetId → base64 mapping for tool resolution
+          const downloaded: Array<{ assetId: string; mimeType: string; base64: string }> = [];
           const imageBlocks = await Promise.all(
             run.attachments!.map(async (a) => {
               try {
                 const res = await fetch(a.url);
                 const buf = Buffer.from(await res.arrayBuffer());
                 const mime = a.mimeType || res.headers.get("content-type") || "image/png";
-                const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+                const b64 = buf.toString("base64");
+                downloaded.push({ assetId: a.assetId, mimeType: mime, base64: b64 });
                 return {
                   type: "image" as const,
                   source_type: "base64" as const,
-                  data: buf.toString("base64"),
+                  data: b64,
                   mime_type: mime,
                 };
               } catch {
-                // Fallback to URL if download fails (e.g. external URLs)
                 return {
                   type: "image" as const,
                   source_type: "url" as const,
@@ -426,9 +465,16 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               }
             }),
           );
+
+          // Build XML text tags for LLM to reference by assetId
+          const { text: enrichedPrompt } = buildUserMessage(run.prompt, run.attachments!);
+
+          // Build assetId → data URI map for tool-level resolution
+          attachmentDataMap = buildAttachmentDataMap(downloaded);
+
           userMessage = new HumanMessage({
             content: [
-              { type: "text" as const, text: run.prompt },
+              { type: "text" as const, text: enrichedPrompt },
               ...imageBlocks,
             ],
           });
@@ -442,13 +488,16 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             messages: [userMessage],
           },
           {
-            ...(run.threadId || run.canvasId || run.accessToken || run.userId
+            ...(run.threadId || run.canvasId || run.accessToken || run.userId || Object.keys(attachmentDataMap).length > 0
               ? {
                   configurable: {
                     ...(run.threadId ? { thread_id: run.threadId } : {}),
                     ...(run.canvasId ? { canvas_id: run.canvasId } : {}),
                     ...(run.accessToken ? { access_token: run.accessToken } : {}),
                     ...(run.userId ? { user_id: run.userId } : {}),
+                    ...(Object.keys(attachmentDataMap).length > 0
+                      ? { user_attachment_map: attachmentDataMap }
+                      : {}),
                   },
                 }
               : {}),
