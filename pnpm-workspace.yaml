@@ -7,6 +7,5 @@ ignoredBuiltDependencies:
   - msw
 
 onlyBuiltDependencies:
-  - electron
   - esbuild
   - sharp
