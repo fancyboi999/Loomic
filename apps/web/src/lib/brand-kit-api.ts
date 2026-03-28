@@ -179,8 +179,8 @@ export async function uploadBrandKitAsset(
   file: File,
 ): Promise<BrandKitAssetResponse> {
   const formData = new FormData();
-  formData.append("file", file);
   formData.append("asset_type", assetType);
+  formData.append("file", file);
 
   const response = await fetch(
     `${getServerBaseUrl()}/api/brand-kits/${kitId}/assets/upload`,

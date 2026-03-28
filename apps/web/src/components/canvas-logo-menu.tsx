@@ -31,7 +31,9 @@ import {
   getViewportCenter,
   scaleToFit,
 } from "@/lib/canvas-elements";
-import { createProject, deleteProject } from "@/lib/server-api";
+import { deleteProject } from "@/lib/server-api";
+import { useToast } from "@/components/toast";
+import { useCreateProject } from "@/hooks/use-create-project";
 
 interface CanvasLogoMenuProps {
   accessToken: string;
@@ -73,18 +75,37 @@ export function CanvasLogoMenu({
   excalidrawApi,
 }: CanvasLogoMenuProps) {
   const router = useRouter();
+  const { error: toastError } = useToast();
+  const { create: createNewProject } = useCreateProject();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const handleNewProject = useCallback(async () => {
-    try {
-      const result = await createProject(accessToken, { name: "Untitled" });
-      const newCanvasId = result.project.primaryCanvas.id;
-      router.push(`/canvas?id=${newCanvasId}`);
-    } catch (err) {
-      console.warn("Failed to create project:", err);
-    }
-  }, [accessToken, router]);
+  const handleDuplicateElements = useCallback(() => {
+    if (!excalidrawApi) return;
+    const appState = excalidrawApi.getAppState();
+    const selectedIds: Record<string, boolean> =
+      appState.selectedElementIds ?? {};
+    const allElements = excalidrawApi.getSceneElements();
+    const selected = allElements.filter(
+      (el: any) => selectedIds[el.id] && !el.isDeleted,
+    );
+
+    if (!selected.length) return;
+
+    const OFFSET = 10;
+    const newSelectedIds: Record<string, boolean> = {};
+    const clones = selected.map((el: any) => {
+      const newId = generateFileId();
+      newSelectedIds[newId] = true;
+      return { ...el, id: newId, x: el.x + OFFSET, y: el.y + OFFSET };
+    });
+
+    excalidrawApi.updateScene({
+      elements: [...allElements, ...clones],
+      appState: { selectedElementIds: newSelectedIds },
+      captureUpdate: "IMMEDIATELY",
+    });
+  }, [excalidrawApi]);
 
   const handleDeleteProject = useCallback(async () => {
     if (!confirmingDelete) {
@@ -96,10 +117,11 @@ export function CanvasLogoMenu({
       router.push("/projects");
     } catch (err) {
       console.warn("Failed to delete project:", err);
+      toastError("项目删除失败");
     } finally {
       setConfirmingDelete(false);
     }
-  }, [accessToken, projectId, router, confirmingDelete]);
+  }, [accessToken, projectId, router, confirmingDelete, toastError]);
 
   const handleFileImport = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,6 +155,7 @@ export function CanvasLogoMenu({
             y,
             width: scaled.width,
             height: scaled.height,
+            title: file.name,
           });
 
           excalidrawApi.updateScene({
@@ -181,7 +204,7 @@ export function CanvasLogoMenu({
 
           {/* Group 2 — Project actions */}
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={handleNewProject}>
+            <DropdownMenuItem onClick={() => createNewProject()}>
               <Plus className="size-4" />
               新建项目
             </DropdownMenuItem>
@@ -227,12 +250,10 @@ export function CanvasLogoMenu({
               重做
               <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => dispatchKeyToExcalidraw("c", { metaKey: true })}
-            >
+            <DropdownMenuItem onClick={handleDuplicateElements}>
               <Copy className="size-4" />
               复制对象
-              <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
+              <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
@@ -245,14 +266,26 @@ export function CanvasLogoMenu({
               显示画布所有元素
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => dispatchKeyToExcalidraw("+", { metaKey: true })}
+              onClick={() => {
+                if (!excalidrawApi) return;
+                const z = excalidrawApi.getAppState().zoom.value;
+                excalidrawApi.updateScene({
+                  appState: { zoom: { value: Math.min(z * 1.1, 30) } },
+                });
+              }}
             >
               <ZoomIn className="size-4" />
               放大
               <DropdownMenuShortcut>⌘+</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => dispatchKeyToExcalidraw("-", { metaKey: true })}
+              onClick={() => {
+                if (!excalidrawApi) return;
+                const z = excalidrawApi.getAppState().zoom.value;
+                excalidrawApi.updateScene({
+                  appState: { zoom: { value: Math.max(z / 1.1, 0.1) } },
+                });
+              }}
             >
               <ZoomOut className="size-4" />
               缩小

@@ -1,12 +1,275 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ContentBlock, ToolArtifact, ToolBlock } from "@loomic/shared";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+/* ------------------------------------------------------------------ */
+/*  ImageLightbox — click-to-zoom overlay                              */
+/* ------------------------------------------------------------------ */
+
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [rotate, setRotate] = useState(0);
+  const [flipX, setFlipX] = useState(1);
+  const [flipY, setFlipY] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; origX: number; origY: number }>({
+    dragging: false, startX: 0, startY: 0, origX: 0, origY: 0,
+  });
+
+  const handleZoomIn = useCallback(() => setScale((s) => Math.min(s * 1.25, 8)), []);
+  const handleZoomOut = useCallback(() => setScale((s) => Math.max(s / 1.25, 0.25)), []);
+  const handleRotateCW = useCallback(() => setRotate((r) => r + 90), []);
+  const handleRotateCCW = useCallback(() => setRotate((r) => r - 90), []);
+  const handleFlipX = useCallback(() => setFlipX((f) => f * -1), []);
+  const handleFlipY = useCallback(() => setFlipY((f) => f * -1), []);
+  const handleReset = useCallback(() => { setScale(1); setRotate(0); setFlipX(1); setFlipY(1); setTranslate({ x: 0, y: 0 }); }, []);
+  const handleDownload = useCallback(async () => {
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = alt || "image";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(src, "_blank");
+    }
+  }, [src, alt]);
+
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "+" || e.key === "=") handleZoomIn();
+      if (e.key === "-") handleZoomOut();
+      if (e.key === "r") handleRotateCW();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose, handleZoomIn, handleZoomOut, handleRotateCW]);
+
+  // Wheel zoom — bound to overlay element to avoid being intercepted
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.deltaY < 0) setScale((s) => Math.min(s * 1.1, 8));
+      else setScale((s) => Math.max(s / 1.1, 0.25));
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (scale <= 1) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: translate.x, origY: translate.y };
+  }, [scale, translate]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d.dragging) return;
+    setTranslate({ x: d.origX + e.clientX - d.startX, y: d.origY + e.clientY - d.startY });
+  }, []);
+
+  const handlePointerUp = useCallback(() => { dragRef.current.dragging = false; }, []);
+
+  return createPortal(
+    <motion.div
+      ref={overlayRef}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      {/* Image */}
+      <div
+        className="flex-1 flex items-center justify-center w-full overflow-hidden"
+        onClick={onClose}
+      >
+        <img
+          draggable
+          src={src}
+          alt={alt}
+          className="max-h-[85vh] max-w-[90vw] object-contain select-none"
+          style={{
+            transform: `translate3d(${translate.x}px, ${translate.y}px, 0) scale3d(${scale * flipX}, ${scale * flipY}, 1) rotate(${rotate}deg)`,
+            transition: dragRef.current.dragging ? "none" : "transform 0.2s ease",
+            cursor: scale > 1 ? "grab" : "default",
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        />
+      </div>
+
+      {/* Close button — top right */}
+      <button
+        type="button"
+        title="关闭 (Esc)"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-md transition-colors hover:bg-black/60 hover:text-white"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Toolbar */}
+      <div
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-1.5 backdrop-blur-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <LightboxBtn title="缩小 (-)" onClick={handleZoomOut}>
+          <path d="M5 12h14" />
+        </LightboxBtn>
+        <span className="min-w-[42px] text-center text-xs text-white/80 select-none">
+          {Math.round(scale * 100)}%
+        </span>
+        <LightboxBtn title="放大 (+)" onClick={handleZoomIn}>
+          <path d="M12 5v14M5 12h14" />
+        </LightboxBtn>
+        <div className="mx-1 h-4 w-px bg-white/20" />
+        <LightboxBtn title="左右翻转" onClick={handleFlipX}>
+          <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3" />
+          <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" />
+          <path d="M12 20V4" />
+        </LightboxBtn>
+        <LightboxBtn title="上下翻转" onClick={handleFlipY}>
+          <path d="M3 8V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3" />
+          <path d="M3 16v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
+          <path d="M4 12h16" />
+        </LightboxBtn>
+        <div className="mx-1 h-4 w-px bg-white/20" />
+        <LightboxBtn title="逆时针旋转" onClick={handleRotateCCW}>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8" />
+          <path d="M3 3v5h5" />
+        </LightboxBtn>
+        <LightboxBtn title="顺时针旋转 (R)" onClick={handleRotateCW}>
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </LightboxBtn>
+        <div className="mx-1 h-4 w-px bg-white/20" />
+        <LightboxBtn title="重置" onClick={handleReset}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </LightboxBtn>
+        <LightboxBtn title="下载" onClick={handleDownload}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </LightboxBtn>
+      </div>
+    </motion.div>,
+    document.body,
+  );
+}
+
+function LightboxBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="flex h-8 w-8 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+    >
+      <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        {children}
+      </svg>
+    </button>
+  );
+}
+
+/** Clickable image thumbnail that opens a lightbox on click. */
+function ChatImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        className={`${className} cursor-zoom-in`}
+        loading="lazy"
+        onClick={() => setOpen(true)}
+      />
+      {open && <ImageLightbox src={src} alt={alt} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** Inline pill for user-attached images — compact, hover preview, click lightbox. */
+function ImagePill({ src, name }: { src: string; name: string }) {
+  const [lightbox, setLightbox] = useState(false);
+  const [preview, setPreview] = useState<{ x: number; y: number; above: boolean } | null>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!pillRef.current) return;
+    const rect = pillRef.current.getBoundingClientRect();
+    const above = rect.top > 260;
+    setPreview({
+      x: rect.left + rect.width / 2,
+      y: above ? rect.top - 8 : rect.bottom + 8,
+      above,
+    });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => setPreview(null), []);
+
+  return (
+    <>
+      <span
+        ref={pillRef}
+        onClick={() => setLightbox(true)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="inline-flex h-[22px] items-center gap-1 rounded-md px-1 mx-0.5 border-[0.5px] border-[#919191] text-[#363636] hover:bg-[#0C0C0D0A] cursor-pointer align-middle"
+      >
+        <span className="inline-block relative h-3.5 w-3.5 shrink-0 overflow-hidden rounded-sm">
+          <img
+            src={src}
+            alt={name}
+            draggable={false}
+            className="h-full w-full object-cover"
+          />
+        </span>
+        <span className="max-w-[100px] truncate text-[11px] leading-none text-[#2F3640]">{name}</span>
+      </span>
+      {/* Hover preview — portal to body, auto direction */}
+      {preview && createPortal(
+        <div
+          className="pointer-events-none fixed z-[1500]"
+          style={{
+            left: preview.x,
+            top: preview.above ? preview.y : undefined,
+            bottom: preview.above ? undefined : `${window.innerHeight - preview.y}px`,
+            transform: preview.above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+          }}
+        >
+          <img
+            src={src}
+            alt={name}
+            className="max-h-[240px] max-w-[240px] rounded-lg border border-[#E3E3E3] object-contain bg-white shadow-xl"
+          />
+        </div>,
+        document.body,
+      )}
+      {lightbox && <ImageLightbox src={src} alt={name} onClose={() => setLightbox(false)} />}
+    </>
+  );
+}
 
 export type { ContentBlock, ToolArtifact };
 
@@ -24,11 +287,10 @@ const markdownComponents: Components = {
   a({ href, children }) {
     if (href && isImageUrl(href)) {
       return (
-        <img
+        <ChatImage
           src={href}
           alt={typeof children === "string" ? children : "Image"}
           className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
-          loading="lazy"
         />
       );
     }
@@ -40,11 +302,10 @@ const markdownComponents: Components = {
   },
   img({ src, alt }) {
     return (
-      <img
-        src={src}
+      <ChatImage
+        src={src ?? ""}
         alt={alt ?? "Image"}
         className="my-2 max-w-[280px] rounded-lg border border-[#E3E3E3]"
-        loading="lazy"
       />
     );
   },
@@ -75,30 +336,31 @@ export function ChatMessage({
         transition={{ duration: 0.3, ease: "easeOut" }}
         className="flex w-full flex-col items-end gap-2 pl-10"
       >
-        {imageBlocks.length > 0 && (
-          <div className="flex flex-wrap justify-end gap-1.5">
-            {imageBlocks.map((block, idx) => (
-              <img
-                key={idx}
-                src={(block as { url: string }).url}
-                alt="Attached image"
-                className="h-20 w-20 rounded-lg border border-[#E3E3E3] object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  img.style.display = "none";
-                  const fallback = document.createElement("div");
-                  fallback.className = "flex h-20 w-20 items-center justify-center rounded-lg border border-[#E3E3E3] bg-[#F7F7F7] text-[10px] text-[#A4A9B2]";
-                  fallback.textContent = "Failed";
-                  img.parentElement?.insertBefore(fallback, img.nextSibling);
-                }}
-              />
-            ))}
-          </div>
-        )}
         {text && (
           <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#363636]">
-            {text}
+            <span className="cursor-text select-text [word-break:break-word]">{text}</span>
+            {imageBlocks.length > 0 && (
+              <span className="inline">
+                {imageBlocks.map((block, idx) => (
+                  <ImagePill
+                    key={idx}
+                    src={(block as { url: string }).url}
+                    name={`image-${idx + 1}`}
+                  />
+                ))}
+              </span>
+            )}
+          </div>
+        )}
+        {!text && imageBlocks.length > 0 && (
+          <div className="inline-block rounded-xl bg-[#F7F7F7] px-3 py-2.5">
+            {imageBlocks.map((block, idx) => (
+              <ImagePill
+                key={idx}
+                src={(block as { url: string }).url}
+                name={`image-${idx + 1}`}
+              />
+            ))}
           </div>
         )}
       </motion.div>
@@ -441,12 +703,11 @@ function ToolDetailPanel({
               <div className="flex flex-wrap gap-2">
                 {block.artifacts.map((artifact) =>
                   artifact.type === "image" ? (
-                    <img
+                    <ChatImage
                       key={artifact.url}
                       src={artifact.url}
                       alt={artifact.title ?? "Generated image"}
                       className="max-w-[200px] rounded-lg border border-[#E3E3E3]"
-                      loading="lazy"
                     />
                   ) : null,
                 )}

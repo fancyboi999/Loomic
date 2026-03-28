@@ -445,8 +445,12 @@ export function ChatSidebar({
         // ── Performance timing ──
         const perf = { t0Send: performance.now(), tAck: 0, tFirstToken: 0, gotFirstToken: false };
 
-        // Start run via WebSocket
-        const runId = await new Promise<string>((resolve) => {
+        // Start run via WebSocket (with timeout to prevent hanging forever)
+        const runId = await new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("WebSocket ack timeout — connection may be down"));
+          }, 10_000);
+
           ws.startRun(
             {
               sessionId: currentSessionId,
@@ -462,6 +466,7 @@ export function ChatSidebar({
                 : {}),
             },
             (ack) => {
+              clearTimeout(timeout);
               perf.tAck = performance.now();
               console.log(`[perf] send → ack: ${(perf.tAck - perf.t0Send).toFixed(0)}ms`);
               resolve(ack.payload.runId as string);
@@ -568,11 +573,11 @@ export function ChatSidebar({
     [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments, ws],
   );
 
-  // Auto-send initial prompt from Home page (once, after sessions load).
+  // Auto-send initial prompt from Home page (once, after sessions load AND WS connects).
   // Reads any attachments stored in sessionStorage by useCreateProject and
   // clears them immediately so they are consumed exactly once.
   useEffect(() => {
-    if (!initialPrompt || sessionsLoading || initialPromptSent.current) return;
+    if (!initialPrompt || sessionsLoading || !ws.connected || initialPromptSent.current) return;
     initialPromptSent.current = true;
 
     let storedAttachments: ReadyAttachment[] | undefined;
@@ -587,7 +592,7 @@ export function ChatSidebar({
     }
 
     void handleSend(initialPrompt, storedAttachments);
-  }, [initialPrompt, sessionsLoading, handleSend]);
+  }, [initialPrompt, sessionsLoading, ws.connected, handleSend]);
 
   if (!open) {
     return (
@@ -616,6 +621,9 @@ export function ChatSidebar({
       style={{ width: sidebarWidth }}
       onKeyDown={(e) => e.stopPropagation()}
       onKeyUp={(e) => e.stopPropagation()}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
       {/* Resize handle */}

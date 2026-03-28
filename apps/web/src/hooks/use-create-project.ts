@@ -31,6 +31,11 @@ export function useCreateProject() {
       const token = session?.access_token;
       if (!token || creating) return;
 
+      // Open the new tab synchronously within the user gesture so the
+      // browser popup-blocker doesn't intervene. We'll set the real URL
+      // once the API call returns.
+      const newTab = window.open("about:blank", "_blank");
+
       setCreating(true);
       try {
         const result = await createProject(token, { name: "Untitled" });
@@ -54,8 +59,17 @@ export function useCreateProject() {
         const url = opts?.prompt
           ? `/canvas?id=${canvasId}&prompt=${encodeURIComponent(opts.prompt)}`
           : `/canvas?id=${canvasId}`;
-        routerRef.current.push(url);
+
+        if (newTab) {
+          newTab.location.href = url;
+        } else {
+          // Popup was blocked despite sync open — fallback to in-page navigation
+          routerRef.current.push(url);
+        }
+        setCreating(false);
       } catch (err) {
+        // Close the blank tab on failure
+        newTab?.close();
         if (err instanceof ApiAuthError) {
           await signOutRef.current();
           routerRef.current.replace("/login");

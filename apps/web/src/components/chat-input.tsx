@@ -1,9 +1,11 @@
 "use client";
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import type { ImageAttachmentState } from "../hooks/use-image-attachments";
+import { useImageModelPreference } from "../hooks/use-image-model-preference";
 import { ImageAttachmentBar } from "./image-attachment-bar";
+import { ImageModelPreferencePopover } from "./image-model-preference";
 
 type ChatInputProps = {
   onSend: (message: string) => void;
@@ -34,6 +36,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { preference } = useImageModelPreference();
+  const [modelPopoverOpen, setModelPopoverOpen] = useState(false);
+  const modelBtnRef = useRef<HTMLButtonElement>(null);
 
   useImperativeHandle(ref, () => ({
     clearAtQuery() {
@@ -65,13 +70,15 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     [handleSubmit],
   );
 
-  const handleInput = useCallback(() => {
+  // Auto-resize textarea when value changes
+  useEffect(() => {
     const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
-  }, []);
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const maxH = 240; // max-h-60
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxH)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxH ? "auto" : "hidden";
+  }, [value]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -136,12 +143,27 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     e.preventDefault();
   }, []);
 
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      if (!onAddFiles) return;
+      const files = Array.from(e.clipboardData.items)
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (files.length > 0) {
+        e.preventDefault();
+        onAddFiles(files);
+      }
+    },
+    [onAddFiles],
+  );
+
   const hasContent = value.trim().length > 0 || (attachments && attachments.length > 0);
 
   return (
     <div className="px-2 pb-2">
       <div
-        className="flex min-h-[100px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-2 transition-colors focus-within:border-[#C0C0C0]"
+        className="flex min-h-[120px] flex-col justify-between gap-2 rounded-xl border-[0.5px] border-[#E3E3E3] bg-white p-2 transition-[border] focus-within:border-[#C0C0C0]"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
@@ -158,10 +180,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onInput={handleInput}
+          onPaste={handlePaste}
           placeholder='Start with an idea, or type "@" to mention'
           rows={1}
-          className="flex-1 resize-none bg-transparent px-1 text-sm leading-[1.8] text-[#141414] placeholder:text-[#A4A9B2] focus:outline-none"
+          style={{ scrollbarWidth: "none" }}
+          className="min-h-[48px] max-h-60 resize-none bg-transparent px-1 text-sm leading-[1.8] text-[#141414] placeholder:text-[#A4A9B2] focus:outline-none [&::-webkit-scrollbar]:hidden"
         />
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -191,6 +214,29 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 </button>
               </>
             )}
+            {/* Model preference button */}
+            <div className="relative">
+              <button
+                ref={modelBtnRef}
+                type="button"
+                onClick={() => setModelPopoverOpen((prev) => !prev)}
+                title="Image model"
+                className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                  preference.mode === "manual"
+                    ? "bg-[#0C0C0D] text-white"
+                    : "text-[#A4A9B2] hover:bg-black/[0.04] hover:text-[#525252]"
+                }`}
+              >
+                <svg className="h-[14px] w-[14px]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10.8 1.307a2.33 2.33 0 0 1 2.4 0l7.67 4.602A2.33 2.33 0 0 1 22 7.907v8.361a2.33 2.33 0 0 1-1.13 1.998l-7.67 4.602-.141.078a2.33 2.33 0 0 1-2.258-.078l-7.67-4.602A2.33 2.33 0 0 1 2 16.268V7.907a2.33 2.33 0 0 1 1.003-1.915l.128-.083z" />
+                </svg>
+              </button>
+              <ImageModelPreferencePopover
+                open={modelPopoverOpen}
+                onClose={() => setModelPopoverOpen(false)}
+                anchorRef={modelBtnRef}
+              />
+            </div>
           </div>
           <button
             onClick={handleSubmit}
