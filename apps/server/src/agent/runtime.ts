@@ -398,19 +398,43 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       let stream: AsyncIterable<unknown>;
       try {
         const hasAttachments = run.attachments && run.attachments.length > 0;
-        const userMessage = hasAttachments
-          ? new HumanMessage({
-              content: [
-                { type: "text" as const, text: run.prompt },
-                ...run.attachments!.map((a) => ({
+        let userMessage: HumanMessage;
+        if (hasAttachments) {
+          // Convert image URLs to base64 data URLs so external LLM providers
+          // (Azure, etc.) can access them — they can't reach localhost URLs.
+          const imageBlocks = await Promise.all(
+            run.attachments!.map(async (a) => {
+              try {
+                const res = await fetch(a.url);
+                const buf = Buffer.from(await res.arrayBuffer());
+                const mime = a.mimeType || res.headers.get("content-type") || "image/png";
+                const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+                return {
+                  type: "image" as const,
+                  source_type: "base64" as const,
+                  data: buf.toString("base64"),
+                  mime_type: mime,
+                };
+              } catch {
+                // Fallback to URL if download fails (e.g. external URLs)
+                return {
                   type: "image" as const,
                   source_type: "url" as const,
                   url: a.url,
                   mimeType: a.mimeType,
-                })),
-              ],
-            })
-          : new HumanMessage(run.prompt);
+                };
+              }
+            }),
+          );
+          userMessage = new HumanMessage({
+            content: [
+              { type: "text" as const, text: run.prompt },
+              ...imageBlocks,
+            ],
+          });
+        } else {
+          userMessage = new HumanMessage(run.prompt);
+        }
 
         rlog.lap("stream_call_start");
         stream = agent.streamEvents(

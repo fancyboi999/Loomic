@@ -44,6 +44,11 @@ export function useWebSocket(
   const connect = useCallback(() => {
     const token = getToken();
     if (disposed.current) return;
+    // Skip if already connected — prevents React Strict Mode double-mount
+    // from replacing an active connection mid-stream
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      return;
+    }
     // Close any existing connection before creating a new one
     if (wsRef.current) {
       wsRef.current.onclose = null; // prevent reconnect from old socket
@@ -169,13 +174,14 @@ export function useWebSocket(
   }, [connect]);
 
   const sendCommand = useCallback(
-    (action: string, payload: Record<string, unknown>) => {
+    (action: string, payload: Record<string, unknown>): boolean => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.warn("[ws] command queued — waiting for connection, readyState:", ws?.readyState);
-        return;
+        console.warn("[ws] command dropped — not connected, readyState:", ws?.readyState);
+        return false;
       }
       ws.send(JSON.stringify({ type: "command", action, payload }));
+      return true;
     },
     [],
   );
@@ -188,10 +194,14 @@ export function useWebSocket(
       if (onAck) {
         ackListeners.current.set("agent.run", onAck);
       }
-      sendCommand(
+      const sent = sendCommand(
         "agent.run",
         payload as unknown as Record<string, unknown>,
       );
+      if (!sent) {
+        // Remove the dangling ack listener so callers don't hang forever
+        ackListeners.current.delete("agent.run");
+      }
     },
     [sendCommand],
   );

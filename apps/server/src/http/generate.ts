@@ -130,5 +130,5 @@ async function downloadAndUpload(
     workspaceId: viewer.workspace.id,
   });
 
-  return { signedUrl: result.signedUrl, assetId: result.asset.id };
+  return { signedUrl: result.url, assetId: result.asset.id };
 }
