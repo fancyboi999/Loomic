@@ -553,7 +553,7 @@ grant execute on function private.asset_object_project_matches_workspace(uuid, u
 
 insert into storage.buckets (id, name, public)
 values
-  ('project-assets', 'project-assets', false),
+  ('project-assets', 'project-assets', true),
   ('user-avatars', 'user-avatars', false)
 on conflict (id) do update
 set name = excluded.name,

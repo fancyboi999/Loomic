@@ -69,5 +69,8 @@ CREATE POLICY background_jobs_service_role
   TO service_role
   USING (true) WITH CHECK (true);
 
--- Create pgmq queues
+-- Enable pgmq extension (idempotent)
+CREATE EXTENSION IF NOT EXISTS pgmq;
+
+-- Create pgmq queue (idempotent — pgmq.create skips if queue already exists)
 SELECT pgmq.create('image_generation_jobs');

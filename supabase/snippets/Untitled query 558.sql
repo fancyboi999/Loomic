@@ -1,0 +1,1 @@
+SELECT * FROM pgmq.metrics_all();

@@ -59,6 +59,32 @@ pnpm dev
 | Server  | 3001 | Fastify API server |
 | Worker  | —    | Background task processor (image generation etc.) |
 
+#### Worker 启动模式
+
+默认 `pnpm dev` 启动 1 个 server + 1 个 worker。每个 worker 默认并发处理 3 个 job。
+
+如需更高吞吐，可启动多个 worker 实例（PGMQ 原子读取保证不会重复消费）：
+
+```bash
+# 1 server + 1 worker（默认，并发 3 job）
+pnpm dev
+
+# 仅启动 worker（可在多个终端分别运行）
+pnpm --filter @loomic/server dev:worker
+
+# 快捷启动多 worker 实例
+pnpm --filter @loomic/server dev:workers:2   # 2 worker（并发 6 job）
+pnpm --filter @loomic/server dev:workers:3   # 3 worker（并发 9 job）
+```
+
+Worker 环境变量：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `WORKER_CONCURRENCY` | `3` | 单个 worker 实例并发处理的 job 数 |
+| `WORKER_ID` | 随机 8 位 | worker 实例标识，用于日志区分 |
+| `WORKER_POLL_INTERVAL_MS` | `2000` | 轮询队列间隔（毫秒） |
+
 ### Build
 
 ```bash

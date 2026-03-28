@@ -315,7 +315,7 @@ grant execute on function private.is_project_admin_or_owner(uuid) to authenticat
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
-  ('project-assets', 'project-assets', false, 52428800, null),
+  ('project-assets', 'project-assets', true, 52428800, null),
   (
     'user-avatars',
     'user-avatars',
