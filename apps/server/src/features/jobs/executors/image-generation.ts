@@ -1,5 +1,6 @@
 import { registerExecutor, type ExecutorContext } from "../job-executor.js";
 import { generateImage } from "../../../generation/image-generation.js";
+import { resolveImageProviderName } from "../../../generation/providers/registry.js";
 
 registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorContext) => {
   // Read the full job row including payload from the database.
@@ -27,12 +28,9 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
   const createdBy: string | null = jobRow.created_by ?? null;
   const workspaceId: string = jobRow.workspace_id ?? jobId;
 
-  // Resolve provider and model
-  // All models in REPLICATE_IMAGE_MODELS use the format "creator/model-name"
-  // (e.g. "google/nano-banana-pro", "black-forest-labs/flux-kontext-pro")
-  // which are Replicate model IDs — the provider is always "replicate".
-  const providerName = "replicate";
+  // Resolve provider dynamically from model ID via registry
   const model = payload.model ?? "black-forest-labs/flux-kontext-pro";
+  const providerName = resolveImageProviderName(model);
 
   const heartbeatTimer = setInterval(() => {
     // Best-effort heartbeat placeholder — VT extension requires msg_id not
@@ -45,6 +43,7 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
       prompt: payload.prompt,
       model,
       ...(payload.aspect_ratio !== undefined ? { aspectRatio: payload.aspect_ratio } : {}),
+      ...(payload.input_images?.length ? { inputImages: payload.input_images } : {}),
     });
 
     // Download the generated image from the provider CDN
