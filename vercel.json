@@ -1,0 +1,9 @@
+{
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @loomic/shared build && pnpm --filter @loomic/web build",
+  "outputDirectory": "apps/web/out",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/((?!_next|favicon|logo|og-image|apple-touch-icon).*)", "destination": "/index.html" }
+  ]
+}
