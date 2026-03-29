@@ -247,15 +247,15 @@ async function handleRunCommand(
     }
   }
 
-  // Send ack
-  socket.send(
-    JSON.stringify({
-      type: "command.ack",
-      action: "agent.run",
-      payload: response,
-    }),
-  );
-  log.lap("ack_sent", { runId });
+  // Send ack via connectionManager so it reaches the user's LATEST connection.
+  // The original socket may have been replaced if the client reconnected
+  // between sending the command and receiving this ack.
+  const ackSent = connectionManager.send(userId, {
+    type: "command.ack",
+    action: "agent.run",
+    payload: response,
+  });
+  log.lap("ack_sent", { runId, delivered: ackSent });
 
   // Stream events via WS push
   try {

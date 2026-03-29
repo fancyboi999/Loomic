@@ -34,6 +34,14 @@ export class ConnectionManager {
     ws.send(JSON.stringify({ type: "event", event }));
   }
 
+  /** Send a raw JSON message to the user's latest connection. */
+  send(userId: string, message: Record<string, unknown>): boolean {
+    const ws = this.connections.get(userId);
+    if (!ws || ws.readyState !== 1) return false;
+    ws.send(JSON.stringify(message));
+    return true;
+  }
+
   async rpc<T = unknown>(
     userId: string,
     method: string,
