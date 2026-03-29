@@ -67,6 +67,57 @@ describe("@loomic/shared contracts", () => {
     expect(result.attachments![0].assetId).toBe("asset-123");
   });
 
+  it("accepts optional image generation preference in run creation", () => {
+    const result = runCreateRequestSchema.parse({
+      sessionId: "session-1",
+      conversationId: "conv-1",
+      prompt: "Generate a campaign key visual",
+      imageGenerationPreference: {
+        mode: "manual",
+        models: [
+          "google/nano-banana-2",
+          "black-forest-labs/flux-kontext-pro",
+        ],
+      },
+    });
+
+    expect(result.imageGenerationPreference?.mode).toBe("manual");
+    expect(result.imageGenerationPreference?.models).toEqual([
+      "google/nano-banana-2",
+      "black-forest-labs/flux-kontext-pro",
+    ]);
+  });
+
+  it("accepts optional mentions in run creation", () => {
+    const result = runCreateRequestSchema.parse({
+      sessionId: "session-1",
+      conversationId: "conv-1",
+      prompt: "参考品牌资产生成一张海报",
+      mentions: [
+        {
+          mentionType: "image-model",
+          id: "google/nano-banana-2",
+          label: "Nano Banana 2",
+        },
+        {
+          mentionType: "brand-kit-asset",
+          id: "brand-logo-1",
+          label: "Loomic 主 Logo",
+          assetType: "logo",
+          fileUrl: "https://example.com/logo.png",
+        },
+      ],
+    });
+
+    expect(result.mentions).toHaveLength(2);
+    expect(result.mentions?.[0]?.mentionType).toBe("image-model");
+    expect(result.mentions?.[1]).toMatchObject({
+      mentionType: "brand-kit-asset",
+      assetType: "logo",
+      fileUrl: "https://example.com/logo.png",
+    });
+  });
+
   it("accepts sessionId and conversationId for run creation", () => {
     const request = runCreateRequestSchema.parse({
       sessionId: "session_123",

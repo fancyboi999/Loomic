@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectSummary } from "@loomic/shared";
+import type { ImageGenerationPreference, ProjectSummary } from "@loomic/shared";
 import type { ReadyAttachment } from "@/hooks/use-image-attachments";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -153,11 +153,18 @@ export default function HomePage() {
   // Prompt submit → create project → navigate to canvas
   // -----------------------------------------------------------------------
   const handlePromptSubmit = useCallback(
-    (prompt: string, attachments?: ReadyAttachment[]) => {
+    (
+      prompt: string,
+      attachments?: ReadyAttachment[],
+      imageGenerationPreference?: ImageGenerationPreference,
+    ) => {
       clearAttachments();
       createNewProject({
         prompt,
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        ...(imageGenerationPreference
+          ? { imageGenerationPreference }
+          : {}),
       });
     },
     [createNewProject, clearAttachments],

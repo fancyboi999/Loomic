@@ -4,6 +4,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { HumanMessage } from "@langchain/core/messages";
 import type {
+  ImageGenerationPreference,
+  MessageMention,
   RunCancelResponse,
   RunCreateRequest,
   RunCreateResponse,
@@ -32,19 +34,101 @@ import { adaptDeepAgentStream } from "./stream-adapter.js";
  */
 export function buildUserMessage(
   prompt: string,
-  attachments: Array<{ assetId: string; url: string; mimeType: string }>,
+  attachments: Array<{
+    assetId: string;
+    url: string;
+    mimeType: string;
+    name?: string;
+  }>,
+  imageGenerationPreference?: ImageGenerationPreference,
+  mentions: MessageMention[] = [],
 ): { text: string } {
-  if (!attachments.length) return { text: prompt };
+  const xmlBlocks: string[] = [];
 
-  const imageXml = attachments
-    .map(
-      (a, i) =>
-        `<image index="${i + 1}" asset_id="${a.assetId}" mime_type="${a.mimeType}" />`,
-    )
-    .join("\n  ");
+  if (attachments.length) {
+    const imageXml = attachments
+      .map((a, i) => {
+        const nameAttr = a.name
+          ? ` name="${escapeXmlAttribute(a.name)}"`
+          : "";
+        return `<image index="${i + 1}" asset_id="${escapeXmlAttribute(a.assetId)}" mime_type="${escapeXmlAttribute(a.mimeType)}"${nameAttr} />`;
+      })
+      .join("\n  ");
 
-  const xml = `\n\n<input_images count="${attachments.length}">\n  ${imageXml}\n</input_images>`;
-  return { text: prompt + xml };
+    xmlBlocks.push(
+      `<input_images count="${attachments.length}">\n  ${imageXml}\n</input_images>`,
+    );
+  }
+
+  if (
+    imageGenerationPreference?.mode === "manual" &&
+    imageGenerationPreference.models.length > 0
+  ) {
+    const modelXml = imageGenerationPreference.models
+      .map(
+        (model, i) =>
+          `<preferred_model index="${i + 1}" id="${escapeXmlAttribute(model)}" />`,
+      )
+      .join("\n  ");
+
+    xmlBlocks.push(
+      `<human_image_generation_preference mode="manual" count="${imageGenerationPreference.models.length}">\n  ${modelXml}\n</human_image_generation_preference>`,
+    );
+  }
+
+  const mentionedModels = mentions.filter(
+    (mention): mention is Extract<MessageMention, { mentionType: "image-model" }> =>
+      mention.mentionType === "image-model",
+  );
+  if (mentionedModels.length > 0) {
+    const modelXml = mentionedModels
+      .map(
+        (mention, i) =>
+          `<model index="${i + 1}" id="${escapeXmlAttribute(mention.id)}" display_name="${escapeXmlAttribute(mention.label)}" />`,
+      )
+      .join("\n  ");
+
+    xmlBlocks.push(
+      `<human_image_model_mentions count="${mentionedModels.length}">\n  ${modelXml}\n</human_image_model_mentions>`,
+    );
+  }
+
+  const mentionedBrandKitAssets = mentions.filter(
+    (
+      mention,
+    ): mention is Extract<MessageMention, { mentionType: "brand-kit-asset" }> =>
+      mention.mentionType === "brand-kit-asset",
+  );
+  if (mentionedBrandKitAssets.length > 0) {
+    const assetXml = mentionedBrandKitAssets
+      .map((mention, i) => {
+        const textContentAttr =
+          mention.textContent != null
+            ? ` text_content="${escapeXmlAttribute(mention.textContent)}"`
+            : "";
+        const fileUrlAttr =
+          mention.fileUrl != null
+            ? ` file_url="${escapeXmlAttribute(mention.fileUrl)}"`
+            : "";
+        return `<brand_kit_asset index="${i + 1}" id="${escapeXmlAttribute(mention.id)}" type="${escapeXmlAttribute(mention.assetType)}" display_name="${escapeXmlAttribute(mention.label)}"${textContentAttr}${fileUrlAttr} />`;
+      })
+      .join("\n  ");
+
+    xmlBlocks.push(
+      `<human_brand_kit_mentions count="${mentionedBrandKitAssets.length}">\n  ${assetXml}\n</human_brand_kit_mentions>`,
+    );
+  }
+
+  if (!xmlBlocks.length) return { text: prompt };
+  return { text: `${prompt}\n\n${xmlBlocks.join("\n\n")}` };
+}
+
+function escapeXmlAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 /**
@@ -72,7 +156,6 @@ type RuntimeRunRecord = RunCreateRequest & {
   accessToken?: string;
   consumed: boolean;
   controller: AbortController;
-  imageModel?: string;
   modelOverride?: string;
   runId: string;
   status: RuntimeRunStatus;
@@ -134,16 +217,16 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
     createRun(
       input: RunCreateRequest,
-      runOptions?: { accessToken?: string; imageModel?: string; model?: string; threadId?: string; userId?: string },
+      runOptions?: { accessToken?: string; model?: string; threadId?: string; userId?: string },
     ): RunCreateResponse {
       const runId = runIdFactory();
+      const { accessToken: _ignoredAccessToken, ...runInput } = input;
 
       runs.set(runId, {
-        ...input,
+        ...runInput,
         ...(runOptions?.accessToken ? { accessToken: runOptions.accessToken } : {}),
         consumed: false,
         controller: new AbortController(),
-        ...(runOptions?.imageModel ? { imageModel: runOptions.imageModel } : {}),
         ...(runOptions?.model ? { modelOverride: runOptions.model } : {}),
         ...(runOptions?.threadId ? { threadId: runOptions.threadId } : {}),
         ...(runOptions?.userId ? { userId: runOptions.userId } : {}),
@@ -415,7 +498,6 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
           ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
           env: options.env,
-          ...(run.imageModel ? { imageModel: run.imageModel } : {}),
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
           ...(submitImageJob ? { submitImageJob } : {}),
@@ -467,7 +549,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           );
 
           // Build XML text tags for LLM to reference by assetId
-          const { text: enrichedPrompt } = buildUserMessage(run.prompt, run.attachments!);
+          const { text: enrichedPrompt } = buildUserMessage(
+            run.prompt,
+            run.attachments!,
+            run.imageGenerationPreference,
+            run.mentions,
+          );
 
           // Build assetId → data URI map for tool-level resolution
           attachmentDataMap = buildAttachmentDataMap(downloaded);
@@ -479,7 +566,13 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             ],
           });
         } else {
-          userMessage = new HumanMessage(run.prompt);
+          const { text: enrichedPrompt } = buildUserMessage(
+            run.prompt,
+            [],
+            run.imageGenerationPreference,
+            run.mentions,
+          );
+          userMessage = new HumanMessage(enrichedPrompt);
         }
 
         rlog.lap("stream_call_start");

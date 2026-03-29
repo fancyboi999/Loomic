@@ -27,4 +27,18 @@ describe("LOOMIC_SYSTEM_PROMPT", () => {
     expect(LOOMIC_SYSTEM_PROMPT).toContain("asset_id");
     expect(LOOMIC_SYSTEM_PROMPT).toContain("inputImages");
   });
+
+  it("contains image model preference instructions", () => {
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("图片模型偏好");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("<human_image_generation_preference>");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("preferred_model");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("generate_image 工具的 model 参数");
+  });
+
+  it("contains explicit mention instructions for models and brand kit assets", () => {
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("<human_image_model_mentions>");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("为每个模型分别调用一次 generate_image");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("<human_brand_kit_mentions>");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("必须使用或必须参考");
+  });
 });

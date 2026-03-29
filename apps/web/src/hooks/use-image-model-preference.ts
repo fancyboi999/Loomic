@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import type { ImageGenerationPreference } from "@loomic/shared";
 
 const STORAGE_KEY = "loomic:image-model-preference";
 const DEFAULT_MODEL = "google/nano-banana-2";
 
-export type ImageModelPreference = {
-  mode: "auto" | "manual";
-  model: string;
-};
+export type ImageModelPreference = ImageGenerationPreference;
 
 const defaultPreference: ImageModelPreference = {
   mode: "auto",
-  model: DEFAULT_MODEL,
+  models: [DEFAULT_MODEL],
 };
 
 // Listeners for cross-component reactivity
@@ -30,7 +28,9 @@ function getSnapshot(): ImageModelPreference {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw !== cachedRaw) {
       cachedRaw = raw;
-      cachedPreference = raw ? (JSON.parse(raw) as ImageModelPreference) : defaultPreference;
+      cachedPreference = raw
+        ? normalizePreference(JSON.parse(raw) as Partial<ImageModelPreference> & { model?: string })
+        : defaultPreference;
     }
     return cachedPreference;
   } catch {
@@ -45,6 +45,25 @@ function getServerSnapshot(): ImageModelPreference {
 function subscribe(callback: () => void): () => void {
   listeners.add(callback);
   return () => listeners.delete(callback);
+}
+
+function normalizePreference(
+  preference?: Partial<ImageModelPreference> & { model?: string },
+): ImageModelPreference {
+  if (!preference) return defaultPreference;
+
+  const models = Array.isArray(preference.models)
+    ? preference.models.filter(
+        (model): model is string => typeof model === "string" && model.length > 0,
+      )
+    : typeof preference.model === "string" && preference.model.length > 0
+      ? [preference.model]
+      : defaultPreference.models;
+
+  return {
+    mode: preference.mode === "manual" ? "manual" : "auto",
+    models: models.length > 0 ? models : defaultPreference.models,
+  };
 }
 
 export function useImageModelPreference() {
@@ -62,15 +81,36 @@ export function useImageModelPreference() {
     [preference, setPreference],
   );
 
-  const setModel = useCallback(
+  const toggleModel = useCallback(
     (model: string) => {
-      setPreference({ mode: "manual", model });
+      const isSelected = preference.models.includes(model);
+
+      if (isSelected && preference.models.length === 1) {
+        return;
+      }
+
+      const models = isSelected
+        ? preference.models.filter((item) => item !== model)
+        : [...preference.models, model];
+
+      setPreference({
+        mode: "manual",
+        models,
+      });
     },
-    [setPreference],
+    [preference.models, setPreference],
   );
 
-  /** Returns the model ID to send in the run payload, or undefined for auto mode. */
-  const activeImageModel = preference.mode === "manual" ? preference.model : undefined;
+  const activeImageGenerationPreference =
+    preference.mode === "manual" && preference.models.length > 0
+      ? preference
+      : undefined;
 
-  return { preference, setPreference, setMode, setModel, activeImageModel };
+  return {
+    preference,
+    setPreference,
+    setMode,
+    toggleModel,
+    activeImageGenerationPreference,
+  };
 }

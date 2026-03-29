@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { ImageGenerationPreference } from "@loomic/shared";
 
 import type { ReadyAttachment } from "@/hooks/use-image-attachments";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +11,8 @@ import { ApiAuthError, createProject } from "@/lib/server-api";
 
 /** sessionStorage key used to pass attachments from Home → Canvas auto-send. */
 export const INITIAL_ATTACHMENTS_KEY = "loomic:initial-attachments";
+export const INITIAL_IMAGE_GENERATION_PREFERENCE_KEY =
+  "loomic:initial-image-generation-preference";
 
 /**
  * Shared hook for creating an Untitled project and navigating to its canvas.
@@ -27,7 +30,11 @@ export function useCreateProject() {
   routerRef.current = router;
 
   const create = useCallback(
-    async (opts?: { prompt?: string; attachments?: ReadyAttachment[] }) => {
+    async (opts?: {
+      prompt?: string;
+      attachments?: ReadyAttachment[];
+      imageGenerationPreference?: ImageGenerationPreference;
+    }) => {
       const token = session?.access_token;
       if (!token || creating) return;
 
@@ -45,6 +52,19 @@ export function useCreateProject() {
         }
       } else {
         sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
+      }
+
+      if (opts?.imageGenerationPreference) {
+        try {
+          sessionStorage.setItem(
+            INITIAL_IMAGE_GENERATION_PREFERENCE_KEY,
+            JSON.stringify(opts.imageGenerationPreference),
+          );
+        } catch {
+          // sessionStorage write failure is non-fatal
+        }
+      } else {
+        sessionStorage.removeItem(INITIAL_IMAGE_GENERATION_PREFERENCE_KEY);
       }
 
       // Open the new tab synchronously within the user gesture so the

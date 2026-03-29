@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
+import type { MessageMention } from "@loomic/shared";
 import type { ImageAttachmentState } from "../hooks/use-image-attachments";
 import { useImageModelPreference } from "../hooks/use-image-model-preference";
 import { ImageAttachmentBar } from "./image-attachment-bar";
@@ -16,6 +17,8 @@ type ChatInputProps = {
   onRetryAttachment?: (id: string) => void;
   isUploading?: boolean;
   onAtQuery?: (query: string | null) => void;
+  mentions?: MessageMention[];
+  onRemoveMention?: (mention: MessageMention) => void;
 };
 
 export type ChatInputHandle = {
@@ -32,6 +35,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   onRetryAttachment,
   isUploading,
   onAtQuery,
+  mentions,
+  onRemoveMention,
 }, ref) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -171,8 +176,35 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           <ImageAttachmentBar
             attachments={attachments}
             onRemove={onRemoveAttachment}
-            onRetry={onRetryAttachment}
+            {...(onRetryAttachment ? { onRetry: onRetryAttachment } : {})}
           />
+        )}
+        {mentions && mentions.length > 0 && onRemoveMention && (
+          <div className="flex flex-wrap items-center gap-1 px-2 py-1">
+            {mentions.map((mention) => (
+              <button
+                key={`${mention.mentionType}:${mention.id}`}
+                type="button"
+                onClick={() => onRemoveMention(mention)}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-[11px] text-foreground transition-colors hover:bg-muted/80"
+                title="Remove mention"
+              >
+                <span className="text-muted-foreground">@</span>
+                <span className="max-w-[180px] truncate">
+                  {mention.label}
+                </span>
+                <svg
+                  className="h-3 w-3 text-muted-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            ))}
+          </div>
         )}
         <textarea
           ref={textareaRef}

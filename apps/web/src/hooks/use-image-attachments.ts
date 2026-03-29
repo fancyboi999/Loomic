@@ -13,6 +13,7 @@ export type ImageAttachmentState = {
   url?: string;
   mimeType: string;
   source: "upload" | "canvas-ref";
+  name?: string;
 };
 
 export type CanvasImageRef = {
@@ -28,6 +29,7 @@ export type ReadyAttachment = {
   url: string;
   mimeType: string;
   source: "upload" | "canvas-ref";
+  name?: string;
 };
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -69,6 +71,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
           uploading: true,
           mimeType: file.type,
           source: "upload",
+          name: file.name,
         });
 
         // Start upload
@@ -112,6 +115,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
         url: ref.url,
         mimeType: ref.mimeType,
         source: "canvas-ref",
+        ...(ref.name ? { name: ref.name } : {}),
       },
     ]);
   }, []);
@@ -122,7 +126,12 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
         const att = prev.find((a) => a.id === id);
         if (!att?.file) return prev;
         return prev.map((a) =>
-          a.id === id ? { ...a, uploading: true, error: undefined } : a,
+          a.id === id
+            ? (() => {
+                const { error: _error, ...rest } = a;
+                return { ...rest, uploading: true };
+              })()
+            : a,
         );
       });
 
@@ -183,6 +192,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
       url: a.url!,
       mimeType: a.mimeType,
       source: a.source,
+      ...(a.name ? { name: a.name } : {}),
     }));
 
   return {
