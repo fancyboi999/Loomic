@@ -109,6 +109,10 @@ This keeps the existing browser-auth foundation intact, fixes the actual reliabi
 
 Magic link remains a sign-in path, not a sign-up path.
 
+Implementation rule:
+
+- The login-page magic link call must explicitly disable auto-user-creation so non-existent emails do not silently become accounts.
+
 ### `/register`
 
 `/register` is the new account creation surface and supports:
@@ -118,6 +122,8 @@ Magic link remains a sign-in path, not a sign-up path.
 - Clear message when verification email has been sent
 
 If Supabase project settings require email confirmation, the UI should tell the user to check email before trying to sign in. If the session is returned immediately, redirect to `/home`.
+
+Registration owns account creation semantics. The login page should never implicitly create an account on behalf of the user.
 
 ### `/auth/callback`
 
