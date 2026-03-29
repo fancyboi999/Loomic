@@ -271,6 +271,25 @@ function ImagePill({ src, name }: { src: string; name: string }) {
   );
 }
 
+function MentionPill({
+  label,
+  kind,
+}: {
+  label: string;
+  kind: "image-model" | "brand-kit-asset";
+}) {
+  return (
+    <span className="inline-flex h-[22px] items-center gap-1 rounded-md px-1.5 mx-0.5 border-[0.5px] border-muted-foreground text-foreground align-middle">
+      <span className="text-[10px] leading-none text-muted-foreground">
+        {kind === "image-model" ? "Model" : "Brand"}
+      </span>
+      <span className="max-w-[120px] truncate text-[11px] leading-none text-foreground">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 export type { ContentBlock, ToolArtifact };
 
 /** @deprecated Use ToolBlock from @loomic/shared instead */
@@ -303,7 +322,7 @@ const markdownComponents: Components = {
   img({ src, alt }) {
     return (
       <ChatImage
-        src={src ?? ""}
+        src={typeof src === "string" ? src : ""}
         alt={alt ?? "Image"}
         className="my-2 max-w-[280px] rounded-lg border border-border"
       />
@@ -327,6 +346,9 @@ export function ChatMessage({
   if (isUser) {
     const textBlocks = contentBlocks.filter((b) => b.type === "text");
     const imageBlocks = contentBlocks.filter((b) => b.type === "image");
+    const mentionBlocks = contentBlocks.filter(
+      (b) => b.type === "mention",
+    );
     const text = textBlocks.map((b) => (b as { text: string }).text).join("");
 
     return (
@@ -339,26 +361,56 @@ export function ChatMessage({
         {text && (
           <div className="inline-block rounded-xl bg-muted px-3 py-2.5 whitespace-pre-wrap break-words text-sm font-medium leading-6 text-foreground">
             <span className="cursor-text select-text [word-break:break-word]">{text}</span>
+            {mentionBlocks.length > 0 && (
+              <span className="inline">
+                {mentionBlocks.map((block, idx) => (
+                  <MentionPill
+                    key={idx}
+                    label={(block as { label: string }).label}
+                    kind={
+                      (block as { mentionType: "image-model" | "brand-kit-asset" })
+                        .mentionType
+                    }
+                  />
+                ))}
+              </span>
+            )}
             {imageBlocks.length > 0 && (
               <span className="inline">
                 {imageBlocks.map((block, idx) => (
                   <ImagePill
                     key={idx}
                     src={(block as { url: string }).url}
-                    name={`image-${idx + 1}`}
+                    name={
+                      (block as { name?: string }).name ??
+                      `image-${idx + 1}`
+                    }
                   />
                 ))}
               </span>
             )}
           </div>
         )}
-        {!text && imageBlocks.length > 0 && (
+        {!text && (imageBlocks.length > 0 || mentionBlocks.length > 0) && (
           <div className="inline-block rounded-xl bg-muted px-3 py-2.5">
+            {mentionBlocks.map((block, idx) => (
+              <MentionPill
+                key={`mention-${idx}`}
+                label={(block as { label: string }).label}
+                kind={
+                  (block as { mentionType: "image-model" | "brand-kit-asset" })
+                    .mentionType
+                }
+              />
+            ))}
             {imageBlocks.map((block, idx) => (
               <ImagePill
                 key={idx}
                 src={(block as { url: string }).url}
-                name={`image-${idx + 1}`}
+                name={
+                  (block as { name?: string }).name ??
+                  `image-${idx + 1}`
+                }
               />
             ))}
           </div>

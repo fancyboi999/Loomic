@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { toolArtifactSchema } from "./artifacts.js";
+import { brandKitAssetTypeSchema } from "./brand-kit-contracts.js";
 
 export const identifierSchema = z.string().min(1);
 export const timestampSchema = z.string().datetime({ offset: true });
@@ -29,6 +30,32 @@ export const imageAttachmentSchema = z.object({
   assetId: z.string().min(1),
   url: z.string().url(),
   mimeType: z.string().min(1),
+  name: z.string().min(1).optional(),
+});
+
+export const imageModelMentionSchema = z.object({
+  mentionType: z.literal("image-model"),
+  id: z.string().min(1),
+  label: z.string().min(1),
+});
+
+export const brandKitAssetMentionSchema = z.object({
+  mentionType: z.literal("brand-kit-asset"),
+  id: z.string().min(1),
+  label: z.string().min(1),
+  assetType: brandKitAssetTypeSchema,
+  textContent: z.string().nullable().optional(),
+  fileUrl: z.string().url().nullable().optional(),
+});
+
+export const messageMentionSchema = z.discriminatedUnion("mentionType", [
+  imageModelMentionSchema,
+  brandKitAssetMentionSchema,
+]);
+
+export const imageGenerationPreferenceSchema = z.object({
+  mode: z.enum(["auto", "manual"]),
+  models: z.array(z.string().min(1)),
 });
 
 export const runCreateRequestSchema = z.object({
@@ -37,7 +64,8 @@ export const runCreateRequestSchema = z.object({
   prompt: z.string(),
   canvasId: canvasIdSchema.optional(),
   attachments: z.array(imageAttachmentSchema).optional(),
-  imageModel: z.string().optional(),
+  imageGenerationPreference: imageGenerationPreferenceSchema.optional(),
+  mentions: z.array(messageMentionSchema).optional(),
   accessToken: z.string().optional(),
 });
 
@@ -153,12 +181,36 @@ export const imageBlockSchema = z.object({
   url: z.string().url(),
   mimeType: z.string().min(1),
   source: z.enum(["upload", "canvas-ref"]),
+  name: z.string().min(1).optional(),
 });
 
-export const contentBlockSchema = z.discriminatedUnion("type", [
+export const imageModelMentionBlockSchema = z.object({
+  type: z.literal("mention"),
+  mentionType: z.literal("image-model"),
+  id: z.string().min(1),
+  label: z.string().min(1),
+});
+
+export const brandKitAssetMentionBlockSchema = z.object({
+  type: z.literal("mention"),
+  mentionType: z.literal("brand-kit-asset"),
+  id: z.string().min(1),
+  label: z.string().min(1),
+  assetType: brandKitAssetTypeSchema,
+  textContent: z.string().nullable().optional(),
+  fileUrl: z.string().url().nullable().optional(),
+});
+
+export const mentionBlockSchema = z.union([
+  imageModelMentionBlockSchema,
+  brandKitAssetMentionBlockSchema,
+]);
+
+export const contentBlockSchema = z.union([
   textBlockSchema,
   toolBlockSchema,
   imageBlockSchema,
+  mentionBlockSchema,
 ]);
 
 export const chatMessageSchema = z.object({
@@ -196,7 +248,12 @@ export type AssetObject = z.infer<typeof assetObjectSchema>;
 export type TextBlock = z.infer<typeof textBlockSchema>;
 export type ToolBlock = z.infer<typeof toolBlockSchema>;
 export type ImageBlock = z.infer<typeof imageBlockSchema>;
+export type MessageMention = z.infer<typeof messageMentionSchema>;
+export type MentionBlock = z.infer<typeof mentionBlockSchema>;
 export type ImageAttachment = z.infer<typeof imageAttachmentSchema>;
+export type ImageGenerationPreference = z.infer<
+  typeof imageGenerationPreferenceSchema
+>;
 export type ContentBlock = z.infer<typeof contentBlockSchema>;
 export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

@@ -26,7 +26,6 @@ export function createMainAgentTools(
     brandKitId?: string | null;
     connectionManager?: ConnectionManager;
     persistImage?: PersistImageFn;
-    preferredImageModel?: string;
     submitImageJob?: SubmitImageJobFn;
   },
 ) {
@@ -37,7 +36,6 @@ export function createMainAgentTools(
     createImageGenerateTool({
       ...(deps.persistImage ? { persistImage: deps.persistImage } : {}),
       ...(deps.submitImageJob ? { submitImageJob: deps.submitImageJob } : {}),
-      ...(deps.preferredImageModel ? { preferredImageModel: deps.preferredImageModel } : {}),
     }),
   ];
   if (deps.brandKitId) {

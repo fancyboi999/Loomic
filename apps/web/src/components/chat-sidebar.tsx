@@ -7,6 +7,8 @@ import type {
   ChatSessionSummary,
   ContentBlock,
   ImageArtifact,
+  ImageGenerationPreference,
+  MessageMention,
   StreamEvent,
   TextBlock,
   ToolBlock,
@@ -17,14 +19,25 @@ import {
   createSession,
   deleteSession as deleteSessionApi,
   fetchMessages,
+  fetchImageModels,
   fetchSessions,
   saveMessage,
   updateSessionTitle,
 } from "../lib/server-api";
+import { fetchBrandKit } from "../lib/brand-kit-api";
 import { useImageAttachments } from "../hooks/use-image-attachments";
 import { useImageModelPreference } from "../hooks/use-image-model-preference";
-import { INITIAL_ATTACHMENTS_KEY } from "../hooks/use-create-project";
-import { CanvasImagePicker, type CanvasImageItem } from "./canvas-image-picker";
+import {
+  INITIAL_ATTACHMENTS_KEY,
+  INITIAL_IMAGE_GENERATION_PREFERENCE_KEY,
+} from "../hooks/use-create-project";
+import {
+  MessageMentionPicker,
+  type BrandKitMentionItem,
+  type CanvasImageItem,
+  type ImageModelMentionItem,
+  type MessageMentionPickerItem,
+} from "./canvas-image-picker";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
@@ -47,6 +60,7 @@ type ChatSidebarProps = {
   initialSessionId?: string | undefined;
   onSessionChange?: (sessionId: string) => void;
   onRequestCanvasImages?: () => CanvasImageItem[];
+  currentBrandKitId?: string | null;
   ws: WebSocketHandle;
 };
 
@@ -95,6 +109,7 @@ export function ChatSidebar({
   initialSessionId,
   onSessionChange,
   onRequestCanvasImages,
+  currentBrandKitId,
   ws,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -103,6 +118,13 @@ export function ChatSidebar({
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [atQuery, setAtQuery] = useState<string | null>(null);
+  const [messageMentions, setMessageMentions] = useState<MessageMention[]>([]);
+  const [brandKitMentionItems, setBrandKitMentionItems] = useState<
+    BrandKitMentionItem[]
+  >([]);
+  const [imageModelMentionItems, setImageModelMentionItems] = useState<
+    ImageModelMentionItem[]
+  >([]);
   const chatInputRef = useRef<import("./chat-input").ChatInputHandle>(null);
 
   const initialPromptSent = useRef(false);
@@ -116,6 +138,8 @@ export function ChatSidebar({
   sessionsRef.current = sessions;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const messageMentionsRef = useRef(messageMentions);
+  messageMentionsRef.current = messageMentions;
 
   const {
     attachments: imageAttachments,
@@ -128,9 +152,11 @@ export function ChatSidebar({
     readyAttachments,
   } = useImageAttachments(accessToken);
 
-  const { activeImageModel } = useImageModelPreference();
-  const activeImageModelRef = useRef(activeImageModel);
-  activeImageModelRef.current = activeImageModel;
+  const { activeImageGenerationPreference } = useImageModelPreference();
+  const activeImageGenerationPreferenceRef = useRef(
+    activeImageGenerationPreference,
+  );
+  activeImageGenerationPreferenceRef.current = activeImageGenerationPreference;
 
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const isResizing = useRef(false);
@@ -168,6 +194,65 @@ export function ChatSidebar({
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchImageModels()
+      .then((data) => {
+        if (cancelled) return;
+        setImageModelMentionItems(
+          data.models.map((model) => ({
+            kind: "image-model",
+            id: model.id,
+            label: model.displayName,
+            description: model.description,
+            ...(model.iconUrl ? { iconUrl: model.iconUrl } : {}),
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setImageModelMentionItems([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentBrandKitId) {
+      setBrandKitMentionItems([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetchBrandKit(accessTokenRef.current, currentBrandKitId)
+      .then((kit) => {
+        if (cancelled) return;
+        setBrandKitMentionItems(
+          kit.assets.map((asset) => ({
+            kind: "brand-kit-asset",
+            id: asset.id,
+            label: asset.display_name,
+            assetType: asset.asset_type,
+            textContent: asset.text_content,
+            fileUrl: asset.file_url,
+            thumbnailUrl:
+              asset.asset_type === "logo" || asset.asset_type === "image"
+                ? asset.file_url
+                : null,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setBrandKitMentionItems([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentBrandKitId]);
 
   const onSessionChangeRef = useRef(onSessionChange);
   onSessionChangeRef.current = onSessionChange;
@@ -382,11 +467,20 @@ export function ChatSidebar({
   );
 
   const handleSend = useCallback(
-    async (text: string, attachmentsOverride?: ReadyAttachment[]) => {
+    async (
+      text: string,
+      attachmentsOverride?: ReadyAttachment[],
+      imageGenerationPreferenceOverride?: ImageGenerationPreference,
+      mentionsOverride?: MessageMention[],
+    ) => {
       const currentSessionId = activeSessionIdRef.current;
       if (streaming || !currentSessionId) return;
 
       const currentAttachments = attachmentsOverride ?? readyAttachments;
+      const currentImageGenerationPreference =
+        imageGenerationPreferenceOverride ??
+        activeImageGenerationPreferenceRef.current;
+      const currentMentions = mentionsOverride ?? messageMentionsRef.current;
       const isFirstMessage = messagesRef.current.length === 0;
 
       // Add user message locally
@@ -396,12 +490,36 @@ export function ChatSidebar({
         url: a.url,
         mimeType: a.mimeType,
         source: a.source,
+        ...(a.name ? { name: a.name } : {}),
       }));
+      const mentionBlocks: ContentBlock[] = currentMentions.map((mention) =>
+        mention.mentionType === "image-model"
+          ? {
+              type: "mention" as const,
+              mentionType: "image-model" as const,
+              id: mention.id,
+              label: mention.label,
+            }
+          : {
+              type: "mention" as const,
+              mentionType: "brand-kit-asset" as const,
+              id: mention.id,
+              label: mention.label,
+              assetType: mention.assetType,
+              ...(mention.textContent !== undefined
+                ? { textContent: mention.textContent }
+                : {}),
+              ...(mention.fileUrl !== undefined
+                ? { fileUrl: mention.fileUrl }
+                : {}),
+            },
+      );
       const userMsg: Message = {
         id: `user-${Date.now()}`,
         role: "user",
         contentBlocks: [
           { type: "text", text },
+          ...mentionBlocks,
           ...imageBlocks,
         ],
       };
@@ -413,6 +531,7 @@ export function ChatSidebar({
         content: text,
         contentBlocks: [
           { type: "text", text },
+          ...mentionBlocks,
           ...imageBlocks,
         ],
       }).catch((err) => console.error("[chat] Failed to save user message:", err));
@@ -461,8 +580,12 @@ export function ChatSidebar({
               ...(currentAttachments.length > 0
                 ? { attachments: currentAttachments }
                 : {}),
-              ...(activeImageModelRef.current
-                ? { imageModel: activeImageModelRef.current }
+              ...(currentMentions.length > 0 ? { mentions: currentMentions } : {}),
+              ...(currentImageGenerationPreference
+                ? {
+                    imageGenerationPreference:
+                      currentImageGenerationPreference,
+                  }
                 : {}),
             },
             (ack) => {
@@ -474,6 +597,7 @@ export function ChatSidebar({
           );
         });
         clearAttachments();
+        setMessageMentions([]);
 
         // Listen for events via WebSocket
         let resolveStream: () => void;
@@ -573,6 +697,67 @@ export function ChatSidebar({
     [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments, ws],
   );
 
+  const mentionPickerItems: MessageMentionPickerItem[] = [
+    ...(onRequestCanvasImages ? onRequestCanvasImages() : []),
+    ...brandKitMentionItems,
+    ...imageModelMentionItems,
+  ];
+
+  const handleMentionSelect = useCallback((item: MessageMentionPickerItem) => {
+    if (item.kind === "canvas-image") {
+      addCanvasRef({
+        assetId: item.assetId,
+        url: item.url,
+        mimeType: item.mimeType,
+        name: item.name,
+      });
+      return;
+    }
+
+    setMessageMentions((prev) => {
+      const nextMention: MessageMention =
+        item.kind === "image-model"
+          ? {
+              mentionType: "image-model",
+              id: item.id,
+              label: item.label,
+            }
+          : {
+              mentionType: "brand-kit-asset",
+              id: item.id,
+              label: item.label,
+              assetType: item.assetType,
+              ...(item.textContent !== undefined
+                ? { textContent: item.textContent }
+                : {}),
+              ...(item.fileUrl !== undefined ? { fileUrl: item.fileUrl } : {}),
+            };
+
+      if (
+        prev.some(
+          (mention) =>
+            mention.mentionType === nextMention.mentionType &&
+            mention.id === nextMention.id,
+        )
+      ) {
+        return prev;
+      }
+      return [...prev, nextMention];
+    });
+  }, [addCanvasRef]);
+
+  const handleRemoveMention = useCallback((mention: MessageMention) => {
+    setMessageMentions((prev) =>
+      prev.filter(
+        (item) =>
+          !(
+            item.mentionType === mention.mentionType &&
+            item.id === mention.id
+          ),
+      ),
+    );
+  }, []);
+
   // Auto-send initial prompt from Home page (once, after sessions load AND WS connects).
   // Reads any attachments stored in sessionStorage by useCreateProject and
   // clears them immediately so they are consumed exactly once.
@@ -582,11 +767,22 @@ export function ChatSidebar({
     if (!initialPrompt || sessionsLoading || !ws.connected || initialPromptSent.current) return;
 
     let storedAttachments: ReadyAttachment[] | undefined;
+    let storedImageGenerationPreference: ImageGenerationPreference | undefined;
     try {
       const raw = sessionStorage.getItem(INITIAL_ATTACHMENTS_KEY);
       if (raw) {
         storedAttachments = JSON.parse(raw) as ReadyAttachment[];
         sessionStorage.removeItem(INITIAL_ATTACHMENTS_KEY);
+      }
+
+      const preferenceRaw = sessionStorage.getItem(
+        INITIAL_IMAGE_GENERATION_PREFERENCE_KEY,
+      );
+      if (preferenceRaw) {
+        storedImageGenerationPreference = JSON.parse(
+          preferenceRaw,
+        ) as ImageGenerationPreference;
+        sessionStorage.removeItem(INITIAL_IMAGE_GENERATION_PREFERENCE_KEY);
       }
     } catch {
       // Malformed JSON or unavailable storage — proceed without attachments
@@ -594,7 +790,11 @@ export function ChatSidebar({
 
     const timer = setTimeout(() => {
       initialPromptSent.current = true;
-      void handleSend(initialPrompt, storedAttachments);
+      void handleSend(
+        initialPrompt,
+        storedAttachments,
+        storedImageGenerationPreference,
+      );
     }, 0);
 
     return () => clearTimeout(timer);
@@ -641,7 +841,7 @@ export function ChatSidebar({
         {/* Header */}
         <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
           <div className="flex items-center gap-1 min-w-0">
-            <h2 className="text-sm font-semibold text-foreground shrink-0">Chat</h2>
+            <h2 className="text-sm font-semibold text-foreground shrink-0">Loomic Agent</h2>
             {!sessionsLoading && (
               <SessionSelector
                 sessions={sessions}
@@ -698,17 +898,12 @@ export function ChatSidebar({
 
         {/* Input */}
         <div className="relative">
-          {atQuery !== null && onRequestCanvasImages && (
-            <CanvasImagePicker
-              items={onRequestCanvasImages()}
+          {atQuery !== null && mentionPickerItems.length > 0 && (
+            <MessageMentionPicker
+              items={mentionPickerItems}
               query={atQuery}
               onSelect={(item) => {
-                addCanvasRef({
-                  assetId: item.assetId,
-                  url: item.url,
-                  mimeType: item.mimeType,
-                  name: item.name,
-                });
+                handleMentionSelect(item);
                 chatInputRef.current?.clearAtQuery();
                 setAtQuery(null);
               }}
@@ -724,7 +919,9 @@ export function ChatSidebar({
             onRemoveAttachment={removeAttachment}
             onRetryAttachment={retryUpload}
             isUploading={isUploading}
-            onAtQuery={onRequestCanvasImages ? setAtQuery : undefined}
+            onAtQuery={setAtQuery}
+            mentions={messageMentions}
+            onRemoveMention={handleRemoveMention}
           />
         </div>
       </div>

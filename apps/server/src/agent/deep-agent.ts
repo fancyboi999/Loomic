@@ -24,7 +24,6 @@ export type LoomicAgentFactory = (options: {
   connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
-  imageModel?: string;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
   submitImageJob?: SubmitImageJobFn;
@@ -39,7 +38,6 @@ export function createLoomicDeepAgent(options: {
   connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => any;
   env: ServerEnv;
-  imageModel?: string;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
   submitImageJob?: SubmitImageJobFn;
@@ -80,7 +78,6 @@ export function createLoomicDeepAgent(options: {
       createImageSubAgent({
         ...(options.persistImage ? { persistImage: options.persistImage } : {}),
         ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
-        ...(options.imageModel ? { preferredImageModel: options.imageModel } : {}),
       }),
       createVideoSubAgent(),
     ],
@@ -91,7 +88,6 @@ export function createLoomicDeepAgent(options: {
       ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
       ...(options.persistImage ? { persistImage: options.persistImage } : {}),
       ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
-      ...(options.imageModel ? { preferredImageModel: options.imageModel } : {}),
     }),
   });
 }

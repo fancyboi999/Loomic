@@ -16,7 +16,7 @@ export function ImageModelPreferencePopover({
   onClose: () => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }) {
-  const { preference, setMode, setModel } = useImageModelPreference();
+  const { preference, setMode, toggleModel } = useImageModelPreference();
   const [models, setModels] = useState<ImageModelInfo[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
@@ -111,20 +111,19 @@ export function ImageModelPreferencePopover({
           <span className="text-[11px] text-muted-foreground">
             {preference.mode === "auto"
               ? "Agent automatically selects the best model for each task"
-              : "Using fixed model for all image generation"}
+              : "Agent chooses from your selected models for each image task"}
           </span>
         </div>
 
         {/* Model list */}
         <div className="scrollbar-hidden max-h-[300px] space-y-0.5 overflow-y-auto px-1">
           {models.map((m) => {
-            const selected =
-              preference.mode === "manual" && preference.model === m.id;
+            const selected = preference.models.includes(m.id);
             return (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => setModel(m.id)}
+                onClick={() => toggleModel(m.id)}
                 className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted ${
                   selected ? "bg-muted" : ""
                 }`}

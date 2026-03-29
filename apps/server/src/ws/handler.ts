@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { WebSocket } from "ws";
 
 import {
+  type MessageMention,
   wsCommandSchema,
   wsRpcResponseSchema,
 } from "@loomic/shared";
@@ -135,7 +136,10 @@ async function authenticateAndBind(
           prompt: p.prompt,
           ...(p.canvasId !== undefined ? { canvasId: p.canvasId } : {}),
           ...(p.attachments !== undefined ? { attachments: p.attachments } : {}),
-          ...(p.imageModel !== undefined ? { imageModel: p.imageModel } : {}),
+          ...(p.imageGenerationPreference !== undefined
+            ? { imageGenerationPreference: p.imageGenerationPreference }
+            : {}),
+          ...(p.mentions !== undefined ? { mentions: p.mentions } : {}),
         }, socket, agentRuns, connectionManager, runToken, options);
       } else if (msg.action === "agent.cancel") {
         log.info("run_cancel", { userId, runId: msg.payload.runId });
@@ -167,8 +171,17 @@ async function handleRunCommand(
     conversationId: string;
     prompt: string;
     canvasId?: string;
-    attachments?: Array<{ assetId: string; url: string; mimeType: string }>;
-    imageModel?: string;
+    attachments?: Array<{
+      assetId: string;
+      url: string;
+      mimeType: string;
+      name?: string;
+    }>;
+    imageGenerationPreference?: {
+      mode: "auto" | "manual";
+      models: string[];
+    };
+    mentions?: MessageMention[];
   },
   socket: WebSocket,
   agentRuns: AgentRunService,
@@ -215,7 +228,6 @@ async function handleRunCommand(
     accessToken,
     userId,
     ...(model ? { model } : {}),
-    ...(payload.imageModel ? { imageModel: payload.imageModel } : {}),
     ...(threadId ? { threadId } : {}),
   });
   const runId = response.runId;

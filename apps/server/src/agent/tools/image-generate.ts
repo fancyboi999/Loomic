@@ -209,7 +209,7 @@ export async function runImageGenerate(
     const result = await generateImage(providerName, {
       prompt: input.prompt,
       model: input.model,
-      aspectRatio: input.aspectRatio,
+      ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
       ...(input.quality ? { quality: input.quality as any } : {}),
       ...(input.outputFormat ? { outputFormat: input.outputFormat as any } : {}),
       ...(input.inputImages?.length ? { inputImages: input.inputImages } : {}),
@@ -252,18 +252,11 @@ export async function runImageGenerate(
 
 export function createImageGenerateTool(deps?: {
   persistImage?: PersistImageFn;
-  preferredImageModel?: string;
   submitImageJob?: SubmitImageJobFn;
   /** Override for testing — defaults to querying the provider registry. */
   availableModels?: AvailableModel[];
 }) {
-  const allModels = deps?.availableModels ?? getAvailableImageModels();
-
-  // If user selected a specific model (manual mode), lock schema to only that model
-  const preferred = deps?.preferredImageModel
-    ? allModels.filter((m) => m.id === deps.preferredImageModel)
-    : [];
-  const models = preferred.length > 0 ? preferred : allModels;
+  const models = deps?.availableModels ?? getAvailableImageModels();
 
   const modelSummary = models.length
     ? models.map((m) => `${m.displayName} (${m.id})`).join(", ")

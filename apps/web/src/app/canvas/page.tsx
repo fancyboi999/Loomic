@@ -97,9 +97,14 @@ function CanvasPageContent() {
         idx++;
         const file = files[el.fileId];
         const dataURL = file?.dataURL ?? "";
+        const title =
+          el.customData?.title ||
+          el.customData?.label ||
+          `Image ${idx}`;
         return {
+          kind: "canvas-image",
           id: el.id,
-          name: `Image ${idx}`,
+          name: title,
           thumbnailUrl: dataURL,
           assetId: el.id,
           url: dataURL,
@@ -257,6 +262,7 @@ function CanvasPageContent() {
         initialSessionId={initialSessionId}
         onSessionChange={handleSessionChange}
         onRequestCanvasImages={handleRequestCanvasImages}
+        currentBrandKitId={brandKitId}
         ws={ws}
       />
     </div>

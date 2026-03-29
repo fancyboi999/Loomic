@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ImageGenerationPreference } from "@loomic/shared";
 
 import type { ImageAttachmentState, ReadyAttachment } from "../hooks/use-image-attachments";
 import { ImageAttachmentBar } from "./image-attachment-bar";
@@ -19,7 +20,11 @@ export type HomePromptHandle = {
 };
 
 type HomePromptProps = {
-  onSubmit: (prompt: string, attachments?: ReadyAttachment[]) => void;
+  onSubmit: (
+    prompt: string,
+    attachments?: ReadyAttachment[],
+    imageGenerationPreference?: ImageGenerationPreference,
+  ) => void;
   disabled?: boolean;
   attachments?: ImageAttachmentState[];
   onAddFiles?: (files: File[]) => void;
@@ -112,12 +117,15 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
         readyAttachments && readyAttachments.length > 0
           ? readyAttachments
           : undefined,
+        preference.mode === "manual" && preference.models.length > 0
+          ? preference
+          : undefined,
       );
       setValue("");
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
-    }, [value, disabled, isUploading, onSubmit, attachments, readyAttachments]);
+    }, [value, disabled, isUploading, onSubmit, attachments, readyAttachments, preference]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {

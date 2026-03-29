@@ -79,7 +79,6 @@ export async function registerRunRoutes(
         agentRuns.createRun(payload, {
           ...(authenticatedUser ? { accessToken: authenticatedUser.accessToken, userId: authenticatedUser.id } : {}),
           ...(model ? { model } : {}),
-          ...(payload.imageModel ? { imageModel: payload.imageModel } : {}),
           ...(sessionThread ? { threadId: sessionThread.threadId } : {}),
         }),
       );
