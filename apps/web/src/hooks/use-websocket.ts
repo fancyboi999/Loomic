@@ -30,6 +30,7 @@ export function useWebSocket(
   getToken: () => string | null,
 ): WebSocketHandle {
   const wsRef = useRef<WebSocket | null>(null);
+  const connectionIdRef = useRef(crypto.randomUUID());
   const [connected, setConnected] = useState(false);
   const reconnectAttempt = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +65,7 @@ export function useWebSocket(
     const serverBase = getServerBaseUrl();
     const wsUrl =
       serverBase.replace(/^http/, "ws") +
-      `/api/ws?token=${encodeURIComponent(token)}`;
+      `/api/ws?token=${encodeURIComponent(token)}&connectionId=${encodeURIComponent(connectionIdRef.current)}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
