@@ -250,11 +250,21 @@ async function handleRunCommand(
   // Send ack via connectionManager so it reaches the user's LATEST connection.
   // The original socket may have been replaced if the client reconnected
   // between sending the command and receiving this ack.
-  const ackSent = connectionManager.send(userId, {
+  // If no connection is available yet (brief disconnect window), retry a few
+  // times with short delays to wait for the client to reconnect.
+  const ackMessage = {
     type: "command.ack",
     action: "agent.run",
     payload: response,
-  });
+  };
+  let ackSent = connectionManager.send(userId, ackMessage);
+  if (!ackSent) {
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      ackSent = connectionManager.send(userId, ackMessage);
+      if (ackSent) break;
+    }
+  }
   log.lap("ack_sent", { runId, delivered: ackSent });
 
   // Stream events via WS push
