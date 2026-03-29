@@ -18,6 +18,10 @@ interface CanvasBottomBarProps {
   excalidrawApi: any | null;
   layersOpen: boolean;
   onToggleLayers: () => void;
+  filesOpen: boolean;
+  onToggleFiles: () => void;
+  /** Whether any left panel (layers/files) is open — shifts the bar right */
+  leftPanelOpen: boolean;
 }
 
 /* ── Inline SVG icons ── */
@@ -122,7 +126,7 @@ function ElementRow({ el, onSelect }: { el: ExcalidrawEl; onSelect: (id: string)
 /* ================================================================
    Main component
    ================================================================ */
-export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: CanvasBottomBarProps) {
+export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers, filesOpen, onToggleFiles, leftPanelOpen }: CanvasBottomBarProps) {
   /* ── Zoom state ── */
   const [zoom, setZoom] = useState(1);
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
@@ -134,9 +138,7 @@ export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: C
   const [hexInput, setHexInput] = useState("FFFFFF");
   const bgBtnRef = useRef<HTMLButtonElement>(null);
 
-  /* ── Files list state ── */
-  const [filesOpen, setFilesOpen] = useState(false);
-  const filesBtnRef = useRef<HTMLButtonElement>(null);
+  /* ── Files panel is controlled by parent ── */
 
   /* ── Sync zoom from excalidraw ── */
   useEffect(() => {
@@ -186,47 +188,24 @@ export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: C
     if (/^[0-9a-fA-F]{6}$/.test(raw)) applyBgColor(`#${raw}`);
   }, [hexInput, applyBgColor]);
 
-  /* ── Generated image files list ── */
-  type ImageFile = { id: string; name: string; dataURL: string };
-  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
-
-  const refreshImageFiles = useCallback(() => {
-    if (!excalidrawApi) return;
-    const allElements = excalidrawApi.getSceneElements() as ExcalidrawEl[];
-    const files: Record<string, any> = excalidrawApi.getFiles() ?? {};
-    const images: ImageFile[] = [];
-    let idx = 0;
-    for (const el of allElements) {
-      if (el.isDeleted || el.type !== "image" || !el.fileId) continue;
-      idx++;
-      const file = files[el.fileId];
-      const title = el.customData?.title || el.customData?.label || `Image ${idx}`;
-      images.push({ id: el.id, name: title, dataURL: file?.dataURL ?? "" });
-    }
-    setImageFiles(images.reverse());
-  }, [excalidrawApi]);
-
-  const handleDownloadFile = useCallback((file: ImageFile) => {
-    if (!file.dataURL) return;
-    const a = document.createElement("a");
-    a.href = file.dataURL;
-    a.download = `${file.name}.png`;
-    a.click();
-  }, []);
+  /* ── (files list is now a separate panel component) ── */
 
   /* ── Toggle helpers (close sibling popovers) ── */
   const closeAllPopovers = useCallback(() => {
-    setZoomMenuOpen(false); setBgPickerOpen(false); setFilesOpen(false);
+    setZoomMenuOpen(false); setBgPickerOpen(false);
   }, []);
   const toggleZoomMenu = useCallback(() => { const next = !zoomMenuOpen; closeAllPopovers(); if (next) setZoomMenuOpen(true); }, [zoomMenuOpen, closeAllPopovers]);
   const toggleBgPicker = useCallback(() => { const next = !bgPickerOpen; closeAllPopovers(); if (next) setBgPickerOpen(true); }, [bgPickerOpen, closeAllPopovers]);
-  const toggleFiles = useCallback(() => {
-    const next = !filesOpen; closeAllPopovers(); if (next) { refreshImageFiles(); setFilesOpen(true); }
-  }, [filesOpen, closeAllPopovers, refreshImageFiles]);
   const handleToggleLayers = useCallback(() => { closeAllPopovers(); onToggleLayers(); }, [closeAllPopovers, onToggleLayers]);
+  const handleToggleFiles = useCallback(() => { closeAllPopovers(); onToggleFiles(); }, [closeAllPopovers, onToggleFiles]);
 
   return (
-    <div className="absolute bottom-4 left-4 z-20" onKeyDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
+    <div
+      className="absolute bottom-4 z-20 transition-[left] duration-200"
+      style={{ left: leftPanelOpen ? 296 : 16 }}
+      onKeyDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
       <div className="flex items-center gap-0.5 rounded-full bg-card/90 backdrop-blur-lg border border-border px-1 py-1 shadow-card">
         {/* ── Background color button ── */}
         <button ref={bgBtnRef} type="button" className={btnClass} onClick={toggleBgPicker} aria-label="Background color">
@@ -241,7 +220,7 @@ export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: C
         </button>
 
         {/* ── Files button ── */}
-        <button ref={filesBtnRef} type="button" className={btnClass} onClick={toggleFiles} aria-label="Generated files">
+        <button type="button" className={`${btnClass} ${filesOpen ? "bg-muted text-foreground" : ""}`} onClick={handleToggleFiles} aria-label="Generated files">
           <FileIcon className="h-3.5 w-3.5" />
         </button>
 
@@ -313,50 +292,7 @@ export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: C
         </div>
       </Popover>
 
-      {/* ── Generated files list popover ── */}
-      <Popover open={filesOpen} triggerRef={filesBtnRef} onClose={() => setFilesOpen(false)}>
-        <div className="flex flex-col min-w-[240px] max-w-[280px]">
-          <div className="flex items-center justify-between px-1 pb-2">
-            <span className="text-sm font-medium text-foreground">已生成文件</span>
-            <button type="button" onClick={() => setFilesOpen(false)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-              <CloseIcon className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="max-h-[360px] overflow-y-auto">
-            {imageFiles.length === 0 ? (
-              <p className="px-2 py-6 text-sm text-muted-foreground text-center">暂无生成文件</p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {imageFiles.map((file) => (
-                  <div key={file.id} className="group flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-subtle">
-                      {file.dataURL ? (
-                        <img alt="" className="h-full w-full object-cover" draggable={false} src={file.dataURL} />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground text-xs">N/A</div>
-                      )}
-                    </div>
-                    <div className="flex-1 overflow-hidden text-sm leading-[22px] text-foreground">
-                      <div className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleDownloadFile(file); }}
-                      className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                      title="下载"
-                    >
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" fillOpacity={0.9}>
-                        <path d="M3 17.25v-2.5a.75.75 0 0 1 1.5 0v2.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-2.5a.75.75 0 0 1 1.5 0v2.5A3.75 3.75 0 0 1 17.25 21H6.75A3.75 3.75 0 0 1 3 17.25m8.25-13.5a.75.75 0 0 1 1.5 0v9.44l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22z" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-                <p className="py-2 text-center text-xs text-muted-foreground">到底了</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </Popover>
+      {/* Files panel is now a separate left sidebar component */}
     </div>
   );
 }

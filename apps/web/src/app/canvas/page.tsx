@@ -17,6 +17,7 @@ import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
 import { BrandKitSelector } from "../../components/brand-kit-selector";
 import { CanvasBottomBar } from "../../components/canvas-bottom-bar";
+import { CanvasFilesPanel } from "../../components/canvas-files-panel";
 import { CanvasLayersPanel } from "../../components/canvas-layers-panel";
 
 function CanvasPageContent() {
@@ -43,6 +44,7 @@ function CanvasPageContent() {
   const [pageLoading, setPageLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
   const [brandKitId, setBrandKitId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("Untitled");
 
@@ -227,12 +229,20 @@ function CanvasPageContent() {
         <CanvasBottomBar
           excalidrawApi={excalidrawApi}
           layersOpen={layersOpen}
-          onToggleLayers={() => setLayersOpen((v) => !v)}
+          onToggleLayers={() => { setLayersOpen((v) => !v); setFilesOpen(false); }}
+          filesOpen={filesOpen}
+          onToggleFiles={() => { setFilesOpen((v) => !v); setLayersOpen(false); }}
+          leftPanelOpen={layersOpen || filesOpen}
         />
         <CanvasLayersPanel
           excalidrawApi={excalidrawApi}
           open={layersOpen}
           onClose={() => setLayersOpen(false)}
+        />
+        <CanvasFilesPanel
+          excalidrawApi={excalidrawApi}
+          open={filesOpen}
+          onClose={() => setFilesOpen(false)}
         />
       </div>
       <ChatSidebar
