@@ -484,42 +484,6 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           };
         }
 
-        // Build uploadDataUri closure to convert data URIs → public https URLs.
-        // Replicate and other providers reject data URIs in image_input fields.
-        let uploadDataUri: ((dataUri: string) => Promise<string>) | undefined;
-        if (options.createUserClient && run.accessToken) {
-          const createClient = options.createUserClient;
-          const accessToken = run.accessToken;
-          uploadDataUri = async (dataUri: string) => {
-            const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
-            if (!match) throw new Error("Invalid data URI format");
-            const mimeType = match[1]!;
-            const buffer = Buffer.from(match[2]!, "base64");
-            const ext = mimeType.includes("webp") ? "webp" : mimeType.includes("jpeg") || mimeType.includes("jpg") ? "jpg" : "png";
-            const fileName = `ref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-            const client = createClient(accessToken) as UserSupabaseClient;
-            const { data: ws } = await client
-              .from("workspaces")
-              .select("id")
-              .eq("type", "personal")
-              .limit(1)
-              .single();
-            const workspaceId = ws?.id ?? "default";
-            const objectPath = `${workspaceId}/ref-images/${fileName}`;
-
-            const { error: uploadError } = await client.storage
-              .from("project-assets")
-              .upload(objectPath, buffer, { contentType: mimeType, upsert: false });
-            if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-
-            const { data: urlData } = client.storage
-              .from("project-assets")
-              .getPublicUrl(objectPath);
-            return urlData.publicUrl;
-          };
-        }
-
         // Resolve brand kit ID from canvas → project in a single joined query
         let brandKitId: string | null = null;
         if (run.canvasId && run.accessToken && options.createUserClient) {
@@ -566,7 +530,6 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
           ...(submitImageJob ? { submitImageJob } : {}),
-          ...(uploadDataUri ? { uploadDataUri } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
         rlog.lap("agent_factory_done");

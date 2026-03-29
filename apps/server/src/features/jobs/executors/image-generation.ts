@@ -42,21 +42,35 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
     // available at this level. No-op intentionally.
   }, 60_000);
 
+  // Log input image format for debugging the data-URI-passthrough pipeline
+  if (payload.input_images?.length) {
+    const formats = payload.input_images.map((img) =>
+      img.startsWith("data:") ? "data-uri" : "url",
+    );
+    console.log(`${tag} input_images formats: [${formats.join(", ")}] (${formats.length} total)`);
+  }
+
   try {
     // Generate image via the registered provider
     lap("replicate_call_start");
-    const generated = await generateImage(providerName, {
-      prompt: payload.prompt,
-      model,
-      ...(payload.aspect_ratio !== undefined ? { aspectRatio: payload.aspect_ratio } : {}),
-      ...(payload.input_images?.length ? { inputImages: payload.input_images } : {}),
-    });
+    let generated;
+    try {
+      generated = await generateImage(providerName, {
+        prompt: payload.prompt,
+        model,
+        ...(payload.aspect_ratio !== undefined ? { aspectRatio: payload.aspect_ratio } : {}),
+        ...(payload.input_images?.length ? { inputImages: payload.input_images } : {}),
+      });
+    } catch (genError) {
+      const detail = genError instanceof Error ? genError.message : String(genError);
+      throw new Error(`Image generation failed for model ${model}: ${detail}`);
+    }
     lap("replicate_call_done");
 
     // Download the generated image from the provider CDN
     const response = await fetch(generated.url);
     if (!response.ok) {
-      throw new Error(`Failed to download generated image: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to download generated image from ${model}: ${response.status} ${response.statusText}`);
     }
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

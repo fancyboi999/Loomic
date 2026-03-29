@@ -7,6 +7,7 @@ describe("tool exports", () => {
     const mockCreateUserClient = (() => {}) as any;
     const tools = createMainAgentTools(mockBackend, { createUserClient: mockCreateUserClient });
     const names = tools.map((t: any) => t.name);
+    expect(names).toContain("think");
     expect(names).toContain("inspect_canvas");
     expect(names).toContain("project_search");
     expect(names).toContain("generate_image");

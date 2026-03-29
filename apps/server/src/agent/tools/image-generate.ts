@@ -127,14 +127,6 @@ export type PersistImageFn = (
 ) => Promise<string>;
 
 /**
- * Upload data URIs to temporary storage and return public https:// URLs.
- * Replicate and other providers require real HTTP URLs, not data URIs.
- */
-export type UploadDataUriFn = (
-  dataUri: string,
-) => Promise<string>;
-
-/**
  * Submit an image generation job and wait for it to complete.
  * Returns the final result: signed_url on success, error on failure.
  */
@@ -158,7 +150,6 @@ export async function runImageGenerate(
   persistImage?: PersistImageFn,
   submitImageJob?: SubmitImageJobFn,
   attachmentMap?: Record<string, string>,
-  uploadDataUri?: UploadDataUriFn,
 ): Promise<ImageGenerateResult> {
   const t0 = Date.now();
   const lap = (label: string, extra?: Record<string, unknown>) => {
@@ -173,21 +164,6 @@ export async function runImageGenerate(
         attachmentMap[ref] ?? ref,
       ),
     };
-  }
-
-  // Convert data URIs to public https:// URLs (Replicate rejects data URIs)
-  if (input.inputImages?.length && uploadDataUri) {
-    lap("data_uri_upload_start", { count: input.inputImages.filter((i) => i.startsWith("data:")).length });
-    const resolved = await Promise.all(
-      input.inputImages.map(async (img) => {
-        if (img.startsWith("data:")) {
-          return uploadDataUri(img);
-        }
-        return img;
-      }),
-    );
-    input = { ...input, inputImages: resolved };
-    lap("data_uri_upload_done");
   }
 
   // Filter out invalid image references — only keep valid URLs.
@@ -224,7 +200,7 @@ export async function runImageGenerate(
       if (jobResult.error) {
         lap("job_failed", { error: jobResult.error });
         return {
-          summary: `Image generation failed: ${jobResult.error}`,
+          summary: `Image generation failed with model ${input.model}: ${jobResult.error}. Consider trying a different model or simplifying the prompt.`,
           error: jobResult.error,
         };
       }
@@ -250,7 +226,7 @@ export async function runImageGenerate(
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       return {
-        summary: `Image generation failed: ${message}`,
+        summary: `Image generation failed with model ${input.model}: ${message}. Consider trying a different model or simplifying the prompt.`,
         error: message,
       };
     }
@@ -309,7 +285,6 @@ export async function runImageGenerate(
 export function createImageGenerateTool(deps?: {
   persistImage?: PersistImageFn;
   submitImageJob?: SubmitImageJobFn;
-  uploadDataUri?: UploadDataUriFn;
   /** Override for testing — defaults to querying the provider registry. */
   availableModels?: AvailableModel[];
 }) {
@@ -329,7 +304,6 @@ export function createImageGenerateTool(deps?: {
         deps?.persistImage,
         deps?.submitImageJob,
         attachmentMap,
-        deps?.uploadDataUri,
       );
     },
     {
