@@ -221,6 +221,7 @@ function CanvasPageContent() {
           initialContent={canvasData.content}
           onApiReady={handleApiReady}
           ws={ws}
+          leftPanelOpen={layersOpen || filesOpen}
         />
         <CanvasEmptyHint
           excalidrawApi={excalidrawApi}

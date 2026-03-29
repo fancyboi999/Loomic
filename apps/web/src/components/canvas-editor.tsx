@@ -28,6 +28,7 @@ type CanvasEditorProps = {
   };
   onApiReady?: (api: any) => void;
   ws?: WebSocketHandle;
+  leftPanelOpen?: boolean;
 };
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -41,6 +42,7 @@ export function CanvasEditor({
   initialContent,
   onApiReady,
   ws,
+  leftPanelOpen,
 }: CanvasEditorProps) {
   const { resolvedTheme } = useTheme();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -275,6 +277,7 @@ export function CanvasEditor({
         <CanvasToolMenu
           accessToken={accessToken}
           excalidrawApi={excalidrawApi}
+          leftPanelOpen={leftPanelOpen}
         />
       )}
     </div>

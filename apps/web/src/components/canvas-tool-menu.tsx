@@ -76,9 +76,10 @@ const TOOL_LABELS: Record<ToolType, string> = {
 type CanvasToolMenuProps = {
   accessToken: string;
   excalidrawApi: any;
+  leftPanelOpen?: boolean;
 };
 
-export function CanvasToolMenu({ accessToken, excalidrawApi }: CanvasToolMenuProps) {
+export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: CanvasToolMenuProps) {
   const [activeTool, setActiveTool] = useState<string>("selection");
   const [activePanel, setActivePanel] = useState<"ai-video" | null>(null);
 
@@ -214,7 +215,13 @@ export function CanvasToolMenu({ accessToken, excalidrawApi }: CanvasToolMenuPro
 
   return (
     <>
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 rounded-xl p-1 bg-white/75 backdrop-blur-lg border border-black/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div
+        className="absolute bottom-5 z-30 flex items-center gap-0.5 rounded-xl p-1 bg-card/75 backdrop-blur-lg border border-border shadow-card transition-[left,transform] duration-200"
+        style={{
+          left: leftPanelOpen ? "calc(140px + 50%)" : "50%",
+          transform: "translateX(-50%)",
+        }}
+      >
         {/* Standard Excalidraw tools */}
         {TOOL_GROUPS.map((tool, i) => {
           if (tool === null) {
