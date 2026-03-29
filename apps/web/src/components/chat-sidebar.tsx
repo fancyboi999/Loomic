@@ -31,6 +31,7 @@ import {
   INITIAL_ATTACHMENTS_KEY,
   INITIAL_IMAGE_GENERATION_PREFERENCE_KEY,
 } from "../hooks/use-create-project";
+import type { CanvasSelectedElement } from "./canvas-editor";
 import {
   MessageMentionPicker,
   type BrandKitMentionItem,
@@ -62,6 +63,7 @@ type ChatSidebarProps = {
   onRequestCanvasImages?: () => CanvasImageItem[];
   currentBrandKitId?: string | null;
   ws: WebSocketHandle;
+  selectedCanvasElements?: CanvasSelectedElement[];
 };
 
 function mapServerMessages(serverMessages: ChatMessageData[]): Message[] {
@@ -111,6 +113,7 @@ export function ChatSidebar({
   onRequestCanvasImages,
   currentBrandKitId,
   ws,
+  selectedCanvasElements,
 }: ChatSidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -140,6 +143,8 @@ export function ChatSidebar({
   messagesRef.current = messages;
   const messageMentionsRef = useRef(messageMentions);
   messageMentionsRef.current = messageMentions;
+  const selectedCanvasElementsRef = useRef(selectedCanvasElements);
+  selectedCanvasElementsRef.current = selectedCanvasElements;
 
   const {
     attachments: imageAttachments,
@@ -476,7 +481,28 @@ export function ChatSidebar({
       const currentSessionId = activeSessionIdRef.current;
       if (streaming || !currentSessionId) return;
 
-      const currentAttachments = attachmentsOverride ?? readyAttachments;
+      // Merge explicitly-attached images with auto-sensed canvas selection images
+      let currentAttachments = attachmentsOverride ?? readyAttachments;
+      const selectedEls = selectedCanvasElementsRef.current ?? [];
+      const selectedImageEls = selectedEls.filter(
+        (el) => el.type === "image" && el.fileId && el.dataUrl,
+      );
+      if (selectedImageEls.length > 0 && !attachmentsOverride) {
+        // Deduplicate: skip selected images already in explicit attachments (by assetId/element id)
+        const existingIds = new Set(currentAttachments.map((a) => a.assetId));
+        const selectionAttachments: ReadyAttachment[] = selectedImageEls
+          .filter((el) => !existingIds.has(el.id))
+          .map((el) => ({
+            assetId: el.id,
+            url: el.dataUrl!,
+            mimeType: "image/png",
+            source: "canvas-ref" as const,
+            name: `Canvas selection ${el.id.slice(0, 6)}`,
+          }));
+        if (selectionAttachments.length > 0) {
+          currentAttachments = [...currentAttachments, ...selectionAttachments];
+        }
+      }
       const currentImageGenerationPreference =
         imageGenerationPreferenceOverride ??
         activeImageGenerationPreferenceRef.current;
@@ -932,6 +958,7 @@ export function ChatSidebar({
             onAtQuery={setAtQuery}
             mentions={messageMentions}
             onRemoveMention={handleRemoveMention}
+            selectedCanvasElements={selectedCanvasElements}
           />
         </div>
       </div>

@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 
 import type { MessageMention } from "@loomic/shared";
 import type { ImageAttachmentState } from "../hooks/use-image-attachments";
+import type { CanvasSelectedElement } from "./canvas-editor";
 import { useImageModelPreference } from "../hooks/use-image-model-preference";
 import { ImageAttachmentBar } from "./image-attachment-bar";
 import { ImageModelPreferencePopover } from "./image-model-preference";
@@ -19,6 +20,7 @@ type ChatInputProps = {
   onAtQuery?: (query: string | null) => void;
   mentions?: MessageMention[];
   onRemoveMention?: (mention: MessageMention) => void;
+  selectedCanvasElements?: CanvasSelectedElement[];
 };
 
 export type ChatInputHandle = {
@@ -37,6 +39,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   onAtQuery,
   mentions,
   onRemoveMention,
+  selectedCanvasElements,
 }, ref) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -165,6 +168,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
 
   const hasContent = value.trim().length > 0 || (attachments && attachments.length > 0);
 
+  // Compute canvas selection summary for the context bar
+  const selectionImageCount = selectedCanvasElements?.filter((el) => el.type === "image").length ?? 0;
+  const selectionShapeCount = (selectedCanvasElements?.length ?? 0) - selectionImageCount;
+  const hasSelection = (selectedCanvasElements?.length ?? 0) > 0;
+
   return (
     <div className="px-2 pb-2">
       <div
@@ -172,6 +180,34 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
+        {hasSelection && (
+          <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {selectionImageCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="m21 15-5-5L5 21" />
+                  </svg>
+                  {selectionImageCount} {selectionImageCount === 1 ? "image" : "images"}
+                </span>
+              )}
+              {selectionImageCount > 0 && selectionShapeCount > 0 && (
+                <span className="text-muted-foreground/40">&middot;</span>
+              )}
+              {selectionShapeCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                  </svg>
+                  {selectionShapeCount} {selectionShapeCount === 1 ? "shape" : "shapes"}
+                </span>
+              )}
+              <span className="text-[10px] text-muted-foreground/60">selected on canvas</span>
+            </div>
+          </div>
+        )}
         {attachments && onRemoveAttachment && (
           <ImageAttachmentBar
             attachments={attachments}

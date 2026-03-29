@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
 import type { ImageArtifact } from "@loomic/shared";
 import type { CanvasImageItem } from "../../components/canvas-image-picker";
+import type { CanvasSelectedElement } from "../../components/canvas-editor";
 import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import { useWebSocket } from "../../hooks/use-websocket";
@@ -47,6 +48,7 @@ function CanvasPageContent() {
   const [filesOpen, setFilesOpen] = useState(false);
   const [brandKitId, setBrandKitId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("Untitled");
+  const [selectedCanvasElements, setSelectedCanvasElements] = useState<CanvasSelectedElement[]>([]);
 
   const excalidrawApiRef = useRef<any>(null);
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
@@ -227,6 +229,7 @@ function CanvasPageContent() {
           onApiReady={handleApiReady}
           ws={ws}
           leftPanelOpen={layersOpen || filesOpen}
+          onSelectionChange={setSelectedCanvasElements}
         />
         <CanvasEmptyHint
           excalidrawApi={excalidrawApi}
@@ -264,6 +267,7 @@ function CanvasPageContent() {
         onRequestCanvasImages={handleRequestCanvasImages}
         currentBrandKitId={brandKitId}
         ws={ws}
+        selectedCanvasElements={selectedCanvasElements}
       />
     </div>
   );

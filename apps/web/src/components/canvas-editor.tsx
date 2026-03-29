@@ -16,6 +16,17 @@ const Excalidraw = dynamic(
   { ssr: false },
 );
 
+export type CanvasSelectedElement = {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text?: string;
+  fileId?: string;
+  dataUrl?: string;
+};
 
 type CanvasEditorProps = {
   canvasId: string;
@@ -29,6 +40,7 @@ type CanvasEditorProps = {
   onApiReady?: (api: any) => void;
   ws?: WebSocketHandle;
   leftPanelOpen?: boolean;
+  onSelectionChange?: (elements: CanvasSelectedElement[]) => void;
 };
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -43,6 +55,7 @@ export function CanvasEditor({
   onApiReady,
   ws,
   leftPanelOpen,
+  onSelectionChange,
 }: CanvasEditorProps) {
   const { resolvedTheme } = useTheme();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,6 +63,9 @@ export function CanvasEditor({
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
+  const prevSelectedIdsRef = useRef<string>("");
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
   // Separate inline files (ready) from storage URLs (need async fetch)
   const { inlineFiles, pendingUrls } = useMemo(() => {
@@ -169,6 +185,49 @@ export function CanvasEditor({
           console.warn("[canvas-editor] thumbnail generation/upload failed:", err);
         }
       }, THUMBNAIL_DEBOUNCE_MS);
+
+      // Detect selection changes — only fire callback when selected IDs actually change
+      const selectedIds = appState.selectedElementIds
+        ? Object.keys(appState.selectedElementIds as Record<string, boolean>).filter(
+            (id) => (appState.selectedElementIds as Record<string, boolean>)[id],
+          ).sort().join(",")
+        : "";
+
+      if (selectedIds !== prevSelectedIdsRef.current) {
+        prevSelectedIdsRef.current = selectedIds;
+        if (onSelectionChangeRef.current) {
+          if (!selectedIds) {
+            onSelectionChangeRef.current([]);
+          } else {
+            const idSet = new Set(selectedIds.split(","));
+            const files: Record<string, any> = excalidrawApi?.getFiles() ?? {};
+            const selected: CanvasSelectedElement[] = elements
+              .filter((el: any) => idSet.has(el.id) && !el.isDeleted)
+              .map((el: any) => {
+                const base: CanvasSelectedElement = {
+                  id: el.id,
+                  type: el.type,
+                  x: el.x ?? 0,
+                  y: el.y ?? 0,
+                  width: el.width ?? 0,
+                  height: el.height ?? 0,
+                };
+                if (el.type === "text" && el.text) {
+                  base.text = el.text;
+                }
+                if (el.type === "image" && el.fileId) {
+                  base.fileId = el.fileId;
+                  const file = files[el.fileId];
+                  if (file?.dataURL) {
+                    base.dataUrl = file.dataURL;
+                  }
+                }
+                return base;
+              });
+            onSelectionChangeRef.current(selected);
+          }
+        }
+      }
     },
     [canvasId, projectId, excalidrawApi],
   );
