@@ -564,49 +564,17 @@ export function ChatSidebar({
         // ── Performance timing ──
         const perf = { t0Send: performance.now(), tAck: 0, tFirstToken: 0, gotFirstToken: false };
 
-        // Start run via WebSocket (with timeout to prevent hanging forever)
-        const runId = await new Promise<string>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error("WebSocket ack timeout — connection may be down"));
-          }, 10_000);
-
-          ws.startRun(
-            {
-              sessionId: currentSessionId,
-              conversationId: canvasId,
-              prompt: text,
-              canvasId,
-              accessToken: accessTokenRef.current,
-              ...(currentAttachments.length > 0
-                ? { attachments: currentAttachments }
-                : {}),
-              ...(currentMentions.length > 0 ? { mentions: currentMentions } : {}),
-              ...(currentImageGenerationPreference
-                ? {
-                    imageGenerationPreference:
-                      currentImageGenerationPreference,
-                  }
-                : {}),
-            },
-            (ack) => {
-              clearTimeout(timeout);
-              perf.tAck = performance.now();
-              console.log(`[perf] send → ack: ${(perf.tAck - perf.t0Send).toFixed(0)}ms`);
-              resolve(ack.payload.runId as string);
-            },
-          );
-        });
-        clearAttachments();
-        setMessageMentions([]);
-
-        // Listen for events via WebSocket
+        // Register event listener BEFORE starting the run so no events
+        // can arrive in the gap between ACK and listener registration.
         let resolveStream: () => void;
         const streamDone = new Promise<void>((r) => {
           resolveStream = r;
         });
+        const runIdRef = { current: "" };
 
         const cleanup = ws.onEvent((event) => {
-          if (event.runId !== runId) return;
+          // Ignore events from other runs; also skip until we know our runId
+          if (!runIdRef.current || event.runId !== runIdRef.current) return;
           if (abortRef.current) {
             resolveStream();
             return;
@@ -651,6 +619,44 @@ export function ChatSidebar({
             resolveStream();
           }
         });
+
+        // Start run via WebSocket (with timeout to prevent hanging forever)
+        const runId = await new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error("WebSocket ack timeout — connection may be down"));
+          }, 10_000);
+
+          ws.startRun(
+            {
+              sessionId: currentSessionId,
+              conversationId: canvasId,
+              prompt: text,
+              canvasId,
+              accessToken: accessTokenRef.current,
+              ...(currentAttachments.length > 0
+                ? { attachments: currentAttachments }
+                : {}),
+              ...(currentMentions.length > 0 ? { mentions: currentMentions } : {}),
+              ...(currentImageGenerationPreference
+                ? {
+                    imageGenerationPreference:
+                      currentImageGenerationPreference,
+                  }
+                : {}),
+            },
+            (ack) => {
+              clearTimeout(timeout);
+              perf.tAck = performance.now();
+              console.log(`[perf] send → ack: ${(perf.tAck - perf.t0Send).toFixed(0)}ms`);
+              const id = ack.payload.runId as string;
+              runIdRef.current = id;
+              resolve(id);
+            },
+          );
+        });
+        clearAttachments();
+        setMessageMentions([]);
 
         await streamDone;
         cleanup();
@@ -789,6 +795,10 @@ export function ChatSidebar({
     }
 
     const timer = setTimeout(() => {
+      // Double-check the session is ready before marking as sent.
+      // If activeSessionId is still null, leave the flag false so the
+      // effect retries on the next dependency change.
+      if (!activeSessionIdRef.current) return;
       initialPromptSent.current = true;
       void handleSend(
         initialPrompt,
