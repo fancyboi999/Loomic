@@ -1,33 +1,50 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
+import { fetchViewer } from "../lib/server-api";
 import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 
 const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
-};
+} as any;
 
 const fadeIn = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
-};
+} as any;
 
-export function LoginForm() {
+interface LoginFormProps {
+  initialErrorMessage?: string | null;
+}
+
+export function LoginForm({ initialErrorMessage = null }: LoginFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"magic" | "password">("magic");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialErrorMessage);
 
-  async function handleMagicLink(e: React.FormEvent) {
+  async function bootstrapWorkspace(accessToken: string) {
+    try {
+      await fetchViewer(accessToken);
+      router.replace("/home");
+    } catch {
+      setError("Could not load your workspace. Please try again.");
+    }
+  }
+
+  async function handleMagicLink(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) return;
@@ -39,6 +56,7 @@ export function LoginForm() {
       email: trimmed,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: false,
       },
     });
 
@@ -50,7 +68,7 @@ export function LoginForm() {
     }
   }
 
-  async function handlePassword(e: React.FormEvent) {
+  async function handlePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed || !password) return;
@@ -58,16 +76,24 @@ export function LoginForm() {
     setError(null);
 
     const supabase = getSupabaseBrowserClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email: trimmed,
       password,
     });
 
-    setLoading(false);
     if (authError) {
+      setLoading(false);
       setError(authError.message);
     } else {
-      window.location.href = "/home";
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        setLoading(false);
+        setError("Could not finish signing in. Please try again.");
+        return;
+      }
+
+      await bootstrapWorkspace(accessToken);
+      setLoading(false);
     }
   }
 
@@ -116,7 +142,7 @@ export function LoginForm() {
             </motion.div>
             <h2 className="text-lg font-semibold">Check your email</h2>
             <p className="text-sm text-muted-foreground">
-              We sent a magic link to <strong>{email}</strong>
+              We sent a login link to <strong>{email}</strong>
             </p>
           </motion.div>
         ) : (
@@ -134,6 +160,21 @@ export function LoginForm() {
                 Sign in to your workspace
               </p>
             </motion.div>
+
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <motion.form
               variants={fadeIn}
@@ -167,30 +208,19 @@ export function LoginForm() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading
                   ? mode === "password" ? "Signing in..." : "Sending..."
-                  : mode === "password" ? "Sign In" : "Send Magic Link"}
+                  : mode === "password" ? "Sign in" : "Send login link"}
               </Button>
               <button
                 type="button"
-                onClick={() => { setMode(mode === "password" ? "magic" : "password"); setError(null); }}
+                onClick={() => {
+                  setMode(mode === "password" ? "magic" : "password");
+                  setError(null);
+                }}
                 className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                {mode === "password" ? "Use magic link instead" : "Use password instead"}
+                {mode === "password" ? "Use login link instead" : "Use password instead"}
               </button>
             </motion.form>
-
-            <AnimatePresence>
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden text-sm text-destructive text-center"
-                  role="alert"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
 
             <motion.div variants={fadeIn} className="flex items-center gap-4">
               <Separator className="flex-1" />
@@ -208,6 +238,13 @@ export function LoginForm() {
                 Continue with Google
               </Button>
             </motion.div>
+
+            <motion.p variants={fadeIn} className="text-center text-sm text-muted-foreground">
+              Need an account?{" "}
+              <Link href="/register" className="font-medium text-foreground underline underline-offset-4">
+                Create one
+              </Link>
+            </motion.p>
           </motion.div>
         )}
       </AnimatePresence>

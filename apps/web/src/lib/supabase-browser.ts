@@ -18,8 +18,8 @@ export function getSupabaseBrowserClient(): SupabaseClient<Database> {
 
   client = createClient<Database>(url, anonKey, {
     auth: {
-      detectSessionInUrl: true,
-      flowType: "implicit",
+      detectSessionInUrl: false,
+      flowType: "pkce",
     },
   });
 
