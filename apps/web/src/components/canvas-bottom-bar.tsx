@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { HexColorPicker } from "react-colorful";
 
 /* ── Preset color swatches for background picker ── */
-const BG_PRESETS = ["#FFFFFF","#F5F5F5","#FFF8F0","#F0F4FF","#1E1E1E","#000000","#d3f256","#E8F5E9"] as const;
+const BG_PRESETS = ["transparent","#000000","#FFFFFF","#d3f256","#6C5CE7","#00B894","#FD79A8","#0984E3"] as const;
 
 const ZOOM_PRESETS = [0.25, 0.5, 0.75, 1, 1.5, 2] as const;
 const ZOOM_MIN = 0.1;
@@ -15,6 +16,8 @@ const ZOOM_STEP = 1.1;
 interface CanvasBottomBarProps {
   // biome-ignore lint/suspicious/noExplicitAny: Excalidraw API has no public type definition
   excalidrawApi: any | null;
+  layersOpen: boolean;
+  onToggleLayers: () => void;
 }
 
 /* ── Inline SVG icons ── */
@@ -25,7 +28,23 @@ const Ico = ({ className, children, vb = "0 0 16 16", fill = "none" }: IcoProps)
 const MinusIcon = ({ className }: { className?: string }) => <Ico className={className}><path d="M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></Ico>;
 const PlusIcon = ({ className }: { className?: string }) => <Ico className={className}><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></Ico>;
 const LayersIcon = ({ className }: { className?: string }) => <Ico className={className} vb="0 0 20 20" fill="currentColor"><path d="M17.189 12.48a.65.65 0 0 1 .622 1.141l-7.5 4.1a.65.65 0 0 1-.623 0l-7.5-4.1a.65.65 0 0 1 .624-1.14L10 16.41zm0-3.036a.65.65 0 0 1 .622 1.14l-7.5 4.1a.65.65 0 0 1-.623 0l-7.5-4.1a.65.65 0 0 1 .624-1.14L10 13.374zm-7.426-7.2a.65.65 0 0 1 .549.035l7.5 4.1a.651.651 0 0 1 0 1.14l-7.5 4.101a.65.65 0 0 1-.624 0l-7.5-4.1a.651.651 0 0 1 0-1.14l7.5-4.101zM3.854 6.948 10 10.31l6.145-3.36L10 3.59z" /></Ico>;
-const SearchIcon = ({ className }: { className?: string }) => <Ico className={className}><circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" /><path d="M10 10l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></Ico>;
+const FileIcon = ({ className }: { className?: string }) => <Ico className={className} vb="0 0 24 24"><path d="M9 17h6M9 13h6M13 3H8.2c-1.12 0-1.68 0-2.108.218a2 2 0 0 0-.874.874C5 4.52 5 5.08 5 6.2v11.6c0 1.12 0 1.68.218 2.108a2 2 0 0 0 .874.874C6.52 21 7.08 21 8.2 21h7.6c1.12 0 1.68 0 2.108-.218a2 2 0 0 0 .874-.874C19 19.48 19 18.92 19 17.8V9m-6-6 6 6m-6-6v4.4c0 .56 0 .84.109 1.054a1 1 0 0 0 .437.437C13.76 9 14.04 9 14.6 9H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></Ico>;
+const CloseIcon = ({ className }: { className?: string }) => <Ico className={className}><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></Ico>;
+
+/* checkerboard pattern for "transparent" swatch */
+const CheckerIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 16 16" className={className}>
+    <rect width="8" height="8" fill="#ccc" /><rect x="8" y="8" width="8" height="8" fill="#ccc" />
+    <rect x="8" width="8" height="8" fill="#fff" /><rect y="8" width="8" height="8" fill="#fff" />
+  </svg>
+);
+
+/* checkerboard inline style for the transparent swatch button */
+const CHECKER_STYLE: React.CSSProperties = {
+  backgroundImage: "linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%)",
+  backgroundSize: "8px 8px",
+  backgroundPosition: "0 0,0 4px,4px -4px,-4px 0px",
+};
 
 /* ── Hook: dismiss popover on Escape / click-outside ── */
 function usePopoverDismiss(
@@ -48,8 +67,8 @@ function usePopoverDismiss(
 }
 
 /* ── Portal popover positioned above its trigger ── */
-function Popover({ open, triggerRef, onClose, children }: {
-  open: boolean; triggerRef: React.RefObject<HTMLElement | null>; onClose: () => void; children: React.ReactNode;
+function Popover({ open, triggerRef, onClose, children, className: extraClass }: {
+  open: boolean; triggerRef: React.RefObject<HTMLElement | null>; onClose: () => void; children: React.ReactNode; className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   usePopoverDismiss(open, onClose, containerRef, triggerRef);
@@ -64,7 +83,7 @@ function Popover({ open, triggerRef, onClose, children }: {
   if (!open) return null;
   return createPortal(
     <div ref={containerRef} style={pos}
-      className="rounded-lg bg-card border border-border shadow-float p-2 animate-in fade-in slide-in-from-bottom-2 duration-150"
+      className={`rounded-lg bg-card border border-border shadow-float animate-in fade-in slide-in-from-bottom-2 duration-150 ${extraClass ?? "p-2"}`}
       onKeyDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
     >{children}</div>,
     document.body,
@@ -75,7 +94,7 @@ function Popover({ open, triggerRef, onClose, children }: {
 const btnClass =
   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors";
 
-/* ── Element helpers for Layers / Search ── */
+/* ── Element helpers for Search ── */
 // biome-ignore lint/suspicious/noExplicitAny: Excalidraw element has no public type
 type ExcalidrawEl = any;
 const TYPE_ICONS: Record<string, string> = { text:"T", image:"🖼", rectangle:"▭", ellipse:"◯", diamond:"◇", line:"─", arrow:"→" };
@@ -88,8 +107,7 @@ function elLabel(el: ExcalidrawEl): string {
 
 function ElementRow({ el, onSelect }: { el: ExcalidrawEl; onSelect: (id: string) => void }) {
   return (
-    <button
-      type="button"
+    <button type="button"
       className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-md hover:bg-muted transition-colors text-foreground text-left"
       onClick={() => onSelect(el.id)}
     >
@@ -104,7 +122,7 @@ function ElementRow({ el, onSelect }: { el: ExcalidrawEl; onSelect: (id: string)
 /* ================================================================
    Main component
    ================================================================ */
-export function CanvasBottomBar({ excalidrawApi }: CanvasBottomBarProps) {
+export function CanvasBottomBar({ excalidrawApi, layersOpen, onToggleLayers }: CanvasBottomBarProps) {
   /* ── Zoom state ── */
   const [zoom, setZoom] = useState(1);
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
@@ -113,38 +131,28 @@ export function CanvasBottomBar({ excalidrawApi }: CanvasBottomBarProps) {
   /* ── Background color state ── */
   const [bgColor, setBgColor] = useState("#FFFFFF");
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
-  const [hexInput, setHexInput] = useState("#FFFFFF");
+  const [hexInput, setHexInput] = useState("FFFFFF");
   const bgBtnRef = useRef<HTMLButtonElement>(null);
 
-  /* ── Layers state ── */
-  const [layersOpen, setLayersOpen] = useState(false);
-  const layersBtnRef = useRef<HTMLButtonElement>(null);
-
-  /* ── Search state ── */
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchBtnRef = useRef<HTMLButtonElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  /* ── Files list state ── */
+  const [filesOpen, setFilesOpen] = useState(false);
+  const filesBtnRef = useRef<HTMLButtonElement>(null);
 
   /* ── Sync zoom from excalidraw ── */
   useEffect(() => {
     if (!excalidrawApi) return;
-    // Read initial values
     const state = excalidrawApi.getAppState();
     setZoom(state.zoom.value);
-    setBgColor(state.viewBackgroundColor ?? "#FFFFFF");
-    setHexInput(state.viewBackgroundColor ?? "#FFFFFF");
+    const initBg = state.viewBackgroundColor ?? "#FFFFFF";
+    setBgColor(initBg);
+    setHexInput(initBg.replace(/^#/, "").toUpperCase());
 
-    // Subscribe to changes
     const unsubscribe = excalidrawApi.onChange(() => {
       const s = excalidrawApi.getAppState();
       setZoom(s.zoom.value);
-      const bg = s.viewBackgroundColor ?? "#FFFFFF";
-      setBgColor(bg);
+      setBgColor(s.viewBackgroundColor ?? "#FFFFFF");
     });
-    return () => {
-      if (typeof unsubscribe === "function") unsubscribe();
-    };
+    return () => { if (typeof unsubscribe === "function") unsubscribe(); };
   }, [excalidrawApi]);
 
   /* ── Zoom helpers ── */
@@ -166,78 +174,75 @@ export function CanvasBottomBar({ excalidrawApi }: CanvasBottomBarProps) {
   const handleFitAll = useCallback(() => { excalidrawApi?.scrollToContent(); setZoomMenuOpen(false); }, [excalidrawApi]);
 
   /* ── Background color helpers ── */
-  const handleBgColor = useCallback((hex: string) => {
+  const applyBgColor = useCallback((hex: string) => {
     if (!excalidrawApi) return;
     excalidrawApi.updateScene({ appState: { viewBackgroundColor: hex } });
     setBgColor(hex);
-    setHexInput(hex);
+    if (hex !== "transparent") setHexInput(hex.replace(/^#/, "").toUpperCase());
   }, [excalidrawApi]);
 
-  const handleHexSubmit = useCallback(() => {
-    const c = hexInput.trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(c)) { handleBgColor(c); setBgPickerOpen(false); }
-  }, [hexInput, handleBgColor]);
+  const handleHexInputSubmit = useCallback(() => {
+    const raw = hexInput.trim().replace(/^#/, "");
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) applyBgColor(`#${raw}`);
+  }, [hexInput, applyBgColor]);
 
-  /* ── Element list (read fresh each open) ── */
-  const [elements, setElements] = useState<ExcalidrawEl[]>([]);
+  /* ── Generated image files list ── */
+  type ImageFile = { id: string; name: string; dataURL: string };
+  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 
-  const refreshElements = useCallback(() => {
+  const refreshImageFiles = useCallback(() => {
     if (!excalidrawApi) return;
-    const all = excalidrawApi.getSceneElements() as ExcalidrawEl[];
-    setElements(all.filter((el: ExcalidrawEl) => !el.isDeleted).reverse());
+    const allElements = excalidrawApi.getSceneElements() as ExcalidrawEl[];
+    const files: Record<string, any> = excalidrawApi.getFiles() ?? {};
+    const images: ImageFile[] = [];
+    let idx = 0;
+    for (const el of allElements) {
+      if (el.isDeleted || el.type !== "image" || !el.fileId) continue;
+      idx++;
+      const file = files[el.fileId];
+      const title = el.customData?.title || el.customData?.label || `Image ${idx}`;
+      images.push({ id: el.id, name: title, dataURL: file?.dataURL ?? "" });
+    }
+    setImageFiles(images.reverse());
   }, [excalidrawApi]);
 
-  const selectElement = useCallback((id: string) => {
-    excalidrawApi?.updateScene({ appState: { selectedElementIds: { [id]: true } } });
-  }, [excalidrawApi]);
-
-  const filteredElements = useMemo(() => {
-    if (!searchQuery.trim()) return elements;
-    const q = searchQuery.trim().toLowerCase();
-    return elements.filter((el: ExcalidrawEl) => {
-      if (el.type === "text" && (el.text as string)?.toLowerCase().includes(q)) return true;
-      return el.type.toLowerCase().includes(q);
-    });
-  }, [elements, searchQuery]);
+  const handleDownloadFile = useCallback((file: ImageFile) => {
+    if (!file.dataURL) return;
+    const a = document.createElement("a");
+    a.href = file.dataURL;
+    a.download = `${file.name}.png`;
+    a.click();
+  }, []);
 
   /* ── Toggle helpers (close sibling popovers) ── */
-  const closeAll = useCallback(() => {
-    setZoomMenuOpen(false); setBgPickerOpen(false); setLayersOpen(false); setSearchOpen(false);
+  const closeAllPopovers = useCallback(() => {
+    setZoomMenuOpen(false); setBgPickerOpen(false); setFilesOpen(false);
   }, []);
-  const toggleZoomMenu = useCallback(() => { const next = !zoomMenuOpen; closeAll(); if (next) setZoomMenuOpen(true); }, [zoomMenuOpen, closeAll]);
-  const toggleBgPicker = useCallback(() => { const next = !bgPickerOpen; closeAll(); if (next) setBgPickerOpen(true); }, [bgPickerOpen, closeAll]);
-  const toggleLayers = useCallback(() => {
-    const next = !layersOpen; closeAll(); if (next) { refreshElements(); setLayersOpen(true); }
-  }, [layersOpen, closeAll, refreshElements]);
-  const toggleSearch = useCallback(() => {
-    const next = !searchOpen; closeAll(); if (next) { refreshElements(); setSearchQuery(""); setSearchOpen(true); }
-  }, [searchOpen, closeAll, refreshElements]);
-
-  /* Focus search input when opened */
-  useEffect(() => {
-    if (searchOpen) requestAnimationFrame(() => searchInputRef.current?.focus());
-  }, [searchOpen]);
+  const toggleZoomMenu = useCallback(() => { const next = !zoomMenuOpen; closeAllPopovers(); if (next) setZoomMenuOpen(true); }, [zoomMenuOpen, closeAllPopovers]);
+  const toggleBgPicker = useCallback(() => { const next = !bgPickerOpen; closeAllPopovers(); if (next) setBgPickerOpen(true); }, [bgPickerOpen, closeAllPopovers]);
+  const toggleFiles = useCallback(() => {
+    const next = !filesOpen; closeAllPopovers(); if (next) { refreshImageFiles(); setFilesOpen(true); }
+  }, [filesOpen, closeAllPopovers, refreshImageFiles]);
+  const handleToggleLayers = useCallback(() => { closeAllPopovers(); onToggleLayers(); }, [closeAllPopovers, onToggleLayers]);
 
   return (
-    <div
-      className="absolute bottom-4 left-4 z-20"
-      onKeyDown={(e) => e.stopPropagation()}
-      onWheel={(e) => e.stopPropagation()}
-    >
+    <div className="absolute bottom-4 left-4 z-20" onKeyDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-0.5 rounded-full bg-card/90 backdrop-blur-lg border border-border px-1 py-1 shadow-card">
         {/* ── Background color button ── */}
         <button ref={bgBtnRef} type="button" className={btnClass} onClick={toggleBgPicker} aria-label="Background color">
-          <span className="block h-4 w-4 rounded-full border border-border" style={{ backgroundColor: bgColor }} />
+          {bgColor === "transparent"
+            ? <CheckerIcon className="h-4 w-4 rounded-full" />
+            : <span className="block h-4 w-4 rounded-full border border-border" style={{ backgroundColor: bgColor }} />}
         </button>
 
         {/* ── Layers button ── */}
-        <button ref={layersBtnRef} type="button" className={btnClass} onClick={toggleLayers} aria-label="Layers">
+        <button type="button" className={`${btnClass} ${layersOpen ? "bg-muted text-foreground" : ""}`} onClick={handleToggleLayers} aria-label="Layers">
           <LayersIcon className="h-4 w-4" />
         </button>
 
-        {/* ── Search button ── */}
-        <button ref={searchBtnRef} type="button" className={btnClass} onClick={toggleSearch} aria-label="Search">
-          <SearchIcon className="h-3.5 w-3.5" />
+        {/* ── Files button ── */}
+        <button ref={filesBtnRef} type="button" className={btnClass} onClick={toggleFiles} aria-label="Generated files">
+          <FileIcon className="h-3.5 w-3.5" />
         </button>
 
         {/* ── Divider ── */}
@@ -263,61 +268,91 @@ export function CanvasBottomBar({ excalidrawApi }: CanvasBottomBarProps) {
       </Popover>
 
       {/* ── Background color picker popover ── */}
-      <Popover open={bgPickerOpen} triggerRef={bgBtnRef} onClose={() => setBgPickerOpen(false)}>
-        <div className="flex flex-col gap-2 min-w-[160px]">
-          <div className="grid grid-cols-4 gap-1.5">
+      <Popover open={bgPickerOpen} triggerRef={bgBtnRef} onClose={() => setBgPickerOpen(false)} className="w-[260px] rounded-2xl p-3">
+        <div className="flex flex-col gap-3">
+          {/* Title bar */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">画布背景色</span>
+            <button type="button" className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setBgPickerOpen(false)} aria-label="Close color picker">
+              <CloseIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {/* Separator */}
+          <div className="h-px bg-border -mx-3" />
+          {/* Color wheel picker */}
+          <HexColorPicker
+            color={bgColor === "transparent" ? "#FFFFFF" : bgColor}
+            onChange={applyBgColor}
+            style={{ width: "100%", height: 160 }}
+          />
+          {/* Preset swatches */}
+          <div className="flex items-center gap-1.5">
             {BG_PRESETS.map((hex) => (
-              <button key={hex} type="button" className="h-7 w-7 rounded-md border border-border hover:scale-110 transition-transform"
-                style={{ backgroundColor: hex }} onClick={() => { handleBgColor(hex); setBgPickerOpen(false); }} aria-label={`Set background to ${hex}`} />
+              <button key={hex} type="button"
+                className={`h-7 w-7 shrink-0 rounded-full border hover:scale-110 transition-transform ${bgColor === hex ? "border-foreground ring-1 ring-foreground ring-offset-1 ring-offset-card" : "border-border"}`}
+                style={hex === "transparent" ? CHECKER_STYLE : { backgroundColor: hex }}
+                onClick={() => applyBgColor(hex)} aria-label={`Set background to ${hex}`} />
             ))}
           </div>
+          {/* Hex input row */}
           <div className="flex items-center gap-1.5">
-            <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} placeholder="#RRGGBB" maxLength={7}
-              onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") handleHexSubmit(); }}
-              className="flex-1 h-7 rounded-md border border-border bg-muted px-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-            <button type="button" className="h-7 w-7 rounded-md border border-border" aria-label="Color preview"
-              style={{ backgroundColor: /^#[0-9a-fA-F]{6}$/.test(hexInput.trim()) ? hexInput.trim() : bgColor }} />
+            <div className="flex flex-1 items-center rounded-lg border border-border bg-muted overflow-hidden">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center text-xs text-muted-foreground">#</span>
+              <input type="text" value={hexInput}
+                onChange={(e) => { const v = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6); setHexInput(v.toUpperCase()); }}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") handleHexInputSubmit(); }}
+                onBlur={handleHexInputSubmit} maxLength={6}
+                className="h-7 flex-1 border-none bg-transparent text-xs text-foreground outline-none" />
+            </div>
+            <div className="flex items-center rounded-lg border border-border bg-muted overflow-hidden">
+              <input type="text" value="100" readOnly className="h-7 w-8 border-none bg-transparent text-center text-xs text-foreground outline-none" />
+              <span className="flex h-7 w-6 shrink-0 items-center justify-center text-xs text-muted-foreground pr-1">%</span>
+            </div>
           </div>
         </div>
       </Popover>
 
-      {/* ── Layers panel popover ── */}
-      <Popover open={layersOpen} triggerRef={layersBtnRef} onClose={() => setLayersOpen(false)}>
-        <div className="flex flex-col min-w-[200px]">
-          <span className="px-2 py-1.5 text-xs font-medium text-muted-foreground">图层</span>
-          <div className="max-h-[300px] overflow-y-auto">
-            {elements.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-muted-foreground text-center">画布为空</p>
-            ) : (
-              elements.map((el: ExcalidrawEl) => (
-                <ElementRow key={el.id} el={el} onSelect={(id) => { selectElement(id); setLayersOpen(false); }} />
-              ))
-            )}
+      {/* ── Generated files list popover ── */}
+      <Popover open={filesOpen} triggerRef={filesBtnRef} onClose={() => setFilesOpen(false)}>
+        <div className="flex flex-col min-w-[240px] max-w-[280px]">
+          <div className="flex items-center justify-between px-1 pb-2">
+            <span className="text-sm font-medium text-foreground">已生成文件</span>
+            <button type="button" onClick={() => setFilesOpen(false)} className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <CloseIcon className="h-3.5 w-3.5" />
+            </button>
           </div>
-        </div>
-      </Popover>
-
-      {/* ── Element search popover ── */}
-      <Popover open={searchOpen} triggerRef={searchBtnRef} onClose={() => setSearchOpen(false)}>
-        <div className="flex flex-col min-w-[200px]">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-            placeholder="搜索画布元素..."
-            className="h-7 rounded-md border border-border bg-muted px-2 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring mb-1"
-          />
-          <div className="max-h-[300px] overflow-y-auto">
-            {filteredElements.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-muted-foreground text-center">
-                {searchQuery.trim() ? "未找到匹配元素" : "画布为空"}
-              </p>
+          <div className="max-h-[360px] overflow-y-auto">
+            {imageFiles.length === 0 ? (
+              <p className="px-2 py-6 text-sm text-muted-foreground text-center">暂无生成文件</p>
             ) : (
-              filteredElements.map((el: ExcalidrawEl) => (
-                <ElementRow key={el.id} el={el} onSelect={(id) => { selectElement(id); setSearchOpen(false); }} />
-              ))
+              <div className="flex flex-col gap-1">
+                {imageFiles.map((file) => (
+                  <div key={file.id} className="group flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-subtle">
+                      {file.dataURL ? (
+                        <img alt="" className="h-full w-full object-cover" draggable={false} src={file.dataURL} />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground text-xs">N/A</div>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-hidden text-sm leading-[22px] text-foreground">
+                      <div className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDownloadFile(file); }}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                      title="下载"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" fillOpacity={0.9}>
+                        <path d="M3 17.25v-2.5a.75.75 0 0 1 1.5 0v2.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-2.5a.75.75 0 0 1 1.5 0v2.5A3.75 3.75 0 0 1 17.25 21H6.75A3.75 3.75 0 0 1 3 17.25m8.25-13.5a.75.75 0 0 1 1.5 0v9.44l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22z" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                <p className="py-2 text-center text-xs text-muted-foreground">到底了</p>
+              </div>
             )}
           </div>
         </div>

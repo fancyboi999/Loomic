@@ -17,6 +17,7 @@ import { insertImageOnCanvas } from "../../lib/canvas-elements";
 import { fetchCanvas, fetchProject, ApiAuthError } from "../../lib/server-api";
 import { BrandKitSelector } from "../../components/brand-kit-selector";
 import { CanvasBottomBar } from "../../components/canvas-bottom-bar";
+import { CanvasLayersPanel } from "../../components/canvas-layers-panel";
 
 function CanvasPageContent() {
   const searchParams = useSearchParams();
@@ -41,6 +42,7 @@ function CanvasPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [brandKitId, setBrandKitId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("Untitled");
 
@@ -222,7 +224,16 @@ function CanvasPageContent() {
           excalidrawApi={excalidrawApi}
           onOpenChat={() => setChatOpen(true)}
         />
-        <CanvasBottomBar excalidrawApi={excalidrawApi} />
+        <CanvasBottomBar
+          excalidrawApi={excalidrawApi}
+          layersOpen={layersOpen}
+          onToggleLayers={() => setLayersOpen((v) => !v)}
+        />
+        <CanvasLayersPanel
+          excalidrawApi={excalidrawApi}
+          open={layersOpen}
+          onClose={() => setLayersOpen(false)}
+        />
       </div>
       <ChatSidebar
         accessToken={accessToken}
