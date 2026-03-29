@@ -37,6 +37,8 @@ export function CanvasFilesPanel({ excalidrawApi, open, onClose }: CanvasFilesPa
     let idx = 0;
     for (const el of allElements) {
       if (el.isDeleted || el.type !== "image" || !el.fileId) continue;
+      // Only show AI-generated images, not user-uploaded ones
+      if (el.customData?.source !== "generated" && !el.customData?.title) continue;
       idx++;
       const file = files[el.fileId];
       const title = el.customData?.title || el.customData?.label || `Image ${idx}`;
