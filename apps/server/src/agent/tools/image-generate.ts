@@ -190,6 +190,25 @@ export async function runImageGenerate(
     lap("data_uri_upload_done");
   }
 
+  // Filter out invalid image references — only keep valid URLs.
+  // Agent may pass canvas element IDs or unresolved assetIds that aren't
+  // in the attachmentMap. These would cause Replicate 422 errors.
+  if (input.inputImages?.length) {
+    const validImages = input.inputImages.filter((img) =>
+      img.startsWith("http://") || img.startsWith("https://") || img.startsWith("data:"),
+    );
+    if (validImages.length !== input.inputImages.length) {
+      lap("filtered_invalid_refs", {
+        before: input.inputImages.length,
+        after: validImages.length,
+        dropped: input.inputImages.filter((img) =>
+          !img.startsWith("http://") && !img.startsWith("https://") && !img.startsWith("data:"),
+        ),
+      });
+    }
+    input = { ...input, inputImages: validImages.length > 0 ? validImages : undefined };
+  }
+
   // Job mode: submit to PGMQ and wait for worker to complete
   if (submitImageJob) {
     try {
