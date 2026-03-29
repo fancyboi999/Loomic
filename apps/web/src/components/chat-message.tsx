@@ -494,10 +494,12 @@ export function ChatMessage({
 /* ------------------------------------------------------------------ */
 
 const TOOL_CONFIG: Record<string, { label: string; icon: string; showCard: boolean }> = {
+  think:              { label: "思考中",     icon: "tool",   showCard: false },
   inspect_canvas:     { label: "读取画布",   icon: "eye",    showCard: true },
   manipulate_canvas:  { label: "操作画布",   icon: "brush",  showCard: true },
   generate_image:     { label: "生成图片",   icon: "image",  showCard: true },
   generate_video:     { label: "生成视频",   icon: "video",  showCard: true },
+  screenshot_canvas:  { label: "截取画布",   icon: "eye",    showCard: true },
   get_brand_kit:      { label: "品牌工具包", icon: "palette", showCard: true },
   project_search:     { label: "搜索项目",   icon: "search", showCard: true },
   task:               { label: "执行任务",   icon: "tool",   showCard: false },
