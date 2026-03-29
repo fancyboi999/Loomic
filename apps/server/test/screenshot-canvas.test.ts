@@ -22,7 +22,7 @@ describe("screenshot_canvas tool", () => {
   it("sends RPC and returns multimodal content with image", async () => {
     const cm = new ConnectionManager();
     const ws = createMockWs();
-    cm.register("user-1", ws);
+    cm.register("conn-1", "user-1", ws);
 
     const tool = createScreenshotCanvasTool({ connectionManager: cm });
 
@@ -58,7 +58,7 @@ describe("screenshot_canvas tool", () => {
 
     const parsed = JSON.parse(result.content as string);
     expect(parsed.error).toBe("screenshot_failed");
-    expect(parsed.message).toContain("not connected");
+    expect(parsed.message).toContain("not available");
 
     cm.dispose();
   });
@@ -66,7 +66,7 @@ describe("screenshot_canvas tool", () => {
   it("returns error on timeout", async () => {
     const cm = new ConnectionManager();
     const ws = createMockWs();
-    cm.register("user-1", ws);
+    cm.register("conn-1", "user-1", ws);
 
     const tool = createScreenshotCanvasTool({ connectionManager: cm, rpcTimeout: 50 });
 
