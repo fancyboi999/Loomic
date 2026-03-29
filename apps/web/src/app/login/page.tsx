@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 
 import { AuthShell } from "../../components/auth/auth-shell";
 import { LoginForm } from "../../components/login-form";
@@ -15,7 +15,7 @@ const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
   auth_callback_timeout: "Sign-in took too long to complete. Please try again.",
 };
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,5 +45,13 @@ export default function LoginPage() {
     >
       <LoginForm initialErrorMessage={initialErrorMessage} />
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

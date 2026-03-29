@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 
 import { LoadingScreen } from "../../../components/loading-screen";
 import {
@@ -17,7 +17,7 @@ function loginErrorUrl(error: string): string {
   return `/login?${new URLSearchParams({ error }).toString()}`;
 }
 
-export default function AuthCallbackPage() {
+function AuthCallbackPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const started = useRef(false);
@@ -92,4 +92,12 @@ export default function AuthCallbackPage() {
   }, [router, searchParams]);
 
   return <LoadingScreen />;
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <AuthCallbackPageContent />
+    </Suspense>
+  );
 }
