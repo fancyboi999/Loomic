@@ -551,7 +551,7 @@ function findSidebarRect(el: HTMLElement | null): DOMRect | null {
 
 function ToolBlockView({ block }: { block: ToolBlock }) {
   const [panelOpen, setPanelOpen] = useState(false);
-  const [panelRight, setPanelRight] = useState(416); // chatbar width + gap
+  const [panelRight, setPanelRight] = useState(416);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const config = getToolConfig(block.toolName);
@@ -567,10 +567,14 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
   const previewLines = hasOutput ? formatOutputPreview(block.output!) : [];
   const showCard = config.showCard && isCompleted && (block.outputSummary || hasOutput);
 
+  // Extract image artifact for generate_image inline preview
+  const imageArtifact = block.artifacts?.find((a) => a.type === "image");
+  const isImageTool = block.toolName === "generate_image";
+  const modelName = (block.input as Record<string, unknown> | undefined)?.model as string | undefined;
+
   const handleOpenPanel = () => {
     const rect = findSidebarRect(containerRef.current);
     if (rect) {
-      // Position panel so its right edge is at the chatbar's left edge minus a gap
       setPanelRight(window.innerWidth - rect.left + 12);
     }
     setPanelOpen(true);
@@ -587,11 +591,62 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
             <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
           </svg>
         )}
-        <span className="font-medium text-muted-foreground">{config.label}</span>
+        <span className="font-medium text-muted-foreground">
+          {isImageTool && modelName
+            ? modelName.split("/").pop() ?? config.label
+            : config.label}
+        </span>
       </div>
 
-      {/* Layer 2: Output card */}
-      {showCard && (
+      {/* Layer 2: Image generation card — special layout with inline preview */}
+      {isImageTool && isCompleted && imageArtifact ? (
+        <div
+          className="group cursor-pointer rounded-xl border-[0.5px] border-border overflow-hidden transition-shadow hover:shadow-md"
+          onClick={handleOpenPanel}
+        >
+          {/* Image preview */}
+          <div className="relative aspect-square max-h-[280px] w-full overflow-hidden bg-muted">
+            <img
+              src={imageArtifact.url}
+              alt={imageArtifact.title ?? "Generated image"}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              loading="lazy"
+            />
+            {/* Gradient overlay with download button */}
+            <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+              <a
+                href={imageArtifact.url}
+                download
+                onClick={(e) => e.stopPropagation()}
+                className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-colors"
+                title="下载图片"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06Z" />
+                </svg>
+              </a>
+            </div>
+          </div>
+          {/* Title + model info */}
+          <div className="px-3 py-2.5">
+            <div className="text-sm font-semibold text-foreground line-clamp-1">
+              {(imageArtifact as { title?: string }).title ?? cardTitle}
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              {modelName && (
+                <span className="truncate">{modelName.split("/").pop()}</span>
+              )}
+              {hasDetails && (
+                <>
+                  <span>·</span>
+                  <span className="hover:text-foreground transition-colors">查看详情</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : showCard ? (
+        /* Layer 2: Generic output card (non-image tools) */
         <div className="rounded-xl border-[0.5px] border-border p-3">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 shrink-0 rounded-lg bg-muted p-1.5 text-muted-foreground">
@@ -626,7 +681,7 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
             </button>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Floating detail panel — portal to body, positioned left of chatbar */}
       {panelOpen && hasDetails && createPortal(
