@@ -6,7 +6,7 @@ import { createProductionBackendFactory } from "./prod.js";
 
 type AgentBackendEnv = Pick<
   ServerEnv,
-  "agentBackendMode" | "agentFilesRoot" | "sandboxRoot" | "skillsRoot"
+  "agentBackendMode" | "agentFilesRoot" | "skillsRoot"
 >;
 
 export type AgentBackendResult = {
@@ -30,7 +30,6 @@ export function createAgentBackend(
   }
 
   return createProductionBackendFactory(canvasId, {
-    ...(env.sandboxRoot ? { sandboxRoot: env.sandboxRoot } : {}),
     ...(env.skillsRoot ? { skillsRoot: env.skillsRoot } : {}),
   });
 }

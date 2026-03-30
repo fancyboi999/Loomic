@@ -15,6 +15,7 @@ export type BackgroundJobStatus = z.infer<typeof backgroundJobStatusSchema>;
 export const backgroundJobTypeSchema = z.enum([
   "image_generation",
   "video_generation",
+  "code_execution",
 ]);
 export type BackgroundJobType = z.infer<typeof backgroundJobTypeSchema>;
 
