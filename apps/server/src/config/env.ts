@@ -11,6 +11,7 @@ export type ServerEnv = {
   agentBackendMode: AgentBackendMode;
   agentFilesRoot?: string;
   agentModel: string;
+  googleApiKey?: string;
   googleFontsApiKey?: string;
   openAIApiBase?: string;
   openAIApiKey?: string;
@@ -58,6 +59,8 @@ export function loadServerEnv(
   const supabaseProjectId =
     overrides.supabaseProjectId ??
     normalizeOptionalString(source.SUPABASE_PROJECT_ID);
+  const googleApiKey =
+    overrides.googleApiKey ?? normalizeOptionalString(source.GOOGLE_API_KEY);
   const googleFontsApiKey =
     overrides.googleFontsApiKey ?? normalizeOptionalString(source.GOOGLE_FONTS_API_KEY);
   const replicateApiToken =
@@ -91,6 +94,7 @@ export function loadServerEnv(
     webOrigin:
       overrides.webOrigin ?? source.LOOMIC_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN,
     ...(agentFilesRoot ? { agentFilesRoot } : {}),
+    ...(googleApiKey ? { googleApiKey } : {}),
     ...(openAIApiBase ? { openAIApiBase } : {}),
     ...(openAIApiKey ? { openAIApiKey } : {}),
     ...(supabaseUrl ? { supabaseUrl } : {}),
