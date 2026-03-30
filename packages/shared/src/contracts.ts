@@ -73,6 +73,7 @@ export const runCreateRequestSchema = z.object({
   videoGenerationPreference: videoGenerationPreferenceSchema.optional(),
   mentions: z.array(messageMentionSchema).optional(),
   accessToken: z.string().optional(),
+  model: z.string().optional(),
 });
 
 export const runCreateResponseSchema = z.object({
