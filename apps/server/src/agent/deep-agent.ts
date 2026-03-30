@@ -2,12 +2,11 @@ import type { BaseCheckpointSaver, BaseStore } from "@langchain/langgraph-checkp
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOpenAI } from "@langchain/openai";
-import type { BackendFactory } from "deepagents";
 import { createDeepAgent } from "deepagents";
 
 import type { ServerEnv } from "../config/env.js";
 import type { ConnectionManager } from "../ws/connection-manager.js";
-import { createAgentBackendFactory } from "./backends/index.js";
+import { createAgentBackend, type AgentBackendResult } from "./backends/index.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import { createVideoSubAgent } from "./sub-agents.js";
 import { createMainAgentTools } from "./tools/index.js";
@@ -20,6 +19,7 @@ export type LoomicAgent = Pick<
 >;
 
 export type LoomicAgentFactory = (options: {
+  backendResult?: AgentBackendResult;
   brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
@@ -34,7 +34,7 @@ export type LoomicAgentFactory = (options: {
 }) => LoomicAgent;
 
 export function createLoomicDeepAgent(options: {
-  backendFactory?: BackendFactory;
+  backendResult?: AgentBackendResult;
   brandKitId?: string | null;
   canvasId?: string;
   checkpointer?: BaseCheckpointSaver;
@@ -47,9 +47,8 @@ export function createLoomicDeepAgent(options: {
   submitVideoJob?: SubmitVideoJobFn;
   store?: BaseStore;
 }): LoomicAgent {
-  const backendFactory =
-    options.backendFactory ??
-    createAgentBackendFactory(options.env, options.canvasId);
+  const backendResult =
+    options.backendResult ?? createAgentBackend(options.env, options.canvasId);
 
   applyOpenAICompatEnv(options.env);
 
@@ -73,14 +72,15 @@ export function createLoomicDeepAgent(options: {
     : LOOMIC_SYSTEM_PROMPT;
 
   return createDeepAgent({
-    backend: backendFactory,
+    backend: backendResult.factory,
     ...(options.checkpointer ? { checkpointer: options.checkpointer } : {}),
     model: resolvedModel,
     name: "loomic",
+    skills: ["/skills/"],
     ...(options.store ? { store: options.store } : {}),
     subagents: [createVideoSubAgent()],
     systemPrompt,
-    tools: createMainAgentTools(backendFactory, {
+    tools: createMainAgentTools(backendResult.factory, {
       createUserClient,
       ...(options.brandKitId != null ? { brandKitId: options.brandKitId } : {}),
       ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),

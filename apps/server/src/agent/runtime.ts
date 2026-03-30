@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
@@ -23,6 +24,7 @@ import type { AuthenticatedUser, UserSupabaseClient } from "../supabase/user.js"
 import type { ConnectionManager } from "../ws/connection-manager.js";
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
+import { createAgentBackend } from "./backends/index.js";
 import {
   type LoomicAgent,
   type LoomicAgentFactory,
@@ -569,6 +571,10 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         };
       }
 
+      // Create sandbox-aware backend so runtime owns the lifecycle.
+      const backendResult = createAgentBackend(options.env, run.canvasId);
+
+      try {
       let agent: LoomicAgent;
       try {
         const resolvedModel = run.modelOverride
@@ -654,6 +660,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         rlog.lap("brand_kit_resolved");
 
         agent = resolvedAgentFactory({
+          backendResult,
           ...(brandKitId ? { brandKitId } : {}),
           ...(run.canvasId ? { canvasId: run.canvasId } : {}),
           ...(persistence ? { checkpointer: persistence.checkpointer } : {}),
@@ -820,6 +827,13 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             };
             return;
           }
+        }
+      }
+      } finally {
+        if (backendResult.sandboxDir) {
+          rm(backendResult.sandboxDir, { recursive: true, force: true }).catch(
+            (err) => console.warn("[sandbox] cleanup failed:", err.message),
+          );
         }
       }
     },
