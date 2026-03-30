@@ -15,9 +15,14 @@ const OPENAI_MODELS: ModelInfo[] = [
 ];
 
 const GOOGLE_MODELS: ModelInfo[] = [
+  // Gemini 3 series (Preview)
+  { id: "google:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", provider: "google" },
+  { id: "google:gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "google" },
+  { id: "google:gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite", provider: "google" },
+  // Gemini 2.5 series (GA)
   { id: "google:gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google" },
   { id: "google:gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google" },
-  { id: "google:gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google" },
+  { id: "google:gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "google" },
 ];
 
 export async function registerModelRoutes(app: FastifyInstance, env: ServerEnv) {

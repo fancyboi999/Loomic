@@ -285,6 +285,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 </button>
               </>
             )}
+            {/* Agent model selector */}
+            <AgentModelSelector compact />
             {/* Model preference button */}
             <div className="relative">
               <button
@@ -294,7 +296,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 title="Image model"
                 className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
                   preference.mode === "manual" || videoPreference.mode === "manual"
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-accent/20 text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
@@ -308,8 +310,6 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 anchorRef={modelBtnRef}
               />
             </div>
-            {/* Agent model selector */}
-            <AgentModelSelector />
           </div>
           <button
             onClick={handleSubmit}

@@ -101,8 +101,20 @@ export function createLoomicDeepAgent(options: {
  */
 function createStreamingChatModel(specifier: string): BaseLanguageModel {
   const colonIdx = specifier.indexOf(":");
-  const provider = colonIdx > 0 ? specifier.slice(0, colonIdx) : "openai";
-  const modelName = colonIdx > 0 ? specifier.slice(colonIdx + 1) : specifier;
+  let provider = colonIdx > 0 ? specifier.slice(0, colonIdx) : "openai";
+  let modelName = colonIdx > 0 ? specifier.slice(colonIdx + 1) : specifier;
+
+  // Provider availability fallback
+  if (provider === "google" && !process.env.GOOGLE_API_KEY) {
+    console.warn(`[model] Google unavailable (no GOOGLE_API_KEY), falling back to OpenAI for: ${specifier}`);
+    provider = "openai";
+    modelName = DEFAULT_AGENT_MODEL;
+  }
+  if (provider === "openai" && !process.env.OPENAI_API_KEY && process.env.GOOGLE_API_KEY) {
+    console.warn(`[model] OpenAI unavailable (no OPENAI_API_KEY), falling back to Google for: ${specifier}`);
+    provider = "google";
+    modelName = "gemini-2.5-flash";
+  }
 
   switch (provider) {
     case "google":

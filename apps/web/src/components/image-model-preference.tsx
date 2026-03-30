@@ -129,13 +129,13 @@ export function ImageModelPreferencePopover({
               }
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 currentPreference.mode === "auto"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-accent/15 text-accent-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  currentPreference.mode === "auto" ? "bg-[#4ADE80]" : "bg-muted-foreground"
+                  currentPreference.mode === "auto" ? "bg-accent" : "bg-muted-foreground"
                 }`}
               />
               {currentPreference.mode === "auto" ? "Auto" : "Manual"}
@@ -157,8 +157,8 @@ export function ImageModelPreferencePopover({
                 key={m.id}
                 type="button"
                 onClick={() => currentToggleModel(m.id)}
-                className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted ${
-                  selected ? "bg-muted" : ""
+                className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors ${
+                  selected ? "bg-accent/10 hover:bg-accent/15" : "hover:bg-muted"
                 }`}
               >
                 {m.iconUrl && (
@@ -178,7 +178,7 @@ export function ImageModelPreferencePopover({
                 </div>
                 {selected && (
                   <svg
-                    className="h-3.5 w-3.5 shrink-0 text-foreground"
+                    className="h-3.5 w-3.5 shrink-0 text-accent-foreground"
                     viewBox="0 0 14 14"
                     fill="currentColor"
                   >

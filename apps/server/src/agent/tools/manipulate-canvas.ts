@@ -14,25 +14,27 @@ const labelSchema = z
   .optional()
   .describe("Optional centered text label inside the shape");
 
-const operationSchema = z.discriminatedUnion("action", [
+// Use z.union + z.enum instead of z.discriminatedUnion + z.literal
+// because Gemini API doesn't support JSON Schema "const" keyword.
+const operationSchema = z.union([
   z.object({
-    action: z.literal("move"),
+    action: z.enum(["move"]).describe("Move an element"),
     element_id: z.string().describe("ID of element to move"),
     x: z.number().describe("New x coordinate (left edge)"),
     y: z.number().describe("New y coordinate (top edge)"),
   }),
   z.object({
-    action: z.literal("resize"),
+    action: z.enum(["resize"]).describe("Resize an element"),
     element_id: z.string().describe("ID of element to resize"),
-    width: z.number().positive().describe("New width"),
-    height: z.number().positive().describe("New height"),
+    width: z.number().min(1).describe("New width"),
+    height: z.number().min(1).describe("New height"),
   }),
   z.object({
-    action: z.literal("delete"),
+    action: z.enum(["delete"]).describe("Delete an element"),
     element_id: z.string().describe("ID of element to delete"),
   }),
   z.object({
-    action: z.literal("update_style"),
+    action: z.enum(["update_style"]).describe("Update element style"),
     element_id: z.string().describe("ID of element to update"),
     strokeColor: z.string().optional().describe("Stroke color hex, e.g. #FF0000"),
     backgroundColor: z.string().optional().describe("Fill color hex"),
@@ -41,7 +43,7 @@ const operationSchema = z.discriminatedUnion("action", [
     strokeWidth: z.number().optional().describe("Stroke width"),
   }),
   z.object({
-    action: z.literal("add_text"),
+    action: z.enum(["add_text"]).describe("Add a text element"),
     text: z.string().min(1).describe("Text content"),
     x: z.number().describe("X coordinate"),
     y: z.number().describe("Y coordinate"),
@@ -49,12 +51,12 @@ const operationSchema = z.discriminatedUnion("action", [
     strokeColor: z.string().default("#000000").describe("Text color hex"),
   }),
   z.object({
-    action: z.literal("add_shape"),
+    action: z.enum(["add_shape"]).describe("Add a shape element"),
     shape: z.enum(["rectangle", "ellipse", "diamond"]).describe("Shape type"),
     x: z.number().describe("X coordinate"),
     y: z.number().describe("Y coordinate"),
-    width: z.number().positive().describe("Width"),
-    height: z.number().positive().describe("Height"),
+    width: z.number().min(1).describe("Width"),
+    height: z.number().min(1).describe("Height"),
     strokeColor: z.string().default("#000000").describe("Stroke color hex"),
     backgroundColor: z.string().default("transparent").describe("Fill color hex"),
     fillStyle: z
@@ -64,7 +66,7 @@ const operationSchema = z.discriminatedUnion("action", [
     label: labelSchema,
   }),
   z.object({
-    action: z.literal("add_line"),
+    action: z.enum(["add_line"]).describe("Add a line or arrow"),
     line_type: z.enum(["line", "arrow"]).default("arrow").describe("Line or arrow"),
     points: z
       .array(z.object({ x: z.number(), y: z.number() }))
@@ -85,19 +87,19 @@ const operationSchema = z.discriminatedUnion("action", [
       .describe("ID of element to bind arrow end to (auto-computes connection point)"),
   }),
   z.object({
-    action: z.literal("reorder"),
+    action: z.enum(["reorder"]).describe("Reorder element z-index"),
     element_id: z.string().describe("ID of element to reorder"),
     position: z.enum(["front", "back"]).describe("Bring to front or send to back"),
   }),
   z.object({
-    action: z.literal("align"),
+    action: z.enum(["align"]).describe("Align multiple elements"),
     element_ids: z.array(z.string()).min(2).describe("IDs of elements to align"),
     alignment: z
       .enum(["left", "right", "center", "top", "bottom", "middle"])
       .describe("Alignment direction"),
   }),
   z.object({
-    action: z.literal("distribute"),
+    action: z.enum(["distribute"]).describe("Distribute elements evenly"),
     element_ids: z.array(z.string()).min(3).describe("IDs of elements to distribute (>= 3)"),
     direction: z.enum(["horizontal", "vertical"]).describe("Distribution direction"),
   }),

@@ -30,7 +30,13 @@ export function AgentSection({
 
   useEffect(() => {
     fetchModels()
-      .then((data) => setModels(data.models))
+      .then((data) => {
+        setModels(data.models);
+        const ids = data.models.map((m: ModelInfo) => m.id);
+        if (ids.length > 0 && !ids.includes(selectedModel)) {
+          setSelectedModel(ids[0]);
+        }
+      })
       .catch(() => setModels([]))
       .finally(() => setModelsLoading(false));
   }, [fetchModels]);

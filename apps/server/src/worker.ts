@@ -3,6 +3,12 @@ import { bootstrap } from "global-agent";
 // Enable HTTP proxy for all outbound requests if GLOBAL_AGENT_HTTP_PROXY is set
 bootstrap();
 
+// Native fetch() proxy — needed for @google/generative-ai SDK
+if (process.env.GLOBAL_AGENT_HTTP_PROXY) {
+  const { ProxyAgent, setGlobalDispatcher } = await import("undici");
+  setGlobalDispatcher(new ProxyAgent(process.env.GLOBAL_AGENT_HTTP_PROXY));
+}
+
 import { randomUUID } from "node:crypto";
 import { loadServerEnv } from "./config/env.js";
 import { createPgmqClient, type PgmqMessage } from "./queue/pgmq-client.js";
@@ -66,20 +72,29 @@ async function main() {
     env,
   };
 
-  const concurrency = env.workerConcurrency ?? 3;
+  const CONCURRENCY_BY_QUEUE: Record<string, number> = {
+    image_generation_jobs: env.workerImageConcurrency ?? 3,
+    video_generation_jobs: env.workerVideoConcurrency ?? 2,
+  };
+
+  const inFlightByQueue = new Map<string, Set<Promise<void>>>(
+    QUEUES.map((q) => [q, new Set()]),
+  );
+
   const pollIntervalMs = env.workerPollIntervalMs ?? 2000;
   const workerId = env.workerId ?? randomUUID().slice(0, 8);
   const tag = `[worker:${workerId}]`;
 
   let running = true;
-  const inFlight = new Set<Promise<void>>();
 
   // Graceful shutdown — wait for in-flight jobs then exit
   const shutdown = async () => {
-    console.log(`${tag} Shutting down, waiting for ${inFlight.size} in-flight jobs...`);
+    const totalInFlight = [...inFlightByQueue.values()].reduce((n, s) => n + s.size, 0);
+    console.log(`${tag} Shutting down, waiting for ${totalInFlight} in-flight jobs...`);
     running = false;
-    if (inFlight.size > 0) {
-      await Promise.allSettled(inFlight);
+    const allTasks = [...inFlightByQueue.values()].flatMap((s) => [...s]);
+    if (allTasks.length > 0) {
+      await Promise.allSettled(allTasks);
     }
     await pgmq.shutdown();
     console.log(`${tag} Shutdown complete.`);
@@ -88,16 +103,18 @@ async function main() {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
+  const concurrencyDesc = QUEUES.map((q) => `${q}=${CONCURRENCY_BY_QUEUE[q] ?? 1}`).join(", ");
   console.log(
-    `${tag} Started. concurrency=${concurrency}, poll=${pollIntervalMs}ms, queues=[${QUEUES.join(", ")}]`,
+    `${tag} Started. concurrency={${concurrencyDesc}}, poll=${pollIntervalMs}ms`,
   );
 
   while (running) {
     for (const queue of QUEUES) {
       try {
-        // Only read as many as we have capacity for
-        const available = concurrency - inFlight.size;
-        if (available <= 0) break;
+        const inFlight = inFlightByQueue.get(queue)!;
+        const cap = CONCURRENCY_BY_QUEUE[queue] ?? 1;
+        const available = cap - inFlight.size;
+        if (available <= 0) continue;
 
         const vt = VT_BY_QUEUE[queue] ?? 120;
         const messages = await pgmq.read(queue, vt, available);
