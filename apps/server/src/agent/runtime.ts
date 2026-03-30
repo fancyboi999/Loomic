@@ -11,6 +11,7 @@ import type {
   RunCreateRequest,
   RunCreateResponse,
   StreamEvent,
+  VideoGenerationPreference,
 } from "@loomic/shared";
 
 import type { ServerEnv } from "../config/env.js";
@@ -40,6 +41,7 @@ export function buildUserMessage(
   attachments: ImageAttachment[],
   imageGenerationPreference?: ImageGenerationPreference,
   mentions: MessageMention[] = [],
+  videoGenerationPreference?: VideoGenerationPreference,
 ): { text: string } {
   const xmlBlocks: string[] = [];
 
@@ -50,6 +52,11 @@ export function buildUserMessage(
     imageGenerationPreference,
   );
   if (imageGenerationPreferenceXml) xmlBlocks.push(imageGenerationPreferenceXml);
+
+  const videoGenerationPreferenceXml = buildVideoGenerationPreferenceXml(
+    videoGenerationPreference,
+  );
+  if (videoGenerationPreferenceXml) xmlBlocks.push(videoGenerationPreferenceXml);
 
   const mentionXmlBlocks = buildMentionXmlBlocks(mentions);
   xmlBlocks.push(...mentionXmlBlocks);
@@ -91,6 +98,26 @@ function buildImageGenerationPreferenceXml(
     .join("\n  ");
 
   return `<human_image_generation_preference mode="manual" count="${imageGenerationPreference.models.length}">\n  ${modelXml}\n</human_image_generation_preference>`;
+}
+
+function buildVideoGenerationPreferenceXml(
+  videoGenerationPreference?: VideoGenerationPreference,
+): string | null {
+  if (
+    videoGenerationPreference?.mode !== "manual" ||
+    videoGenerationPreference.models.length === 0
+  ) {
+    return null;
+  }
+
+  const modelXml = videoGenerationPreference.models
+    .map(
+      (model, i) =>
+        `<preferred_model index="${i + 1}" id="${escapeXmlAttribute(model)}" />`,
+    )
+    .join("\n  ");
+
+  return `<human_video_generation_preference mode="manual" count="${videoGenerationPreference.models.length}">\n  ${modelXml}\n</human_video_generation_preference>`;
 }
 
 function buildMentionXmlBlocks(mentions: MessageMention[]): string[] {
@@ -700,6 +727,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             run.attachments!,
             run.imageGenerationPreference,
             run.mentions,
+            run.videoGenerationPreference,
           );
 
           // Build assetId → data URI map for tool-level resolution
@@ -717,6 +745,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             [],
             run.imageGenerationPreference,
             run.mentions,
+            run.videoGenerationPreference,
           );
           userMessage = new HumanMessage(enrichedPrompt);
         }
