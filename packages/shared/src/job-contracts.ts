@@ -14,6 +14,7 @@ export type BackgroundJobStatus = z.infer<typeof backgroundJobStatusSchema>;
 
 export const backgroundJobTypeSchema = z.enum([
   "image_generation",
+  "video_generation",
 ]);
 export type BackgroundJobType = z.infer<typeof backgroundJobTypeSchema>;
 
@@ -25,6 +26,34 @@ export const imageGenerationPayloadSchema = z.object({
   aspect_ratio: z.string().optional(),
 });
 export type ImageGenerationPayload = z.infer<typeof imageGenerationPayloadSchema>;
+
+export const videoGenerationPayloadSchema = z.object({
+  prompt: z.string().min(1),
+  model: z.string().optional(),
+  duration: z.number().int().optional(),
+  resolution: z.string().optional(),
+  aspect_ratio: z.string().optional(),
+  input_images: z.array(z.string()).optional(),
+  input_video: z.string().optional(),
+  enable_audio: z.boolean().optional(),
+});
+export type VideoGenerationPayload = z.infer<typeof videoGenerationPayloadSchema>;
+
+export const createVideoJobRequestSchema = z.object({
+  project_id: z.string().uuid().optional(),
+  canvas_id: z.string().uuid().optional(),
+  session_id: z.string().uuid().optional(),
+  thread_id: z.string().optional(),
+  prompt: z.string().min(1),
+  model: z.string().optional(),
+  duration: z.number().int().optional(),
+  resolution: z.string().optional(),
+  aspect_ratio: z.string().optional(),
+  input_images: z.array(z.string()).optional(),
+  input_video: z.string().optional(),
+  enable_audio: z.boolean().optional(),
+});
+export type CreateVideoJobRequest = z.infer<typeof createVideoJobRequestSchema>;
 
 // --- Job entity ---
 

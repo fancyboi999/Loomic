@@ -49,9 +49,11 @@ export interface VideoGenerateParams {
   prompt: string;
   model: string;
   resolution?: "480p" | "720p" | "1080p";
-  duration?: 5 | 10;
+  duration?: number;
   aspectRatio?: string;
   inputImages?: string[];
+  inputVideo?: string;
+  enableAudio?: boolean;
 }
 
 export interface GeneratedVideo {
@@ -64,6 +66,22 @@ export interface GeneratedVideo {
 
 export interface VideoProvider {
   readonly name: string;
-  readonly models: readonly ModelInfo[];
+  readonly models: readonly VideoModelInfo[];
   generate(params: VideoGenerateParams): Promise<GeneratedVideo>;
+}
+
+/** Extended model info with video-specific capabilities metadata. */
+export interface VideoModelInfo extends ModelInfo {
+  capabilities: {
+    textToVideo: boolean;
+    imageToVideo: boolean;
+    videoToVideo: boolean;
+    audio: boolean;
+  };
+  limits: {
+    maxDuration: number;
+    allowedDurations?: number[];
+    maxResolution: "480p" | "720p" | "1080p" | "2160p";
+    maxInputImages: number;
+  };
 }
