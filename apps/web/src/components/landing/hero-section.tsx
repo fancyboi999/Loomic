@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Sparkles, ChevronDown } from "lucide-react";
+import { Sparkles, ChevronDown, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fadeUp, blurIn, scaleUp } from "@/components/landing/motion";
 import { TypewriterText, useTypewriter } from "@/components/landing/typewriter";
@@ -27,6 +27,53 @@ function HeroBadge() {
 }
 
 // ---------------------------------------------------------------------------
+// Animated cursor inside mockup canvas
+// ---------------------------------------------------------------------------
+
+function MockupCursor() {
+  return (
+    <motion.div
+      className="absolute z-10 pointer-events-none"
+      animate={{
+        x: [40, 120, 180, 60, 40],
+        y: [30, 80, 40, 120, 30],
+      }}
+      transition={{
+        duration: 8,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+    >
+      {/* Cursor arrow */}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        className="drop-shadow-md"
+      >
+        <path
+          d="M1 1L6.5 14L8.5 8.5L14 6.5L1 1Z"
+          fill="oklch(0.90 0.17 115)"
+          stroke="oklch(0.90 0.17 115 / 0.6)"
+          strokeWidth="0.5"
+        />
+      </svg>
+      {/* Cursor label */}
+      <div
+        className="mt-0.5 ml-3 px-1.5 py-0.5 rounded text-[8px] font-medium whitespace-nowrap"
+        style={{
+          background: "oklch(0.90 0.17 115)",
+          color: "oklch(0.25 0.04 115)",
+        }}
+      >
+        AI
+      </div>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // HeroMockup — canvas interface preview
 // ---------------------------------------------------------------------------
 
@@ -36,7 +83,7 @@ function HeroMockup() {
       variants={scaleUp}
       initial="hidden"
       animate="visible"
-      transition={{ delay: 1.8 }}
+      transition={{ delay: 1.2 }}
       className="relative w-full max-w-5xl mx-auto mt-16 md:mt-24"
       style={{ animation: "heroFloat 6s ease-in-out infinite" }}
     >
@@ -49,7 +96,7 @@ function HeroMockup() {
         }}
       />
 
-      <div className="w-full rounded-2xl border border-border bg-card overflow-hidden shadow-2xl aspect-video">
+      <div className="w-full rounded-2xl border border-border bg-card overflow-hidden shadow-2xl aspect-video ring-1 ring-white/10">
         {/* Window chrome */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
           <div className="flex items-center gap-1.5">
@@ -71,14 +118,18 @@ function HeroMockup() {
           </div>
 
           {/* Main canvas */}
-          <div className="flex-1 p-6 grid grid-cols-3 gap-4 content-start">
-            {/* Card 1 — accent */}
+          <div className="relative flex-1 p-6 grid grid-cols-3 gap-4 content-start">
+            {/* Animated cursor */}
+            <MockupCursor />
+
+            {/* Card 1 — accent with subtle pulse */}
             <div
               className="rounded-xl aspect-[4/3] col-span-2"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.90 0.17 115 / 0.25) 0%, oklch(0.90 0.17 115 / 0.08) 100%)",
                 border: "1px solid oklch(0.90 0.17 115 / 0.3)",
+                animation: "accentPulse 4s ease-in-out infinite",
               }}
             >
               <div className="p-4 flex flex-col gap-2 h-full">
@@ -158,7 +209,7 @@ function HeroMockup() {
 }
 
 // ---------------------------------------------------------------------------
-// ScrollIndicator
+// ScrollIndicator — smooth sine wave
 // ---------------------------------------------------------------------------
 
 function ScrollIndicator() {
@@ -171,8 +222,12 @@ function ScrollIndicator() {
       className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1"
     >
       <motion.div
-        animate={{ y: [0, 6, 0] }}
-        transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+        animate={{ y: [0, 8, 0] }}
+        transition={{
+          repeat: Infinity,
+          duration: 2.4,
+          ease: [0.37, 0, 0.63, 1], // sine-like cubic-bezier
+        }}
       >
         <ChevronDown className="size-5 text-muted-foreground/50" />
       </motion.div>
@@ -187,14 +242,21 @@ function ScrollIndicator() {
 export function HeroSection() {
   const { isComplete } = useTypewriter({
     text: "让创意，自由生长",
-    speed: 80,
-    delay: 300,
+    speed: 60,
+    delay: 200,
   });
   const [showSub, setShowSub] = useState(false);
 
+  // Compute typewriter total duration: delay + text.length * speed
+  // 200 + 7 * 60 = 620ms → subtitle at ~1020ms
+  const typewriterEnd = 200 + 7 * 60; // ~620ms
+  const subtitleDelay = typewriterEnd + 400; // ~1020ms
+  const descDelay = (subtitleDelay + 200) / 1000; // ~1.22s
+  const ctaDelay = (subtitleDelay + 400) / 1000; // ~1.42s
+
   useEffect(() => {
     if (isComplete) {
-      const t = setTimeout(() => setShowSub(true), 200);
+      const t = setTimeout(() => setShowSub(true), 400);
       return () => clearTimeout(t);
     }
   }, [isComplete]);
@@ -204,7 +266,7 @@ export function HeroSection() {
       {/* Animated gradient background */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="absolute -top-1/4 right-0 w-[80vw] h-[80vw] rounded-full opacity-60"
+          className="hero-glow-1 absolute -top-1/4 right-0 w-[80vw] h-[80vw] rounded-full opacity-60"
           style={{
             background:
               "radial-gradient(ellipse at center, oklch(0.90 0.17 115 / 0.08) 0%, transparent 70%)",
@@ -212,11 +274,28 @@ export function HeroSection() {
           }}
         />
         <div
-          className="absolute bottom-0 -left-1/4 w-[60vw] h-[60vw] rounded-full opacity-50"
+          className="hero-glow-2 absolute bottom-0 -left-1/4 w-[60vw] h-[60vw] rounded-full opacity-50"
           style={{
             background:
               "radial-gradient(ellipse at center, oklch(0.556 0 0 / 0.05) 0%, transparent 70%)",
             animation: "gradientDrift2 22s ease-in-out infinite alternate",
+          }}
+        />
+        {/* Noise/grain texture overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.06] pointer-events-none mix-blend-overlay"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "repeat",
+            backgroundSize: "128px 128px",
+          }}
+        />
+        {/* Radial vignette */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 50%, oklch(0 0 0 / 0.03) 100%)",
           }}
         />
       </div>
@@ -235,8 +314,35 @@ export function HeroSection() {
           0%, 100% { transform: translateY(0px); }
           50%      { transform: translateY(-10px); }
         }
-        .dark .hero-glow-1 { opacity: 0.15; }
-        .dark .hero-glow-2 { opacity: 0.12; }
+        @keyframes accentPulse {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.85; }
+        }
+        .dark .hero-glow-1 { opacity: 0.15 !important; }
+        .dark .hero-glow-2 { opacity: 0.12 !important; }
+
+        /* Shimmer animation for primary CTA */
+        @keyframes shimmer {
+          0%   { transform: translateX(-100%) rotate(15deg); }
+          100% { transform: translateX(100%) rotate(15deg); }
+        }
+        .cta-shimmer {
+          position: relative;
+          overflow: hidden;
+        }
+        .cta-shimmer::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            105deg,
+            transparent 40%,
+            oklch(1 0 0 / 0.25) 50%,
+            transparent 60%
+          );
+          animation: shimmer 3.5s ease-in-out infinite;
+          pointer-events: none;
+        }
       `}</style>
 
       {/* Content */}
@@ -244,18 +350,18 @@ export function HeroSection() {
         {/* Badge */}
         <HeroBadge />
 
-        {/* Headline */}
+        {/* Headline — gradient text + tighter tracking */}
         <motion.h1
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          transition={{ delay: 0.15 }}
-          className="mt-6 text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground"
+          transition={{ delay: 0.1 }}
+          className="mt-6 text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent"
         >
-          <TypewriterText text="让创意，自由生长" speed={80} delay={300} />
+          <TypewriterText text="让创意，自由生长" speed={60} delay={200} />
         </motion.h1>
 
-        {/* English subtitle */}
+        {/* English subtitle — editorial style */}
         <AnimatedSubtitle show={showSub} />
 
         {/* Description */}
@@ -263,7 +369,7 @@ export function HeroSection() {
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          transition={{ delay: 2.8 }}
+          transition={{ delay: descDelay }}
           className="mt-6 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed"
         >
           从灵感到作品，Loomic 是你的 AI 设计伙伴。智能理解你的创意意图，生成专业级设计，让每一个想法都能成为现实。
@@ -274,13 +380,13 @@ export function HeroSection() {
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          transition={{ delay: 3.0 }}
+          transition={{ delay: ctaDelay }}
           className="mt-10 flex flex-wrap items-center justify-center gap-4"
         >
           <Link
             href="/login"
             className={cn(
-              "inline-flex items-center px-8 py-3 rounded-full text-base font-medium transition-all duration-200",
+              "cta-shimmer inline-flex items-center px-8 py-3 rounded-full text-base font-medium transition-all duration-200",
               "text-foreground",
               "hover:scale-105 active:scale-95",
             )}
@@ -307,9 +413,10 @@ export function HeroSection() {
               e.preventDefault();
               document.querySelector("#showcase")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex items-center px-8 py-3 rounded-full text-base font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
+            className="group inline-flex items-center gap-2 px-8 py-3 rounded-full text-base font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
           >
             查看案例
+            <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-1" />
           </a>
         </motion.div>
 
@@ -333,7 +440,7 @@ function AnimatedSubtitle({ show }: { show: boolean }) {
       variants={blurIn}
       initial="hidden"
       animate={show ? "visible" : "hidden"}
-      className="mt-4 text-xl md:text-2xl text-muted-foreground font-light tracking-wide"
+      className="mt-4 text-sm md:text-base text-muted-foreground font-light tracking-[0.2em] uppercase"
     >
       Where Ideas Become Reality
     </motion.p>

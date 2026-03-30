@@ -87,6 +87,31 @@ function ThemeToggle() {
 }
 
 // ---------------------------------------------------------------------------
+// NavCTA — CTA button with one-time accent glow pulse
+// ---------------------------------------------------------------------------
+
+function NavCTA() {
+  const [glowActive, setGlowActive] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setGlowActive(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <Link
+      href="/login"
+      className={cn(
+        "hidden md:inline-flex items-center justify-center h-8 px-4 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors",
+        glowActive && "nav-cta-glow"
+      )}
+    >
+      开始创作
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FloatingNav
 // ---------------------------------------------------------------------------
 
@@ -101,96 +126,112 @@ export function FloatingNav() {
   }, []);
 
   return (
-    <motion.header
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        scrolled
-          ? "bg-background/80 backdrop-blur-xl border-b border-border"
-          : "bg-transparent"
-      )}
-      initial={{ opacity: 0, y: -16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <LoomicLogo className="size-6" />
-            <span className="font-bold text-lg tracking-tight">Loomic</span>
-          </Link>
+    <>
+      {/* Nav keyframe styles */}
+      <style>{`
+        @keyframes navCtaGlow {
+          0%   { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0.5); }
+          50%  { box-shadow: 0 0 16px 4px oklch(0.90 0.17 115 / 0.35); }
+          100% { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0); }
+        }
+        .nav-cta-glow {
+          animation: navCtaGlow 1.5s ease-in-out 1;
+        }
+      `}</style>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ label, href }) => (
-              <a
-                key={href}
-                href={href}
-                onClick={(e) => handleAnchorClick(e, href)}
-                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted/50"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Right actions */}
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+      <motion.header
+        className={cn(
+          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+          scrolled
+            ? "bg-background/80 backdrop-blur-xl backdrop-saturate-150 border-b border-border"
+            : "bg-transparent"
+        )}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo with hover animation */}
             <Link
-              href="/login"
-              className="hidden md:inline-flex items-center justify-center h-8 px-4 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
+              href="/"
+              className="flex items-center gap-2 shrink-0 group"
             >
-              开始创作
+              <LoomicLogo className="size-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+              <span className="font-bold text-lg tracking-tight">Loomic</span>
             </Link>
-            {/* Hamburger */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      {/* Mobile dropdown */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="md:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-xl"
-          >
-            <div className="px-4 py-3 flex flex-col gap-1">
+            {/* Desktop Nav Links with underline animation */}
+            <nav className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map(({ label, href }) => (
                 <a
                   key={href}
                   href={href}
-                  onClick={(e) => handleAnchorClick(e, href, () => setMobileOpen(false))}
-                  className="px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                  onClick={(e) => handleAnchorClick(e, href)}
+                  className={cn(
+                    "relative px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md",
+                    "after:absolute after:bottom-1 after:left-4 after:right-4 after:h-px after:w-0 after:bg-foreground after:transition-all after:duration-300",
+                    "hover:after:w-[calc(100%-2rem)]"
+                  )}
                 >
                   {label}
                 </a>
               ))}
-              <div className="pt-2 pb-1">
-                <Link
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-center h-9 w-full rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
-                >
-                  开始创作
-                </Link>
-              </div>
+            </nav>
+
+            {/* Right actions */}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <NavCTA />
+              {/* Hamburger */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setMobileOpen((v) => !v)}
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.header>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="md:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-xl"
+            >
+              <div className="px-4 py-3 flex flex-col gap-1">
+                {NAV_LINKS.map(({ label, href }) => (
+                  <a
+                    key={href}
+                    href={href}
+                    onClick={(e) => handleAnchorClick(e, href, () => setMobileOpen(false))}
+                    className="px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+                  >
+                    {label}
+                  </a>
+                ))}
+                <div className="pt-2 pb-1">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center h-9 w-full rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
+                  >
+                    开始创作
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.header>
+    </>
   );
 }
