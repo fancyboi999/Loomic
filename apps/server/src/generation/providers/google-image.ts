@@ -31,14 +31,14 @@ const GOOGLE_IMAGE_MODELS: readonly ModelInfo[] = [
     id: "google-direct/gemini-2.5-flash-image",
     displayName: "Gemini 2.5 Flash Image",
     description:
-      "Google Gemini native image generation via direct API. Stable, best balance of speed and quality.",
+      "Google Gemini native image generation & editing via direct API. Image input: up to 14 images. Stable. Best balance of speed and quality.",
     iconUrl: ICON_GOOGLE,
   },
   {
     id: "google-direct/gemini-3.1-flash-image-preview",
     displayName: "Gemini 3.1 Flash Image",
     description:
-      "Google Gemini 3.1 image generation preview. Faster generation, newest capabilities.",
+      "Google Gemini 3.1 image generation & editing preview. Image input: up to 14 images. Faster generation, newest capabilities.",
     iconUrl: ICON_GOOGLE,
   },
 ];
@@ -49,6 +49,15 @@ const QUALITY_TO_IMAGE_SIZE: Record<string, string> = {
   hd: "2K",
   ultra: "4K",
 };
+
+/** Gemini finish reasons that indicate content policy / safety blocks. */
+const SAFETY_FINISH_REASONS = new Set([
+  "SAFETY",
+  "IMAGE_SAFETY",
+  "PROHIBITED_CONTENT",
+  "IMAGE_PROHIBITED_CONTENT",
+  "IMAGE_RECITATION",
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -105,10 +114,10 @@ export class GoogleImageProvider implements ImageProvider {
   readonly name = PROVIDER_NAME;
   readonly models = GOOGLE_IMAGE_MODELS;
 
-  private ai: GoogleGenAI;
+  private client: GoogleGenAI;
 
   constructor(apiKey: string) {
-    this.ai = new GoogleGenAI({ apiKey });
+    this.client = new GoogleGenAI({ apiKey });
   }
 
   async generate(params: ImageGenerateParams): Promise<GeneratedImage> {
@@ -123,6 +132,8 @@ export class GoogleImageProvider implements ImageProvider {
 
     const aspectRatio = params.aspectRatio ?? "1:1";
     const imageSize = QUALITY_TO_IMAGE_SIZE[params.quality ?? "hd"] ?? "2K";
+    // Note: outputFormat is ignored — Gemini API does not support output format
+    // selection; it always returns PNG via inlineData.
 
     // Build content parts: text prompt + optional input images.
     const parts: Array<
@@ -143,7 +154,7 @@ export class GoogleImageProvider implements ImageProvider {
 
     let response;
     try {
-      response = await this.ai.models.generateContent({
+      response = await this.client.models.generateContent({
         model: apiModel,
         contents: [{ role: "user", parts }],
         config: {
@@ -165,8 +176,8 @@ export class GoogleImageProvider implements ImageProvider {
     // Check for safety blocks.
     const candidate = response.candidates?.[0];
     if (
-      candidate?.finishReason === "SAFETY" ||
-      candidate?.finishReason === "IMAGE_SAFETY"
+      candidate?.finishReason &&
+      SAFETY_FINISH_REASONS.has(candidate.finishReason)
     ) {
       throw new GenerationError(
         PROVIDER_NAME,
