@@ -152,7 +152,11 @@ async function authenticateAndBind(
           ...(p.imageGenerationPreference !== undefined
             ? { imageGenerationPreference: p.imageGenerationPreference }
             : {}),
+          ...(p.videoGenerationPreference !== undefined
+            ? { videoGenerationPreference: p.videoGenerationPreference }
+            : {}),
           ...(p.mentions !== undefined ? { mentions: p.mentions } : {}),
+          ...(p.model !== undefined ? { model: p.model } : {}),
           },
           agentRuns,
           connectionManager,
@@ -229,12 +233,14 @@ async function handleRunCommand(
       }
     })(),
   ]);
-  log.lap("resolve", { threadId: !!threadId, model });
+  // Client-provided model takes priority over workspace default
+  const resolvedModel = payload.model ?? model;
+  log.lap("resolve", { threadId: !!threadId, model: resolvedModel });
 
   const response = agentRuns.createRun(payload, {
     accessToken: authenticatedUser.accessToken,
     userId: authenticatedUser.id,
-    ...(model ? { model } : {}),
+    ...(resolvedModel ? { model: resolvedModel } : {}),
     ...(threadId ? { threadId } : {}),
   });
   const runId = response.runId;
@@ -244,7 +250,7 @@ async function handleRunCommand(
   if (threadId && services.agentRunMetadataService) {
     try {
       await services.agentRunMetadataService.createAcceptedRun({
-        ...(model ? { model } : {}),
+        ...(resolvedModel ? { model: resolvedModel } : {}),
         runId,
         sessionId: payload.sessionId,
         threadId,
