@@ -14,7 +14,10 @@ import {
 } from "./image-generate.js";
 import { createProjectSearchTool } from "./project-search.js";
 import { createScreenshotCanvasTool } from "./screenshot-canvas.js";
-import { createVideoGenerateTool } from "./video-generate.js";
+import {
+  createVideoGenerateTool,
+  type SubmitVideoJobFn,
+} from "./video-generate.js";
 
 /**
  * Zero-side-effect tool that lets the agent reason step-by-step before acting.
@@ -48,6 +51,7 @@ export function createMainAgentTools(
     connectionManager?: ConnectionManager;
     persistImage?: PersistImageFn;
     submitImageJob?: SubmitImageJobFn;
+    submitVideoJob?: SubmitVideoJobFn;
   },
 ) {
   const tools: StructuredTool[] = [
@@ -58,6 +62,9 @@ export function createMainAgentTools(
     createImageGenerateTool({
       ...(deps.persistImage ? { persistImage: deps.persistImage } : {}),
       ...(deps.submitImageJob ? { submitImageJob: deps.submitImageJob } : {}),
+    }),
+    createVideoGenerateTool({
+      ...(deps.submitVideoJob ? { submitVideoJob: deps.submitVideoJob } : {}),
     }),
   ];
   if (deps.brandKitId) {

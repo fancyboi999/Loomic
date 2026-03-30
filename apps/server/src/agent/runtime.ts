@@ -21,6 +21,7 @@ import type { ViewerService } from "../features/bootstrap/ensure-user-foundation
 import type { AuthenticatedUser, UserSupabaseClient } from "../supabase/user.js";
 import type { ConnectionManager } from "../ws/connection-manager.js";
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
+import type { SubmitVideoJobFn } from "./tools/video-generate.js";
 import {
   type LoomicAgent,
   type LoomicAgentFactory,
@@ -330,8 +331,9 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         return;
       }
 
-      // Build submitImageJob closure for async image generation via PGMQ
+      // Build submitImageJob / submitVideoJob closures for async generation via PGMQ
       let submitImageJob: SubmitImageJobFn | undefined;
+      let submitVideoJob: SubmitVideoJobFn | undefined;
       if (options.jobService && options.createUserClient && run.accessToken && run.userId) {
         const jobSvc = options.jobService;
         const createClient = options.createUserClient;
@@ -419,6 +421,106 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             }
 
             // "failed" with attempts exhausted
+            if (
+              current.status === "failed" &&
+              current.attempt_count >= current.max_attempts
+            ) {
+              jobLap("job_poll_done", { pollCount, status: "failed_max_retries" });
+              return {
+                jobId: job.id,
+                error: current.error_message ?? "Job failed after max retries",
+              };
+            }
+          }
+
+          jobLap("job_poll_done", { pollCount, status: "timeout" });
+          return {
+            jobId: job.id,
+            error: `Job timed out after ${MAX_WAIT / 1000}s`,
+          };
+        };
+
+        submitVideoJob = async (input) => {
+          const jobT0 = Date.now();
+          const jobLap = (label: string, extra?: Record<string, unknown>) => {
+            console.log(`[submitVideoJob] ${label} +${Date.now() - jobT0}ms`, extra ? JSON.stringify(extra) : "");
+          };
+
+          const client = createClient(accessToken) as UserSupabaseClient;
+          const { data: ws } = await client
+            .from("workspaces")
+            .select("id")
+            .eq("type", "personal")
+            .limit(1)
+            .single();
+          if (!ws?.id) throw new Error("No personal workspace found");
+
+          const user: AuthenticatedUser = {
+            id: userId,
+            accessToken,
+            email: "",
+            userMetadata: {},
+          };
+          const job = await jobSvc.createJob(user, {
+            workspaceId: ws.id,
+            ...(canvasId ? { canvasId } : {}),
+            jobType: "video_generation",
+            payload: {
+              prompt: input.prompt,
+              model: input.model,
+              ...(input.duration != null ? { duration: input.duration } : {}),
+              ...(input.resolution ? { resolution: input.resolution } : {}),
+              ...(input.aspectRatio ? { aspect_ratio: input.aspectRatio } : {}),
+              ...(input.inputImages ? { input_images: input.inputImages } : {}),
+              ...(input.inputVideo ? { input_video: input.inputVideo } : {}),
+              ...(input.enableAudio != null ? { enable_audio: input.enableAudio } : {}),
+            },
+          });
+          jobLap("job_created", { jobId: job.id });
+
+          // Poll until terminal state — video generation is slower
+          const POLL_INTERVAL = 3000;
+          const MAX_WAIT = 300_000; // 5 minutes
+          const start = Date.now();
+          let pollCount = 0;
+
+          while (Date.now() - start < MAX_WAIT) {
+            await delay(POLL_INTERVAL);
+            pollCount++;
+
+            if (run.controller.signal.aborted) {
+              throw new Error("Run was canceled");
+            }
+
+            const current = await jobSvc.getJobAdmin(job.id);
+
+            if (current.status === "succeeded" && current.result) {
+              const result = current.result as {
+                signed_url?: string;
+                duration_seconds?: number;
+                width?: number;
+                height?: number;
+                mime_type?: string;
+              };
+              jobLap("job_poll_done", { pollCount, status: "succeeded" });
+              return {
+                jobId: job.id,
+                videoUrl: result.signed_url ?? "",
+                durationSeconds: result.duration_seconds,
+                width: result.width,
+                height: result.height,
+                mimeType: result.mime_type ?? "video/mp4",
+              };
+            }
+
+            if (current.status === "dead_letter" || current.status === "canceled") {
+              jobLap("job_poll_done", { pollCount, status: current.status });
+              return {
+                jobId: job.id,
+                error: current.error_message ?? `Job ${current.status}`,
+              };
+            }
+
             if (
               current.status === "failed" &&
               current.attempt_count >= current.max_attempts
@@ -530,6 +632,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
           ...(submitImageJob ? { submitImageJob } : {}),
+          ...(submitVideoJob ? { submitVideoJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),
         });
         rlog.lap("agent_factory_done");

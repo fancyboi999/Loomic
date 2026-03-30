@@ -9,8 +9,9 @@ import {
   type AgentPersistenceService,
 } from "./agent/persistence/index.js";
 import { createAgentRunService } from "./agent/runtime.js";
-import { registerImageProvider } from "./generation/providers/registry.js";
+import { registerImageProvider, registerVideoProvider } from "./generation/providers/registry.js";
 import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
+import { ReplicateVideoProvider } from "./generation/providers/replicate-video.js";
 import {
   createViewerService,
   type ViewerService,
@@ -63,6 +64,7 @@ import { registerHealthRoutes } from "./http/health.js";
 import { registerImageProxyRoute } from "./http/image-proxy.js";
 import { registerModelRoutes } from "./http/models.js";
 import { registerImageModelRoutes } from "./http/image-models.js";
+import { registerVideoModelRoutes } from "./http/video-models.js";
 import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSettingsRoutes } from "./http/settings.js";
@@ -103,6 +105,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Register generation providers
   if (env.replicateApiToken) {
     registerImageProvider(new ReplicateImageProvider(env.replicateApiToken));
+    registerVideoProvider(new ReplicateVideoProvider(env.replicateApiToken));
   }
 
   const app = Fastify({
@@ -241,6 +244,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
   void registerModelRoutes(app);
   void registerImageModelRoutes(app);
+  void registerVideoModelRoutes(app);
   void registerChatRoutes(app, {
     auth,
     chatService,

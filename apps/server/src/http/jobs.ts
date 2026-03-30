@@ -4,6 +4,7 @@ import type { BackgroundJobStatus, BackgroundJobType } from "@loomic/shared";
 import {
   applicationErrorResponseSchema,
   createImageJobRequestSchema,
+  createVideoJobRequestSchema,
   jobListResponseSchema,
   jobResponseSchema,
   unauthenticatedErrorResponseSchema,
@@ -54,6 +55,53 @@ export async function registerJobRoutes(
           ...(payload.aspect_ratio !== undefined
             ? { aspect_ratio: payload.aspect_ratio }
             : {}),
+        },
+      });
+
+      return reply.code(201).send(jobResponseSchema.parse({ job }));
+    } catch (error) {
+      if (isZodError(error)) {
+        return reply
+          .code(400)
+          .send({ issues: error.issues, message: "Invalid request body" });
+      }
+      return sendJobError(error, reply, "job_create_failed");
+    }
+  });
+
+  // POST /api/jobs/video-generation — create video generation job
+  app.post("/api/jobs/video-generation", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+      if (!user) return sendUnauthenticated(reply);
+
+      const payload = createVideoJobRequestSchema.parse(request.body);
+      const viewer = await options.viewerService.ensureViewer(user);
+
+      const job = await options.jobService.createJob(user, {
+        workspaceId: viewer.workspace.id,
+        ...(payload.project_id !== undefined
+          ? { projectId: payload.project_id }
+          : {}),
+        ...(payload.canvas_id !== undefined
+          ? { canvasId: payload.canvas_id }
+          : {}),
+        ...(payload.session_id !== undefined
+          ? { sessionId: payload.session_id }
+          : {}),
+        ...(payload.thread_id !== undefined
+          ? { threadId: payload.thread_id }
+          : {}),
+        jobType: "video_generation",
+        payload: {
+          prompt: payload.prompt,
+          ...(payload.model !== undefined ? { model: payload.model } : {}),
+          ...(payload.duration !== undefined ? { duration: payload.duration } : {}),
+          ...(payload.resolution !== undefined ? { resolution: payload.resolution } : {}),
+          ...(payload.aspect_ratio !== undefined ? { aspect_ratio: payload.aspect_ratio } : {}),
+          ...(payload.input_images !== undefined ? { input_images: payload.input_images } : {}),
+          ...(payload.input_video !== undefined ? { input_video: payload.input_video } : {}),
+          ...(payload.enable_audio !== undefined ? { enable_audio: payload.enable_audio } : {}),
         },
       });
 
