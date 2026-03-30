@@ -30,7 +30,7 @@ export function createAgentBackend(
   }
 
   return createProductionBackendFactory(canvasId, {
-    sandboxRoot: env.sandboxRoot,
-    skillsRoot: env.skillsRoot,
+    ...(env.sandboxRoot ? { sandboxRoot: env.sandboxRoot } : {}),
+    ...(env.skillsRoot ? { skillsRoot: env.skillsRoot } : {}),
   });
 }

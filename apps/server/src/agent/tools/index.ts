@@ -70,7 +70,7 @@ export function createMainAgentTools(
     }),
     createPersistSandboxFileTool({
       createUserClient: deps.createUserClient,
-      sandboxDir: deps.sandboxDir,
+      ...(deps.sandboxDir ? { sandboxDir: deps.sandboxDir } : {}),
     }),
   ];
   if (deps.brandKitId) {
