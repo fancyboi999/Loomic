@@ -107,7 +107,8 @@ export class GoogleVideoProvider implements VideoProvider {
     const aspectRatio = params.aspectRatio ?? "16:9";
     const resolution = params.resolution ?? "720p";
     const durationSeconds = this.clampDuration(params.duration ?? 8);
-    const enableAudio = params.enableAudio ?? true;
+    // Note: Veo 3.1 generates audio by default; the Gemini API does not
+    // expose a generateAudio toggle, so enableAudio is ignored here.
 
     // Build image input for image-to-video.
     let image: { imageBytes: string; mimeType: string } | undefined;
@@ -128,7 +129,6 @@ export class GoogleVideoProvider implements VideoProvider {
           durationSeconds,
           resolution,
           numberOfVideos: 1,
-          generateAudio: enableAudio,
         },
       });
     } catch (err) {
