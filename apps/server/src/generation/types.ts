@@ -49,9 +49,11 @@ export interface VideoGenerateParams {
   prompt: string;
   model: string;
   resolution?: "480p" | "720p" | "1080p";
-  duration?: 5 | 10;
+  duration?: number;
   aspectRatio?: string;
   inputImages?: string[];
+  /** Enable audio generation (only supported by some providers). */
+  enableAudio?: boolean;
 }
 
 export interface GeneratedVideo {
