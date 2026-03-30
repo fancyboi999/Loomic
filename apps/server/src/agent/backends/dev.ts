@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   CompositeBackend,
   FilesystemBackend,
@@ -29,10 +29,11 @@ export function createDevelopmentBackend(
   }
 
   const runId = crypto.randomUUID();
-  const sandboxDir = join(DEFAULT_DEV_SANDBOX_ROOT, runId);
+  const sandboxDir = join(resolve(DEFAULT_DEV_SANDBOX_ROOT), runId);
   mkdirSync(sandboxDir, { recursive: true });
+  const realSandboxDir = realpathSync(sandboxDir);
 
-  const skillsRoot = env.skillsRoot ?? join(env.agentFilesRoot, "skills");
+  const skillsRoot = resolve(env.skillsRoot ?? join(env.agentFilesRoot, "skills"));
 
   const sandbox = new LocalShellBackend({
     rootDir: sandboxDir,
@@ -58,5 +59,5 @@ export function createDevelopmentBackend(
       "/skills/": skillsBackend,
     });
 
-  return { factory, sandboxDir };
+  return { factory, sandboxDir: realSandboxDir };
 }

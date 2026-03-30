@@ -1,5 +1,6 @@
+import { realpathSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { basename, extname } from "node:path";
 import { tool } from "@langchain/core/tools";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -47,11 +48,16 @@ export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
         return "Error: No access token available. Cannot upload file.";
       }
 
-      // Path traversal guard: restrict reads to sandbox directory
+      // Path traversal guard: restrict reads to sandbox directory.
+      // Use realpathSync to resolve symlinks (macOS /tmp → /private/tmp).
       if (deps.sandboxDir) {
-        const resolved = resolve(input.filePath);
-        if (!resolved.startsWith(deps.sandboxDir)) {
-          return "Error: filePath must be inside the sandbox directory.";
+        try {
+          const realFilePath = realpathSync(input.filePath);
+          if (!realFilePath.startsWith(deps.sandboxDir)) {
+            return "Error: filePath must be inside the sandbox directory.";
+          }
+        } catch {
+          return "Error: filePath does not exist or is not accessible.";
         }
       }
 

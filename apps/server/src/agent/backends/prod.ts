@@ -1,5 +1,5 @@
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   type BackendFactory,
   CompositeBackend,
@@ -28,12 +28,15 @@ export function createProductionBackendFactory(
   canvasId: string,
   options?: { sandboxRoot?: string; skillsRoot?: string },
 ): { factory: BackendFactory; sandboxDir: string } {
-  const sandboxRoot = options?.sandboxRoot ?? DEFAULT_SANDBOX_ROOT;
-  const skillsRoot = options?.skillsRoot ?? DEFAULT_SKILLS_ROOT;
+  const sandboxRoot = resolve(options?.sandboxRoot ?? DEFAULT_SANDBOX_ROOT);
+  const skillsRoot = resolve(options?.skillsRoot ?? DEFAULT_SKILLS_ROOT);
 
   const runId = crypto.randomUUID();
   const sandboxDir = join(sandboxRoot, runId);
   mkdirSync(sandboxDir, { recursive: true });
+
+  // Use realpathSync to resolve macOS /tmp → /private/tmp symlinks
+  const realSandboxDir = realpathSync(sandboxDir);
 
   const sandbox = new LocalShellBackend({
     rootDir: sandboxDir,
@@ -60,5 +63,5 @@ export function createProductionBackendFactory(
       "/skills/": skillsBackend,
     });
 
-  return { factory, sandboxDir };
+  return { factory, sandboxDir: realSandboxDir };
 }
