@@ -18,6 +18,7 @@ import { createAdminSupabaseClient } from "./supabase/admin.js";
 import { createUserSupabaseClientFactory } from "./supabase/user.js";
 
 // Import executors to trigger registration via side effects
+import "./features/jobs/executors/code-execution.js";
 import "./features/jobs/executors/image-generation.js";
 import "./features/jobs/executors/video-generation.js";
 
@@ -28,14 +29,16 @@ import { registerImageProvider, registerVideoProvider } from "./generation/provi
 import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
 import { ReplicateVideoProvider } from "./generation/providers/replicate-video.js";
 
-const QUEUES = ["image_generation_jobs", "video_generation_jobs"] as const;
+const QUEUES = ["code_execution_jobs", "image_generation_jobs", "video_generation_jobs"] as const;
 
 const QUEUE_TO_TYPE: Record<string, BackgroundJobType> = {
+  code_execution_jobs: "code_execution",
   image_generation_jobs: "image_generation",
   video_generation_jobs: "video_generation",
 };
 
 const VT_BY_QUEUE: Record<string, number> = {
+  code_execution_jobs: 120,
   image_generation_jobs: 120,
   video_generation_jobs: 300,
 };
@@ -73,6 +76,7 @@ async function main() {
   };
 
   const CONCURRENCY_BY_QUEUE: Record<string, number> = {
+    code_execution_jobs: env.workerCodeConcurrency ?? 3,
     image_generation_jobs: env.workerImageConcurrency ?? 3,
     video_generation_jobs: env.workerVideoConcurrency ?? 2,
   };

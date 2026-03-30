@@ -22,6 +22,7 @@ import type { JobService } from "../features/jobs/job-service.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type { AuthenticatedUser, UserSupabaseClient } from "../supabase/user.js";
 import type { ConnectionManager } from "../ws/connection-manager.js";
+import type { SubmitCodeExecutionFn } from "./tools/execute-code.js";
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
 import { createAgentBackend } from "./backends/index.js";
@@ -361,9 +362,10 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         return;
       }
 
-      // Build submitImageJob / submitVideoJob closures for async generation via PGMQ
+      // Build submitImageJob / submitVideoJob / submitCodeExecution closures for async jobs via PGMQ
       let submitImageJob: SubmitImageJobFn | undefined;
       let submitVideoJob: SubmitVideoJobFn | undefined;
+      let submitCodeExecution: SubmitCodeExecutionFn | undefined;
       if (options.jobService && options.createUserClient && run.accessToken && run.userId) {
         const jobSvc = options.jobService;
         const createClient = options.createUserClient;
@@ -569,9 +571,97 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             error: `Job timed out after ${MAX_WAIT / 1000}s`,
           };
         };
+
+        // Code execution via PGMQ — polls faster since code execution is typically quick
+        submitCodeExecution = async (input) => {
+          const jobT0 = Date.now();
+          const jobLap = (label: string, extra?: Record<string, unknown>) => {
+            console.log(`[submitCodeExecution] ${label} +${Date.now() - jobT0}ms`, extra ? JSON.stringify(extra) : "");
+          };
+
+          const client = createClient(accessToken) as UserSupabaseClient;
+          const { data: ws } = await client
+            .from("workspaces")
+            .select("id")
+            .eq("type", "personal")
+            .limit(1)
+            .single();
+          if (!ws?.id) throw new Error("No personal workspace found");
+
+          const user: AuthenticatedUser = {
+            id: userId,
+            accessToken,
+            email: "",
+            userMetadata: {},
+          };
+          const job = await jobSvc.createJob(user, {
+            workspaceId: ws.id,
+            ...(canvasId ? { canvasId } : {}),
+            jobType: "code_execution",
+            payload: {
+              command: input.command,
+              workspace_id: ws.id,
+              ...(canvasId ? { canvas_id: canvasId } : {}),
+            },
+          });
+          jobLap("job_created", { jobId: job.id });
+
+          // Poll until terminal state — code execution is fast, poll every 500ms
+          const POLL_INTERVAL = 500;
+          const MAX_WAIT = 120_000; // 2 minutes
+          const start = Date.now();
+          let pollCount = 0;
+
+          while (Date.now() - start < MAX_WAIT) {
+            await delay(POLL_INTERVAL);
+            pollCount++;
+
+            if (run.controller.signal.aborted) {
+              throw new Error("Run was canceled");
+            }
+
+            const current = await jobSvc.getJobAdmin(job.id);
+
+            if (current.status === "succeeded" && current.result) {
+              const result = current.result as {
+                output?: string;
+                exit_code?: number;
+                files?: Array<{ name: string; url: string; size: number; mime_type: string }>;
+              };
+              jobLap("job_poll_done", { pollCount, status: "succeeded" });
+              return {
+                output: result.output ?? "",
+                exitCode: result.exit_code ?? 0,
+                files: result.files ?? [],
+              };
+            }
+
+            if (current.status === "dead_letter" || current.status === "canceled") {
+              jobLap("job_poll_done", { pollCount, status: current.status });
+              return {
+                error: current.error_message ?? `Job ${current.status}`,
+              };
+            }
+
+            if (
+              current.status === "failed" &&
+              current.attempt_count >= current.max_attempts
+            ) {
+              jobLap("job_poll_done", { pollCount, status: "failed_max_retries" });
+              return {
+                error: current.error_message ?? "Job failed after max retries",
+              };
+            }
+          }
+
+          jobLap("job_poll_done", { pollCount, status: "timeout" });
+          return {
+            error: `Code execution timed out after ${MAX_WAIT / 1000}s`,
+          };
+        };
       }
 
-      // Create sandbox-aware backend so runtime owns the lifecycle.
+      // Create backend — production uses StateBackend (no local shell).
       const backendResult = createAgentBackend(options.env, run.canvasId);
 
       try {
@@ -668,6 +758,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           env: options.env,
           ...(resolvedModel ? { model: resolvedModel } : {}),
           ...(persistImage ? { persistImage } : {}),
+          ...(submitCodeExecution ? { submitCodeExecution } : {}),
           ...(submitImageJob ? { submitImageJob } : {}),
           ...(submitVideoJob ? { submitVideoJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),

@@ -3,6 +3,10 @@ import type { BackendFactory, BackendProtocol } from "deepagents";
 
 import type { ConnectionManager } from "../../ws/connection-manager.js";
 import { createBrandKitTool } from "./brand-kit.js";
+import {
+  createExecuteCodeTool,
+  type SubmitCodeExecutionFn,
+} from "./execute-code.js";
 import { createInspectCanvasTool } from "./inspect-canvas.js";
 import { createManipulateCanvasTool } from "./manipulate-canvas.js";
 import {
@@ -31,6 +35,7 @@ export function createMainAgentTools(
     connectionManager?: ConnectionManager;
     persistImage?: PersistImageFn;
     sandboxDir?: string;
+    submitCodeExecution?: SubmitCodeExecutionFn;
     submitImageJob?: SubmitImageJobFn;
     submitVideoJob?: SubmitVideoJobFn;
   },
@@ -50,6 +55,11 @@ export function createMainAgentTools(
       createUserClient: deps.createUserClient,
       ...(deps.sandboxDir ? { sandboxDir: deps.sandboxDir } : {}),
     }),
+    // Custom execute tool for production (PGMQ-based code execution).
+    // In dev mode, deepagents' built-in execute from LocalShellBackend takes precedence.
+    ...(deps.submitCodeExecution
+      ? [createExecuteCodeTool({ submitCodeExecution: deps.submitCodeExecution })]
+      : []),
   ];
   if (deps.brandKitId) {
     tools.push(createBrandKitTool(deps, deps.brandKitId));
