@@ -51,6 +51,7 @@ export function createMainAgentTools(
     brandKitId?: string | null;
     connectionManager?: ConnectionManager;
     persistImage?: PersistImageFn;
+    sandboxDir?: string;
     submitImageJob?: SubmitImageJobFn;
     submitVideoJob?: SubmitVideoJobFn;
   },
@@ -67,7 +68,10 @@ export function createMainAgentTools(
     createVideoGenerateTool({
       ...(deps.submitVideoJob ? { submitVideoJob: deps.submitVideoJob } : {}),
     }),
-    createPersistSandboxFileTool({ createUserClient: deps.createUserClient }),
+    createPersistSandboxFileTool({
+      createUserClient: deps.createUserClient,
+      sandboxDir: deps.sandboxDir,
+    }),
   ];
   if (deps.brandKitId) {
     tools.push(createBrandKitTool(deps, deps.brandKitId));

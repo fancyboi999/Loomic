@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { basename, extname } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { basename, extname, resolve } from "node:path";
 import { tool } from "@langchain/core/tools";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -11,7 +11,10 @@ const MIME_MAP: Record<string, string> = {
   ".pdf": "application/pdf",
   ".svg": "image/svg+xml",
   ".webp": "image/webp",
+  ".gif": "image/gif",
 };
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 const persistSandboxFileSchema = z.object({
   filePath: z
@@ -27,6 +30,7 @@ const persistSandboxFileSchema = z.object({
 
 export type PersistSandboxFileDeps = {
   createUserClient: (accessToken: string) => SupabaseClient;
+  sandboxDir?: string;
 };
 
 export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
@@ -43,12 +47,28 @@ export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
         return "Error: No access token available. Cannot upload file.";
       }
 
+      // Path traversal guard: restrict reads to sandbox directory
+      if (deps.sandboxDir) {
+        const resolved = resolve(input.filePath);
+        if (!resolved.startsWith(deps.sandboxDir)) {
+          return "Error: filePath must be inside the sandbox directory.";
+        }
+      }
+
       try {
+        const fileStats = await stat(input.filePath);
+        if (fileStats.size > MAX_FILE_SIZE) {
+          return `Error: File too large (${fileStats.size} bytes). Maximum: ${MAX_FILE_SIZE} bytes.`;
+        }
+
         const fileBuffer = await readFile(input.filePath);
         const ext = extname(input.filePath).toLowerCase();
         const mimeType = MIME_MAP[ext] ?? "application/octet-stream";
-        const fileName = input.title
-          ? `${input.title}${ext}`
+        const safeTitle = input.title
+          ? input.title.replace(/[^a-zA-Z0-9_\u4e00-\u9fff-]/g, "_").slice(0, 100)
+          : null;
+        const fileName = safeTitle
+          ? `${safeTitle}${ext}`
           : basename(input.filePath);
 
         const storagePath = canvasId
@@ -67,15 +87,17 @@ export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
           return `Error uploading file: ${error.message}`;
         }
 
-        const {
-          data: { signedUrl },
-        } = await client.storage
+        const signedResult = await client.storage
           .from("project-assets")
           .createSignedUrl(data.path, 3600);
 
+        if (signedResult.error || !signedResult.data) {
+          return `Error creating signed URL: ${signedResult.error?.message ?? "unknown"}`;
+        }
+
         return JSON.stringify({
           summary: `File uploaded successfully: ${fileName}`,
-          url: signedUrl,
+          url: signedResult.data.signedUrl,
           path: data.path,
           mimeType,
           size: fileBuffer.length,

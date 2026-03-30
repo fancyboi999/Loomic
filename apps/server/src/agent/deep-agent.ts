@@ -85,6 +85,7 @@ export function createLoomicDeepAgent(options: {
       ...(options.brandKitId != null ? { brandKitId: options.brandKitId } : {}),
       ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
       ...(options.persistImage ? { persistImage: options.persistImage } : {}),
+      ...(backendResult.sandboxDir ? { sandboxDir: backendResult.sandboxDir } : {}),
       ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
       ...(options.submitVideoJob ? { submitVideoJob: options.submitVideoJob } : {}),
     }),

@@ -32,14 +32,19 @@ export function createDevelopmentBackend(
   const sandboxDir = join(DEFAULT_DEV_SANDBOX_ROOT, runId);
   mkdirSync(sandboxDir, { recursive: true });
 
+  const skillsRoot = env.skillsRoot ?? join(env.agentFilesRoot, "skills");
+
   const sandbox = new LocalShellBackend({
     rootDir: sandboxDir,
     timeout: 120,
     maxOutputBytes: 200_000,
-    inheritEnv: true,
+    env: {
+      PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
+      HOME: process.env.HOME ?? "/tmp",
+      FONT_DIR: join(skillsRoot, "canvas-design", "canvas-fonts"),
+      PYTHONDONTWRITEBYTECODE: "1",
+    },
   });
-
-  const skillsRoot = env.skillsRoot ?? join(env.agentFilesRoot, "skills");
   const skillsBackend = new FilesystemBackend({ rootDir: skillsRoot });
 
   const workspaceBackend = new FilesystemBackend({

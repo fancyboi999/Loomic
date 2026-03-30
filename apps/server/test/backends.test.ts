@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createAgentBackendFactory } from "../src/agent/backends/index.js";
+import { createAgentBackend } from "../src/agent/backends/index.js";
 import { loadServerEnv } from "../src/config/env.js";
 
 const tempDirs = new Set<string>();
@@ -24,7 +24,7 @@ describe("phase-a backend factory", () => {
       agentBackendMode: "filesystem",
     });
 
-    expect(() => createAgentBackendFactory(env)).toThrow(
+    expect(() => createAgentBackend(env)).toThrow(
       /LOOMIC_AGENT_FILES_ROOT/,
     );
   });
@@ -43,7 +43,8 @@ describe("phase-a backend factory", () => {
       agentBackendMode: "filesystem",
       agentFilesRoot: workspaceRoot,
     });
-    const backend = createAgentBackendFactory(env)({ state: { files: {} } });
+    const { factory } = createAgentBackend(env);
+    const backend = factory({ state: { files: {} } });
 
     const content = await backend.read("/workspace/notes.md");
 
@@ -55,7 +56,7 @@ describe("phase-a backend factory", () => {
       agentBackendMode: "state",
     });
 
-    expect(() => createAgentBackendFactory(env)).toThrow(
+    expect(() => createAgentBackend(env)).toThrow(
       /canvasId is required/,
     );
   });
@@ -65,8 +66,10 @@ describe("phase-a backend factory", () => {
       agentBackendMode: "state",
     });
 
-    const factory = createAgentBackendFactory(env, "test-canvas-123");
+    const result = createAgentBackend(env, "test-canvas-123");
+    if (result.sandboxDir) tempDirs.add(result.sandboxDir);
 
-    expect(typeof factory).toBe("function");
+    expect(typeof result.factory).toBe("function");
+    expect(typeof result.sandboxDir).toBe("string");
   });
 });
