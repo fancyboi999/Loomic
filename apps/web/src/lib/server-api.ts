@@ -428,6 +428,22 @@ export async function fetchImageModels(): Promise<{ models: ImageModelInfo[] }> 
   return (await response.json()) as { models: ImageModelInfo[] };
 }
 
+export type VideoModelInfo = {
+  id: string;
+  displayName: string;
+  description: string;
+  provider: string;
+  iconUrl?: string;
+};
+
+export async function fetchVideoModels(): Promise<{ models: VideoModelInfo[] }> {
+  const response = await fetch(`${getServerBaseUrl()}/api/video-models`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch video models: ${response.status}`);
+  }
+  return (await response.json()) as { models: VideoModelInfo[] };
+}
+
 export async function generateImageDirect(
   accessToken: string,
   prompt: string,
