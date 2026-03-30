@@ -4,8 +4,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ImageModelInfo } from "../lib/server-api";
-import { fetchImageModels } from "../lib/server-api";
+import type { VideoModelInfo } from "../lib/server-api";
+import { fetchImageModels, fetchVideoModels } from "../lib/server-api";
 import { useImageModelPreference } from "../hooks/use-image-model-preference";
+import { useVideoModelPreference } from "../hooks/use-video-model-preference";
 
 export function ImageModelPreferencePopover({
   open,
@@ -18,6 +20,9 @@ export function ImageModelPreferencePopover({
 }) {
   const { preference, setMode, toggleModel } = useImageModelPreference();
   const [models, setModels] = useState<ImageModelInfo[]>([]);
+  const [activeTab, setActiveTab] = useState<"image" | "video">("image");
+  const videoPreference = useVideoModelPreference();
+  const [videoModels, setVideoModels] = useState<VideoModelInfo[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; above: boolean } | null>(null);
 
@@ -25,6 +30,9 @@ export function ImageModelPreferencePopover({
     if (!open) return;
     fetchImageModels()
       .then((data) => setModels(data.models))
+      .catch(() => {});
+    fetchVideoModels()
+      .then((data) => setVideoModels(data.models))
       .catch(() => {});
   }, [open]);
 
@@ -38,7 +46,7 @@ export function ImageModelPreferencePopover({
 
     setPos({
       top: openAbove ? rect.top - 8 : rect.bottom + 8,
-      left: Math.max(8, rect.right - 340),
+      left: Math.max(8, rect.right - 380),
       above: openAbove,
     });
   }, [open, anchorRef]);
@@ -70,6 +78,11 @@ export function ImageModelPreferencePopover({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
+  const currentPreference = activeTab === "image" ? preference : videoPreference.preference;
+  const currentModels = activeTab === "image" ? models : videoModels;
+  const currentSetMode = activeTab === "image" ? setMode : videoPreference.setMode;
+  const currentToggleModel = activeTab === "image" ? toggleModel : videoPreference.toggleModel;
+
   if (!open || !pos) return null;
 
   return createPortal(
@@ -80,50 +93,70 @@ export function ImageModelPreferencePopover({
         bottom: pos.above ? window.innerHeight - pos.top : undefined,
         left: pos.left,
       }}
-      className="fixed z-[9999] w-[340px] rounded-xl border-[0.5px] border-border bg-card p-1 shadow-card"
+      className="fixed z-[9999] w-[380px] rounded-xl border-[0.5px] border-border bg-card p-1 shadow-card"
     >
       <div className="flex flex-col gap-3 py-2">
+        {/* Tab switcher */}
+        <div className="px-3">
+          <div className="flex rounded-lg bg-muted p-0.5">
+            {(["image", "video"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeTab === tab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab === "image" ? "Image" : "Video"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col gap-2 px-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-foreground">
-              Image Model
+              {activeTab === "image" ? "Image Model" : "Video Model"}
             </span>
             <button
               type="button"
               onClick={() =>
-                setMode(preference.mode === "auto" ? "manual" : "auto")
+                currentSetMode(currentPreference.mode === "auto" ? "manual" : "auto")
               }
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                preference.mode === "auto"
+                currentPreference.mode === "auto"
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  preference.mode === "auto" ? "bg-[#4ADE80]" : "bg-muted-foreground"
+                  currentPreference.mode === "auto" ? "bg-[#4ADE80]" : "bg-muted-foreground"
                 }`}
               />
-              {preference.mode === "auto" ? "Auto" : "Manual"}
+              {currentPreference.mode === "auto" ? "Auto" : "Manual"}
             </button>
           </div>
           <span className="text-[11px] text-muted-foreground">
-            {preference.mode === "auto"
-              ? "Agent automatically selects the best model for each task"
-              : "Agent chooses from your selected models for each image task"}
+            {currentPreference.mode === "auto"
+              ? `Agent automatically selects the best model for each ${activeTab} task`
+              : `Agent chooses from your selected models for each ${activeTab} task`}
           </span>
         </div>
 
         {/* Model list */}
         <div className="scrollbar-hidden max-h-[300px] space-y-0.5 overflow-y-auto px-1">
-          {models.map((m) => {
-            const selected = preference.models.includes(m.id);
+          {currentModels.map((m) => {
+            const selected = currentPreference.models.includes(m.id);
             return (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => toggleModel(m.id)}
+                onClick={() => currentToggleModel(m.id)}
                 className={`group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted ${
                   selected ? "bg-muted" : ""
                 }`}
