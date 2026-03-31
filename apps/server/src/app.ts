@@ -53,9 +53,18 @@ import {
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { createPgmqClient } from "./queue/pgmq-client.js";
 import {
+  createCreditService,
+  type CreditService,
+} from "./features/credits/credit-service.js";
+import {
+  createTierGuard,
+  type TierGuard,
+} from "./features/credits/tier-guard.js";
+import {
   createJobService,
   type JobService,
 } from "./features/jobs/job-service.js";
+import { registerCreditRoutes } from "./http/credits.js";
 import { registerFontsRoutes } from "./http/fonts.js";
 import { registerJobRoutes } from "./http/jobs.js";
 import { registerBrandKitRoutes } from "./http/brand-kits.js";
@@ -92,8 +101,10 @@ export type BuildAppOptions = {
   canvasService?: CanvasService;
   chatService?: ChatService;
   connectionManager?: ConnectionManager;
+  creditService?: CreditService;
   env?: Partial<ServerEnv>;
   jobService?: JobService;
+  tierGuard?: TierGuard;
   uploadService?: UploadService;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
@@ -172,6 +183,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     (pgmq
       ? createJobService({ createUserClient, getAdminClient, pgmq })
       : undefined);
+  const creditService =
+    options.creditService ?? createCreditService({ getAdminClient });
+  const tierGuard =
+    options.tierGuard ?? createTierGuard({ getAdminClient });
   const connectionManager = options.connectionManager ?? new ConnectionManager();
   const agentRuns = createAgentRunService({
     agentPersistenceService,
@@ -262,8 +277,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerGenerateRoutes(app, { auth, uploadService, viewerService });
+  void registerCreditRoutes(app, { auth, creditService, viewerService });
   if (jobService) {
-    void registerJobRoutes(app, { auth, jobService, viewerService });
+    void registerJobRoutes(app, { auth, creditService, jobService, tierGuard, viewerService });
   }
   void registerSkillRoutes(app, { auth, createUserClient, viewerService });
 

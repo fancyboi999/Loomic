@@ -14,6 +14,8 @@ import {
   JobServiceError,
   type JobService,
 } from "../features/jobs/job-service.js";
+import type { CreditService } from "../features/credits/credit-service.js";
+import type { TierGuard } from "../features/credits/tier-guard.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type { RequestAuthenticator } from "../supabase/user.js";
 
@@ -21,7 +23,9 @@ export async function registerJobRoutes(
   app: FastifyInstance,
   options: {
     auth: RequestAuthenticator;
+    creditService?: CreditService;
     jobService: JobService;
+    tierGuard?: TierGuard;
     viewerService: ViewerService;
   },
 ) {

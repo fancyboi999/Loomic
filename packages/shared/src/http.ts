@@ -89,6 +89,15 @@ export const applicationErrorCodeSchema = z.enum([
   "skill_install_failed",
   "skill_uninstall_failed",
   "skill_toggle_failed",
+  "insufficient_credits",
+  "credit_query_failed",
+  "credit_claim_failed",
+  "credit_deduct_failed",
+  "credit_refund_failed",
+  "credit_plan_update_failed",
+  "model_not_accessible",
+  "resolution_not_allowed",
+  "concurrency_limit",
 ]);
 
 export const applicationErrorResponseSchema = z.object({
