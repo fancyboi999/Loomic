@@ -108,12 +108,12 @@ function HeroMockup() {
           <div className="w-14" />
         </div>
 
-        {/* Canvas area — real product showcase image */}
+        {/* Canvas area — dark mode design layout, looks like product screenshot */}
         <div className="relative w-full h-full">
           <MockupCursor />
           <img
-            src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/c4b5d18c0b210164cd4dd45a1b79a020c64fde12.png"
-            alt="Loomic Canvas Interface"
+            src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/1139fbe3c6aa17a336ca45d5ec3b0e412136cc37.png"
+            alt="Loomic Canvas 设计界面"
             className="w-full h-full object-cover"
             loading="eager"
           />

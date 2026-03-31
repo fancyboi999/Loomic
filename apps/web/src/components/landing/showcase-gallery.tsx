@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/landing/section-header";
 import { StaggerContainer, scaleUp } from "@/components/landing/motion";
 
 // ---------------------------------------------------------------------------
-// Gallery item data — real images from AI creative platforms
+// Gallery item data — curated AI-generated creative work
+// Each description accurately matches the image content
 // ---------------------------------------------------------------------------
 
 interface GalleryItem {
@@ -20,53 +20,63 @@ interface GalleryItem {
 
 const GALLERY_ITEMS: GalleryItem[] = [
   {
-    category: "品牌设计",
-    title: "运动品牌视觉识别系统",
+    // soul1: 蓝色发光水母数字艺术雕塑
+    category: "数字艺术",
+    title: "梦幻水母 — AI 生成数字雕塑",
     image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/78b3accb63a9b719c7d166025c065911555ada32.png",
+      "https://dqv0cqkoy5oj7.cloudfront.net/user_35h9Zqn0Bk5qurQOPUM7laOSfXO/hf_20260217_184432_7af6e3df-a5ad-4e8a-a3b4-c6d8637ce85c.png",
     rowSpan: "row-span-2",
   },
   {
-    category: "产品摄影",
-    title: "潮流运动鞋商业摄影",
+    // lov1: 运动品牌产品发布多图版面设计
+    category: "品牌设计",
+    title: "运动品牌产品发布版面",
     image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/c88bde8145aa01456be3967714fef0b186892a9b.png",
+      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/533de217d64394ebf9b4794d8de6b3110917d550.png",
     colSpan: "col-span-2",
   },
   {
-    category: "AI 创作",
-    title: "AI 图像生成与编辑",
-    image: "https://static.higgsfield.ai/explore/create-image.webp",
-  },
-  {
-    category: "咖啡品牌",
-    title: "咖啡店品牌设计系统",
+    // soul3: 暗调艺术风格人像，飘逸长发
+    category: "艺术摄影",
+    title: "暗调艺术人像 — AI 风格化写真",
     image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/d3769ba8409ac7d8610a0e2fa9837a6afca945ba.png",
+      "https://dqv0cqkoy5oj7.cloudfront.net/user_36Hwty94QweUxs82UEGsxmReIrf/hf_20260218_182218_2cfc8314-b866-479e-a70e-b8f27b950e11.png",
   },
   {
-    category: "智能眼镜",
-    title: "智能穿戴设备产品页",
+    // lov4: 眼镜品牌广告，橙色毛线帽男性
+    category: "广告设计",
+    title: "眼镜品牌广告 — See Beyond the Ordinary",
     image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/7f9784a644c3d537b4707a35671c1169cacf1747.png",
+      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/79385767155d45c0a8d74c584a479a836b785107.png",
   },
   {
-    category: "视频创作",
-    title: "AI 视频生成工具",
-    image: "https://static.higgsfield.ai/explore/create-video.webp",
+    // soul7: 心形古董珠宝盒，钥匙与怀表
+    category: "静物摄影",
+    title: "复古珠宝盒 — AI 生成静物写真",
+    image:
+      "https://dqv0cqkoy5oj7.cloudfront.net/user_35h9Zqn0Bk5qurQOPUM7laOSfXO/hf_20260209_131824_f0307da0-93a0-41e0-8b37-9d34bb09b328.png",
+  },
+  {
+    // soul8: 三位女性复古运动时尚大片
+    category: "时尚大片",
+    title: "复古运动风 — AI 时尚编辑摄影",
+    image:
+      "https://dqv0cqkoy5oj7.cloudfront.net/user_36Hwty94QweUxs82UEGsxmReIrf/hf_20260218_171001_e4013ff6-6e4a-411d-89b4-171c192dd5ef.png",
     colSpan: "col-span-2",
   },
   {
-    category: "空间设计",
-    title: "现代办公空间概念设计",
-    image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/ee064c80e5740709122261107c2eb4f9eaca33ae.png",
-  },
-  {
+    // lov8: 咖啡品牌视觉系统（深色背景多图）
     category: "品牌系统",
-    title: "电商品牌全套视觉设计",
+    title: "咖啡品牌全套视觉设计",
     image:
-      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/ed929151f54e3c0d0914903861b2b76aad415f6b.png",
+      "https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/ba24a2ef16feb236dbc0a9ac71f7a8ea5aa8fc21.png",
+  },
+  {
+    // soul4: 亚洲元素混合媒体拼贴艺术
+    category: "混合媒体",
+    title: "东方美学拼贴 — AI 混合媒体创作",
+    image:
+      "https://dqv0cqkoy5oj7.cloudfront.net/user_35h9Zqn0Bk5qurQOPUM7laOSfXO/hf_20260218_141135_4468ae61-47be-4396-834b-8bbc78054909.png",
     rowSpan: "row-span-2",
   },
 ];
@@ -94,8 +104,8 @@ function GalleryCard({ item }: { item: GalleryItem }) {
         loading="lazy"
       />
 
-      {/* Subtle dark overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+      {/* Subtle bottom gradient for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
       {/* Hover overlay — glassmorphism */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">

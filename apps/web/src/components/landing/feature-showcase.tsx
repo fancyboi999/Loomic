@@ -12,15 +12,16 @@ import {
 } from "@/components/landing/motion";
 
 // ---------------------------------------------------------------------------
-// Visual mockups — abstract, styled representations
+// Feature visuals — real images matched to feature descriptions
 // ---------------------------------------------------------------------------
 
 function CanvasVisual() {
+  // lov1: 运动品牌产品发布多图版面 — 展示画布级多元素设计排版
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
       <img
         src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/533de217d64394ebf9b4794d8de6b3110917d550.png"
-        alt="AI Canvas Design"
+        alt="运动品牌画布级设计排版"
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
@@ -29,11 +30,12 @@ function CanvasVisual() {
 }
 
 function ChatVisual() {
+  // lov6: 墨镜品牌广告 "An Accessory That Speaks" — 展示 AI 理解创意意图生成广告
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
       <img
-        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/1139fbe3c6aa17a336ca45d5ec3b0e412136cc37.png"
-        alt="AI Chat Design Assistant"
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/6b1a28475b0c188f4a858aaf0aa852793de580c3.png"
+        alt="AI 理解创意意图生成品牌广告"
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
@@ -42,11 +44,12 @@ function ChatVisual() {
 }
 
 function BrandVisual() {
+  // lov8: 咖啡品牌视觉系统 — 多个一致风格的品牌物料展示
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
       <img
-        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/5049909fb1610fbc90ed8b25cfecc77ffc14fcee.png"
-        alt="Brand Design System"
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/ba24a2ef16feb236dbc0a9ac71f7a8ea5aa8fc21.png"
+        alt="咖啡品牌全套视觉设计系统"
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
@@ -56,10 +59,11 @@ function BrandVisual() {
 
 function EditVisual() {
   return (
+    // lov7: 眼镜产品精密细节特写 "Crafted in Every Detail" — 展示像素级精准控制
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
       <img
-        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/79385767155d45c0a8d74c584a479a836b785107.png"
-        alt="Precision Editing"
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/d0a9be686121d00de898a2d5ce66d9db1b057e97.png"
+        alt="像素级精准编辑细节控制"
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
