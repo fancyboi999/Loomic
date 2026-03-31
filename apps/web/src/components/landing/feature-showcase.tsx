@@ -18,213 +18,51 @@ import {
 function CanvasVisual() {
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
-      {/* Background grid dots */}
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, oklch(0.556 0 0 / 0.4) 1px, transparent 1px)",
-          backgroundSize: "20px 20px",
-        }}
+      <img
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/533de217d64394ebf9b4794d8de6b3110917d550.png"
+        alt="AI Canvas Design"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
       />
-      {/* Canvas cards */}
-      <div className="absolute top-6 left-6 w-36 h-24 rounded-xl bg-muted/60 border border-border shadow-sm" />
-      <div
-        className="absolute top-10 left-16 w-28 h-20 rounded-xl border shadow-md"
-        style={{
-          background:
-            "linear-gradient(135deg, oklch(0.90 0.17 115 / 0.25) 0%, oklch(0.90 0.17 115 / 0.08) 100%)",
-          borderColor: "oklch(0.90 0.17 115 / 0.4)",
-        }}
-      />
-      <div className="absolute bottom-8 right-8 w-32 h-20 rounded-xl bg-muted/50 border border-border shadow-sm" />
-      <div className="absolute bottom-14 left-10 w-20 h-16 rounded-lg bg-muted/70 border border-border" />
-      {/* Cursor icon */}
-      <div className="absolute top-1/2 right-16 -translate-y-1/2">
-        <svg
-          width="18"
-          height="22"
-          viewBox="0 0 18 22"
-          className="fill-foreground/60 drop-shadow"
-        >
-          <path d="M0 0L0 16L4.5 12L7.5 19L9.5 18.2L6.5 11L12 11L0 0Z" />
-        </svg>
-      </div>
     </div>
   );
 }
 
 function ChatVisual() {
   return (
-    <div className="aspect-[4/3] flex flex-col justify-end gap-3 p-2">
-      <style>{`
-        @keyframes typingBounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-4px); }
-        }
-      `}</style>
-      {/* AI response */}
-      <div className="flex items-end gap-2">
-        <div className="size-7 rounded-full bg-muted/70 border border-border shrink-0 flex items-center justify-center">
-          <div
-            className="size-3 rounded-full"
-            style={{ background: "oklch(0.90 0.17 115)" }}
-          />
-        </div>
-        <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-muted/50 border border-border px-4 py-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div
-              className="size-9 rounded-lg shrink-0"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.90 0.17 115 / 0.6) 0%, oklch(0.76 0.17 115 / 0.4) 100%)",
-              }}
-            />
-            <div className="flex flex-col gap-1">
-              <div className="h-1.5 w-20 rounded-full bg-muted-foreground/30" />
-              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/20" />
-            </div>
-          </div>
-          <div className="h-1 w-32 rounded-full bg-muted-foreground/20" />
-          {/* Typing indicator */}
-          <div className="flex items-center gap-1 pt-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="size-1.5 rounded-full"
-                style={{
-                  background: "oklch(0.90 0.17 115 / 0.6)",
-                  animation: `typingBounce 1.4s ease-in-out ${i * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* User message */}
-      <div className="flex items-end justify-end gap-2">
-        <div
-          className="max-w-[70%] rounded-2xl rounded-br-md px-4 py-2.5 text-xs font-medium text-foreground/80"
-          style={{
-            background: "oklch(0.90 0.17 115 / 0.15)",
-            border: "1px solid oklch(0.90 0.17 115 / 0.3)",
-          }}
-        >
-          设计一个咖啡品牌 logo
-        </div>
-        <div className="size-7 rounded-full bg-muted/50 border border-border shrink-0" />
-      </div>
+    <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
+      <img
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/1139fbe3c6aa17a336ca45d5ec3b0e412136cc37.png"
+        alt="AI Chat Design Assistant"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
     </div>
   );
 }
 
 function BrandVisual() {
-  const swatches = [
-    { bg: "oklch(0.90 0.17 115)", label: "Primary", hex: "#A3E635" },
-    { bg: "oklch(0.82 0.14 125)", label: "Secondary", hex: "#86C96B" },
-    { bg: "oklch(0.72 0.12 135)", label: "Accent", hex: "#5EA84F" },
-    { bg: "oklch(0.60 0.10 120)", label: "Deep", hex: "#3D8B37" },
-  ];
-
   return (
-    <div className="aspect-[4/3] grid grid-cols-2 gap-3 p-2">
-      {swatches.map((swatch, i) => (
-        <div
-          key={i}
-          className="rounded-xl border border-border/60 flex flex-col items-center justify-center gap-2 p-3"
-          style={{
-            background: i < 2
-              ? `${swatch.bg}`
-              : `color-mix(in oklch, ${swatch.bg} 15%, transparent)`,
-          }}
-        >
-          <div
-            className="size-8 rounded-lg shadow-sm"
-            style={{ background: swatch.bg }}
-          />
-          <div className="flex flex-col items-center gap-0.5">
-            <div
-              className="h-1 w-10 rounded-full"
-              style={{
-                background: i < 2 ? "oklch(0.205 0 0 / 0.3)" : "oklch(0.556 0 0 / 0.3)",
-              }}
-            />
-            <span
-              className="text-[8px] font-mono tracking-wider"
-              style={{
-                color: i < 2 ? "oklch(0.205 0 0 / 0.5)" : "oklch(0.556 0 0 / 0.4)",
-              }}
-            >
-              {swatch.label}
-            </span>
-          </div>
-        </div>
-      ))}
+    <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
+      <img
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/5049909fb1610fbc90ed8b25cfecc77ffc14fcee.png"
+        alt="Brand Design System"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
     </div>
   );
 }
 
 function EditVisual() {
   return (
-    <div className="aspect-[4/3] flex gap-3 p-2 items-stretch">
-      {/* Before panel */}
-      <div className="flex-1 rounded-xl border border-border bg-muted/30 flex flex-col overflow-hidden">
-        <div className="px-3 py-1.5 border-b border-border">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
-            Before
-          </span>
-        </div>
-        <div className="flex-1 p-3 flex flex-col gap-2 justify-center">
-          <div className="h-8 rounded-lg bg-muted/60" />
-          <div className="h-3 w-3/4 rounded bg-muted/40" />
-          <div className="h-3 w-1/2 rounded bg-muted/30" />
-          <div className="mt-2 h-6 w-20 rounded-md bg-muted/50" />
-        </div>
-      </div>
-      {/* Arrow */}
-      <div className="flex items-center justify-center text-muted-foreground/40 shrink-0">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8.293 1.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1 0 1.414l-6 6a1 1 0 1 1-1.414-1.414L12.586 9H1a1 1 0 1 1 0-2h11.586L8.293 2.707a1 1 0 0 1 0-1.414z" />
-        </svg>
-      </div>
-      {/* After panel */}
-      <div
-        className="flex-1 rounded-xl flex flex-col overflow-hidden"
-        style={{
-          background: "oklch(0.90 0.17 115 / 0.08)",
-          border: "1px solid oklch(0.90 0.17 115 / 0.3)",
-        }}
-      >
-        <div
-          className="px-3 py-1.5 border-b"
-          style={{ borderColor: "oklch(0.90 0.17 115 / 0.2)" }}
-        >
-          <span
-            className="text-[10px] font-medium uppercase tracking-widest"
-            style={{ color: "oklch(0.65 0.17 115)" }}
-          >
-            After
-          </span>
-        </div>
-        <div className="flex-1 p-3 flex flex-col gap-2 justify-center">
-          <div
-            className="h-8 rounded-lg"
-            style={{ background: "oklch(0.90 0.17 115 / 0.3)" }}
-          />
-          <div
-            className="h-3 w-3/4 rounded"
-            style={{ background: "oklch(0.90 0.17 115 / 0.2)" }}
-          />
-          <div
-            className="h-3 w-1/2 rounded"
-            style={{ background: "oklch(0.90 0.17 115 / 0.15)" }}
-          />
-          <div
-            className="mt-2 h-6 w-20 rounded-md"
-            style={{ background: "oklch(0.90 0.17 115 / 0.7)" }}
-          />
-        </div>
-      </div>
+    <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
+      <img
+        src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/79385767155d45c0a8d74c584a479a836b785107.png"
+        alt="Precision Editing"
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
     </div>
   );
 }

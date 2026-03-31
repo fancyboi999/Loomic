@@ -108,100 +108,15 @@ function HeroMockup() {
           <div className="w-14" />
         </div>
 
-        {/* Canvas area */}
-        <div className="relative flex h-full">
-          {/* Left sidebar */}
-          <div className="w-12 border-r border-border bg-muted/20 flex flex-col items-center gap-3 pt-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="size-6 rounded bg-muted/60" />
-            ))}
-          </div>
-
-          {/* Main canvas */}
-          <div className="relative flex-1 p-6 grid grid-cols-3 gap-4 content-start">
-            {/* Animated cursor */}
-            <MockupCursor />
-
-            {/* Card 1 — accent with subtle pulse */}
-            <div
-              className="rounded-xl aspect-[4/3] col-span-2"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.90 0.17 115 / 0.25) 0%, oklch(0.90 0.17 115 / 0.08) 100%)",
-                border: "1px solid oklch(0.90 0.17 115 / 0.3)",
-                animation: "accentPulse 4s ease-in-out infinite",
-              }}
-            >
-              <div className="p-4 flex flex-col gap-2 h-full">
-                <div className="h-2 w-16 rounded-full bg-muted/60" />
-                <div className="h-1.5 w-24 rounded-full bg-muted/40" />
-                <div className="mt-auto flex gap-2">
-                  <div className="h-1 w-8 rounded-full bg-muted/50" />
-                  <div className="h-1 w-12 rounded-full bg-muted/30" />
-                </div>
-              </div>
-            </div>
-            {/* Card 2 */}
-            <div className="rounded-xl aspect-square bg-muted/40 border border-border">
-              <div className="p-3 flex flex-col gap-1.5">
-                <div className="h-8 w-8 rounded-full bg-muted/70 mx-auto mt-2" />
-                <div className="h-1.5 w-full rounded-full bg-muted/50 mt-2" />
-                <div className="h-1.5 w-3/4 rounded-full bg-muted/30" />
-              </div>
-            </div>
-            {/* Card 3 */}
-            <div className="rounded-xl aspect-[4/3] bg-muted/30 border border-border flex items-center justify-center">
-              <div className="size-10 rounded-lg bg-muted/60 flex items-center justify-center">
-                <div className="size-4 rounded bg-muted/80" />
-              </div>
-            </div>
-            {/* Card 4 */}
-            <div
-              className="rounded-xl aspect-[4/3] col-span-2"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.205 0 0 / 0.04) 0%, oklch(0.556 0 0 / 0.04) 100%)",
-                border: "1px solid oklch(0.922 0 0 / 0.6)",
-              }}
-            >
-              <div className="p-4 flex gap-3 h-full items-start">
-                <div className="size-6 rounded-full bg-muted/50 shrink-0" />
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <div className="h-1.5 w-full rounded-full bg-muted/50" />
-                  <div className="h-1.5 w-5/6 rounded-full bg-muted/40" />
-                  <div className="h-1.5 w-2/3 rounded-full bg-muted/30" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: AI chat bubble */}
-          <div className="w-48 border-l border-border bg-muted/10 flex flex-col gap-3 p-3 shrink-0">
-            <div className="text-[10px] font-medium text-muted-foreground px-1">AI 助手</div>
-            <div className="rounded-xl bg-muted/40 p-2.5 border border-border">
-              <div className="flex flex-col gap-1.5">
-                <div className="h-1 w-full rounded-full bg-muted/60" />
-                <div className="h-1 w-4/5 rounded-full bg-muted/50" />
-                <div className="h-1 w-2/3 rounded-full bg-muted/40" />
-              </div>
-            </div>
-            <div
-              className="rounded-xl p-2.5"
-              style={{
-                background: "oklch(0.90 0.17 115 / 0.12)",
-                border: "1px solid oklch(0.90 0.17 115 / 0.25)",
-              }}
-            >
-              <div className="flex flex-col gap-1.5">
-                <div className="h-1 w-full rounded-full" style={{ background: "oklch(0.90 0.17 115 / 0.4)" }} />
-                <div className="h-1 w-4/5 rounded-full" style={{ background: "oklch(0.90 0.17 115 / 0.3)" }} />
-              </div>
-            </div>
-            {/* Input bar */}
-            <div className="mt-auto rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[10px] text-muted-foreground/50">
-              发送消息...
-            </div>
-          </div>
+        {/* Canvas area — real product showcase image */}
+        <div className="relative w-full h-full">
+          <MockupCursor />
+          <img
+            src="https://assets-persist.lovart.ai/img/d92cfdbbb4c243d8a269dc6d1301540c/c4b5d18c0b210164cd4dd45a1b79a020c64fde12.png"
+            alt="Loomic Canvas Interface"
+            className="w-full h-full object-cover"
+            loading="eager"
+          />
         </div>
       </div>
     </motion.div>
