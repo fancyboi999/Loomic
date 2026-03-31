@@ -17,6 +17,11 @@ import type {
   ChatMessageCreateRequest,
   UploadResponse,
   AssetSignedUrlResponse,
+  SkillListResponse,
+  SkillDetailResponse,
+  SkillCreateRequest,
+  SkillUpdateRequest,
+  WorkspaceSkillListResponse,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -463,4 +468,123 @@ export async function generateImageDirect(
   );
   if (!response.ok) return handleErrorResponse(response);
   return (await response.json()) as GenerateImageResponse;
+}
+
+// --- Skills API ---
+
+export async function fetchSkills(
+  accessToken: string,
+): Promise<SkillListResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/skills`, {
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SkillListResponse;
+}
+
+export async function fetchSkillDetail(
+  accessToken: string,
+  id: string,
+): Promise<SkillDetailResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/skills/${id}`, {
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SkillDetailResponse;
+}
+
+export async function createSkill(
+  accessToken: string,
+  data: SkillCreateRequest,
+): Promise<SkillDetailResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/skills`, {
+    method: "POST",
+    headers: authJsonHeaders(accessToken),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SkillDetailResponse;
+}
+
+export async function updateSkill(
+  accessToken: string,
+  id: string,
+  data: SkillUpdateRequest,
+): Promise<SkillDetailResponse> {
+  const response = await fetch(`${getServerBaseUrl()}/api/skills/${id}`, {
+    method: "PUT",
+    headers: authJsonHeaders(accessToken),
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as SkillDetailResponse;
+}
+
+export async function deleteSkill(
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  const response = await fetch(`${getServerBaseUrl()}/api/skills/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+// --- Workspace Skills API ---
+
+export async function fetchWorkspaceSkills(
+  accessToken: string,
+): Promise<WorkspaceSkillListResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspaces/skills`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as WorkspaceSkillListResponse;
+}
+
+export async function installSkill(
+  accessToken: string,
+  skillId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspaces/skills`,
+    {
+      method: "POST",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify({ skillId }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function uninstallSkill(
+  accessToken: string,
+  skillId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspaces/skills/${skillId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+}
+
+export async function toggleSkill(
+  accessToken: string,
+  skillId: string,
+  enabled: boolean,
+): Promise<void> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/workspaces/skills/${skillId}`,
+    {
+      method: "PATCH",
+      headers: authJsonHeaders(accessToken),
+      body: JSON.stringify({ enabled }),
+    },
+  );
+  if (!response.ok) return handleErrorResponse(response);
 }

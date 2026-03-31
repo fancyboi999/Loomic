@@ -17,9 +17,13 @@ export type AgentBackendResult = {
 export function createAgentBackend(
   env: AgentBackendEnv,
   canvasId?: string,
+  options?: { hasWorkspaceSkills?: boolean },
 ): AgentBackendResult {
   if (env.agentBackendMode === "filesystem") {
-    return createDevelopmentBackend(env);
+    return createDevelopmentBackend(env, {
+      canvasId,
+      hasWorkspaceSkills: options?.hasWorkspaceSkills,
+    });
   }
 
   if (!canvasId) {
@@ -31,5 +35,6 @@ export function createAgentBackend(
 
   return createProductionBackendFactory(canvasId, {
     ...(env.skillsRoot ? { skillsRoot: env.skillsRoot } : {}),
+    hasWorkspaceSkills: options?.hasWorkspaceSkills,
   });
 }

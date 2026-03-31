@@ -34,6 +34,7 @@ import {
 } from "./deep-agent.js";
 import type { AgentPersistenceService } from "./persistence/index.js";
 import { adaptDeepAgentStream } from "./stream-adapter.js";
+import { loadWorkspaceSkills, type WorkspaceSkillEntry } from "./workspace-skills.js";
 
 /**
  * Build the text portion of a user message, appending <input_images> XML
@@ -661,8 +662,27 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         };
       }
 
+      // Load workspace skills (user-installed skills from DB).
+      // Done before backend creation so we know whether to add the
+      // /workspace-skills/ Store route.
+      let workspaceSkills: WorkspaceSkillEntry[] = [];
+      if (run.canvasId && run.accessToken && options.createUserClient) {
+        try {
+          const wsClient = options.createUserClient(run.accessToken) as UserSupabaseClient;
+          workspaceSkills = await loadWorkspaceSkills(wsClient, run.canvasId);
+          rlog.lap("workspace_skills_loaded", { count: workspaceSkills.length });
+        } catch (err) {
+          // Non-fatal: agent runs without workspace skills
+          console.warn("[runtime] Failed to load workspace skills:", err);
+        }
+      }
+
       // Create backend — production uses StateBackend (no local shell).
-      const backendResult = createAgentBackend(options.env, run.canvasId);
+      const backendResult = createAgentBackend(
+        options.env,
+        run.canvasId,
+        { hasWorkspaceSkills: workspaceSkills.length > 0 },
+      );
 
       try {
       let agent: LoomicAgent;
@@ -749,6 +769,28 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
         rlog.lap("brand_kit_resolved");
 
+        // Pre-write workspace skill SKILL.md files into the Store so the
+        // agent can read_file them via the /workspace-skills/ route.
+        const store = persistence?.store;
+        if (workspaceSkills.length > 0 && store && run.canvasId) {
+          const storeNamespace = ["projects", run.canvasId, "workspace-skills"];
+          const now_ = new Date().toISOString();
+          await Promise.all(
+            workspaceSkills.map((skill) =>
+              store.put(
+                storeNamespace,
+                `/${skill.name}/SKILL.md`,
+                {
+                  content: skill.content.split("\n"),
+                  created_at: now_,
+                  modified_at: now_,
+                },
+              ),
+            ),
+          );
+          rlog.lap("workspace_skills_stored", { count: workspaceSkills.length });
+        }
+
         agent = resolvedAgentFactory({
           backendResult,
           ...(brandKitId ? { brandKitId } : {}),
@@ -762,6 +804,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           ...(submitImageJob ? { submitImageJob } : {}),
           ...(submitVideoJob ? { submitVideoJob } : {}),
           ...(persistence ? { store: persistence.store } : {}),
+          ...(workspaceSkills.length > 0 ? { workspaceSkills } : {}),
         });
         rlog.lap("agent_factory_done");
       } catch (error) {

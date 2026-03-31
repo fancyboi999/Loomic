@@ -71,6 +71,7 @@ import { registerProjectRoutes } from "./http/projects.js";
 import { registerRunRoutes } from "./http/runs.js";
 import { registerSettingsRoutes } from "./http/settings.js";
 import { registerUploadRoutes } from "./http/uploads.js";
+import { registerSkillRoutes } from "./http/skills.js";
 import { registerViewerRoutes } from "./http/viewer.js";
 import { ConnectionManager } from "./ws/connection-manager.js";
 import { registerWsRoute } from "./ws/handler.js";
@@ -264,6 +265,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   if (jobService) {
     void registerJobRoutes(app, { auth, jobService, viewerService });
   }
+  void registerSkillRoutes(app, { auth, createUserClient, viewerService });
 
   return app;
 }

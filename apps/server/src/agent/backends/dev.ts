@@ -1,9 +1,12 @@
 import { mkdirSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  type BackendFactory,
+  type StateAndStore,
   CompositeBackend,
   FilesystemBackend,
   LocalShellBackend,
+  StoreBackend,
 } from "deepagents";
 
 import type { ServerEnv } from "../../config/env.js";
@@ -21,6 +24,12 @@ const DEFAULT_DEV_SANDBOX_ROOT = "/tmp/loomic-sandbox-dev";
  */
 export function createDevelopmentBackend(
   env: AgentBackendEnv,
+  options?: {
+    /** Canvas ID — used for workspace-skills Store namespace when available. */
+    canvasId?: string;
+    /** When true, add a /workspace-skills/ route backed by the Store. */
+    hasWorkspaceSkills?: boolean;
+  },
 ): AgentBackendResult {
   if (!env.agentFilesRoot) {
     throw new Error(
@@ -53,11 +62,21 @@ export function createDevelopmentBackend(
     virtualMode: true,
   });
 
-  const factory = () =>
-    new CompositeBackend(sandbox, {
+  const factory: BackendFactory = (stateAndStore: StateAndStore) => {
+    const routes: Record<string, FilesystemBackend | StoreBackend> = {
       "/workspace/": workspaceBackend,
       "/skills/": skillsBackend,
-    });
+    };
+
+    // In dev mode, workspace skills are served from the Store when available.
+    if (options?.hasWorkspaceSkills && options.canvasId && stateAndStore.store) {
+      routes["/workspace-skills/"] = new StoreBackend(stateAndStore, {
+        namespace: ["projects", options.canvasId, "workspace-skills"],
+      });
+    }
+
+    return new CompositeBackend(sandbox, routes);
+  };
 
   return { factory, sandboxDir: realSandboxDir };
 }

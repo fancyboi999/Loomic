@@ -81,6 +81,14 @@ export const applicationErrorCodeSchema = z.enum([
   "job_create_failed",
   "job_query_failed",
   "job_cancel_failed",
+  "skill_not_found",
+  "skill_create_failed",
+  "skill_update_failed",
+  "skill_delete_failed",
+  "skill_query_failed",
+  "skill_install_failed",
+  "skill_uninstall_failed",
+  "skill_toggle_failed",
 ]);
 
 export const applicationErrorResponseSchema = z.object({

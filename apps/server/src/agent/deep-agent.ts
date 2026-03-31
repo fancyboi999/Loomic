@@ -13,6 +13,7 @@ import { createMainAgentTools } from "./tools/index.js";
 import type { SubmitCodeExecutionFn } from "./tools/execute-code.js";
 import type { PersistImageFn, SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
+import type { WorkspaceSkillEntry } from "./workspace-skills.js";
 
 export type LoomicAgent = Pick<
   ReturnType<typeof createDeepAgent>,
@@ -33,6 +34,7 @@ export type LoomicAgentFactory = (options: {
   submitImageJob?: SubmitImageJobFn;
   submitVideoJob?: SubmitVideoJobFn;
   store?: BaseStore;
+  workspaceSkills?: WorkspaceSkillEntry[];
 }) => LoomicAgent;
 
 export function createLoomicDeepAgent(options: {
@@ -49,6 +51,7 @@ export function createLoomicDeepAgent(options: {
   submitImageJob?: SubmitImageJobFn;
   submitVideoJob?: SubmitVideoJobFn;
   store?: BaseStore;
+  workspaceSkills?: WorkspaceSkillEntry[];
 }): LoomicAgent {
   const backendResult =
     options.backendResult ?? createAgentBackend(options.env, options.canvasId);
@@ -69,10 +72,21 @@ export function createLoomicDeepAgent(options: {
       );
     });
 
-  const systemPrompt = options.brandKitId
+  let systemPrompt = options.brandKitId
     ? LOOMIC_SYSTEM_PROMPT +
       "\n\n当前项目已绑定品牌套件。在进行设计相关工作时，请先使用 get_brand_kit 工具查询品牌信息，确保设计符合品牌规范。"
     : LOOMIC_SYSTEM_PROMPT;
+
+  // Append workspace skills (user-installed from DB) to the system prompt.
+  // System skills are loaded by SkillsMiddleware from filesystem.
+  // Workspace skills are injected here so the agent knows about them.
+  const wsSkills = options.workspaceSkills ?? [];
+  if (wsSkills.length > 0) {
+    const skillsList = wsSkills
+      .map((s) => `- **${s.name}**: ${s.description}\n  → Read \`${s.path}\` for full instructions`)
+      .join("\n");
+    systemPrompt += `\n\n## Workspace Custom Skills\n\nThe following custom skills are installed in this workspace:\n${skillsList}`;
+  }
 
   return createDeepAgent({
     backend: backendResult.factory,
