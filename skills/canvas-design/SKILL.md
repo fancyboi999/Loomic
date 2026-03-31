@@ -1,6 +1,6 @@
 ---
 name: canvas-design
-description: Create beautiful visual art as .png and .pdf files using design philosophy. Use when the user asks to create a poster, visual artwork, design piece, or static visual output via code generation. Requires the execute_code tool and Python with Pillow/reportlab.
+description: Create beautiful visual art as .png and .pdf files using design philosophy. Use when the user asks to create a poster, visual artwork, design piece, or static visual output via code generation. Requires the execute tool and Python with Pillow/reportlab.
 license: Apache-2.0
 metadata:
   author: anthropic
@@ -16,7 +16,7 @@ Output .md (philosophy) + .pdf or .png (artwork) files.
 ## Prerequisites
 
 This skill requires:
-- The `execute_code` tool (sandbox code execution)
+- The `execute` tool (sandbox code execution)
 - Python 3 with `Pillow` and `reportlab` installed
 - Font files available at the path in `$FONT_DIR` environment variable
 
@@ -49,7 +49,7 @@ Create a VISUAL PHILOSOPHY (not layouts or templates) that will be interpreted t
 
 ## Step 2: Canvas Creation
 
-Use the `execute_code` tool to run Python code that generates the artwork.
+Use the `execute` tool to run Python code that generates the artwork.
 
 ### Font Usage
 
@@ -101,8 +101,8 @@ pdfmetrics.registerFont(TTFont("WorkSans", os.path.join(font_dir, "WorkSans-Bold
 Write a complete Python script, then execute it:
 
 ```
-1. Use execute_code tool to write the Python script to a file
-2. Use execute_code tool to run: python3 /path/to/script.py
+1. Use execute tool to write the Python script to a file
+2. Use execute tool to run: python3 /path/to/script.py
 3. The output file will be in the sandbox directory
 4. Use persist_sandbox_file tool to upload it for the user
 ```

@@ -35,6 +35,6 @@ export function createAgentBackend(
 
   return createProductionBackendFactory(canvasId, {
     ...(env.skillsRoot ? { skillsRoot: env.skillsRoot } : {}),
-    hasWorkspaceSkills: options?.hasWorkspaceSkills,
+    ...(options?.hasWorkspaceSkills ? { hasWorkspaceSkills: true } : {}),
   });
 }

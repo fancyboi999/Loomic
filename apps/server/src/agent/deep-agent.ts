@@ -10,7 +10,6 @@ import { createAgentBackend, type AgentBackendResult } from "./backends/index.js
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import { createVideoSubAgent } from "./sub-agents.js";
 import { createMainAgentTools } from "./tools/index.js";
-import type { SubmitCodeExecutionFn } from "./tools/execute-code.js";
 import type { PersistImageFn, SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
 import type { WorkspaceSkillEntry } from "./workspace-skills.js";
@@ -30,7 +29,7 @@ export type LoomicAgentFactory = (options: {
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
-  submitCodeExecution?: SubmitCodeExecutionFn;
+
   submitImageJob?: SubmitImageJobFn;
   submitVideoJob?: SubmitVideoJobFn;
   store?: BaseStore;
@@ -47,7 +46,7 @@ export function createLoomicDeepAgent(options: {
   env: ServerEnv;
   model?: BaseLanguageModel | string;
   persistImage?: PersistImageFn;
-  submitCodeExecution?: SubmitCodeExecutionFn;
+
   submitImageJob?: SubmitImageJobFn;
   submitVideoJob?: SubmitVideoJobFn;
   store?: BaseStore;
@@ -103,7 +102,7 @@ export function createLoomicDeepAgent(options: {
       ...(options.connectionManager ? { connectionManager: options.connectionManager } : {}),
       ...(options.persistImage ? { persistImage: options.persistImage } : {}),
       ...(backendResult.sandboxDir ? { sandboxDir: backendResult.sandboxDir } : {}),
-      ...(options.submitCodeExecution ? { submitCodeExecution: options.submitCodeExecution } : {}),
+
       ...(options.submitImageJob ? { submitImageJob: options.submitImageJob } : {}),
       ...(options.submitVideoJob ? { submitVideoJob: options.submitVideoJob } : {}),
     }),
