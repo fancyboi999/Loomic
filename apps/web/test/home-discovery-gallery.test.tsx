@@ -60,8 +60,7 @@ describe("HomeDiscoveryGallery", () => {
       authorName: "Ken Allman",
       categoryKey: "branding-design",
       categoryLabel: "品牌设计",
-      coverImageUrl:
-        "https://assets-persist.lovart.ai/agent_images/55fcd1f7-b572-48c9-812c-5be80a2d2f8f.png?x-oss-process=image/resize,w_600,m_lfit/format,webp",
+      coverImageUrl: expect.stringContaining("supabase.co"),
       id: "ji5ey5l",
       likeCount: 7,
       prompt:

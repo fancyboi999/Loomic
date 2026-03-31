@@ -116,14 +116,16 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
           ? [...readyAttachments]
           : undefined;
 
-      if (selectedSeed?.images?.length) {
-        const seedAttachments: ReadyAttachment[] = selectedSeed.images.map(
-          (url, i) => ({
-            assetId: `seed-${selectedSeed.categoryKey}-${i}`,
-            url,
+      const seedImageMentions =
+        selectedSeed?.inputMentions?.filter((m) => m.type === "image") ?? [];
+      if (seedImageMentions.length > 0) {
+        const seedAttachments: ReadyAttachment[] = seedImageMentions.map(
+          (mention, i) => ({
+            assetId: `seed-${selectedSeed!.categoryKey}-${i}`,
+            url: mention.imgSrc,
             mimeType: "image/webp",
             source: "upload" as const,
-            name: `${selectedSeed.title} #${i + 1}`,
+            name: mention.name,
           }),
         );
         mergedAttachments = mergedAttachments
@@ -212,18 +214,20 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-              {selectedSeed.images.map((image, index) => (
-                <div
-                  key={`${selectedSeed.title}-${image}`}
-                  className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-background"
-                >
-                  <img
-                    src={image}
-                    alt={`${selectedSeed.title} 参考图 ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
+              {selectedSeed.inputMentions
+                .filter((mention) => mention.type === "image")
+                .map((mention) => (
+                  <div
+                    key={`${selectedSeed.title}-${mention.imgSrc}`}
+                    className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-background"
+                  >
+                    <img
+                      src={mention.imgSrc}
+                      alt={mention.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
             </div>
           </div>
         ) : null}

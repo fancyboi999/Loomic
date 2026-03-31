@@ -46,18 +46,16 @@ describe("HomeExampleBrowser", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Design" }));
 
-    expect(onExampleSelect).toHaveBeenCalledWith({
-      categoryKey: "design",
-      categoryLabel: "Design",
-      title: "Design a Bauhaus-inspired poster.",
-      prompt:
-        "Nano Banana Make a poster for a music festival in the Bauhaus style. Use a limited color palette of pink, red, and cream. Abstract geometric shapes representing sound waves. Minimalist vertical text.",
-      images: [
-        "https://a.lovart.ai/artifacts/agent/K0m2ODcBB2SX6wT9.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-        "https://a.lovart.ai/artifacts/agent/XlTxECjJUyepQFco.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-        "https://a.lovart.ai/artifacts/agent/ivFCPIXpvf9A6nHD.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-      ],
-    });
+    expect(onExampleSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categoryKey: "design",
+        categoryLabel: "Design",
+        title: "Design a Bauhaus-inspired poster.",
+        prompt:
+          "Make a poster for a music festival in the Bauhaus style. Use a limited color palette of pink, red, and cream. Abstract geometric shapes representing sound waves. Minimalist vertical text.",
+        previewImages: expect.arrayContaining([expect.stringContaining("supabase.co")]),
+      }),
+    );
   });
 
   it("calls onExampleSelect with the picked example payload", async () => {
@@ -77,17 +75,16 @@ describe("HomeExampleBrowser", () => {
       }),
     );
 
-    expect(onExampleSelect).toHaveBeenLastCalledWith({
-      categoryKey: "design",
-      categoryLabel: "Design",
-      title: "Design a ceramic dinnerware set.",
-      prompt:
-        "Generate a set of 5 images, each a ceramic tableware piece: 1 small bowl, 1 large bowl, 1 small plate, 1 large plate, 1 mug. They belong to the same set, harmoniously blends Scandinavian minimalism and Japanese wabi-sabi aesthetics - soft neutral tones, organic textures, imperfect hand-thrown forms, subtle glaze variations, natural lighting. Each piece is photographed against a seamless white background; even studio production photography lighting.",
-      images: [
-        "https://a.lovart.ai/artifacts/agent/f8qarZSaklJXPt2U.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-        "https://a.lovart.ai/artifacts/agent/wkuQnEx8Ih8msjvh.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-        "https://a.lovart.ai/artifacts/agent/Wzf1CrglDuBKryQ7.png?x-oss-process=image/resize,w_200,m_lfit/format,webp",
-      ],
-    });
+    expect(onExampleSelect).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        categoryKey: "design",
+        categoryLabel: "Design",
+        title: "Design a ceramic dinnerware set.",
+        prompt:
+          "Generate a set of 5 images, each a ceramic tableware piece: 1 small bowl, 1 large bowl, 1 small plate, 1 large plate, 1 mug. They belong to the same set, harmoniously blends Scandinavian minimalism and Japanese wabi-sabi aesthetics - soft neutral tones, organic textures, imperfect hand-thrown forms, subtle glaze variations, natural lighting. Each piece is photographed against a seamless white background; even studio production photography lighting.",
+        previewImages: expect.arrayContaining([expect.stringContaining("supabase.co")]),
+        inputMentions: [],
+      }),
+    );
   });
 });

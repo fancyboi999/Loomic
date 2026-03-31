@@ -1,6 +1,6 @@
 import type { Database } from "@loomic/shared";
 
-import type { HomeExampleCategory } from "./home-example-seeds";
+import type { HomeExampleCategory, InputMention } from "./home-example-seeds";
 import { homeExampleSeedCategories } from "./home-example-seeds";
 import { getSupabaseBrowserClient } from "./supabase-browser";
 
@@ -35,7 +35,8 @@ export function mapHomeExampleRows(
         .map((example) => ({
           title: example.title,
           prompt: example.prompt,
-          images: example.image_urls,
+          previewImages: example.image_urls,
+          inputMentions: (Array.isArray(example.input_mentions) ? example.input_mentions : []) as InputMention[],
         })),
     }));
 }
@@ -51,7 +52,7 @@ export async function loadHomeExampleCategories(): Promise<HomeExampleCategory[]
       .order("sort_order", { ascending: true }),
     supabase
       .from("home_example_examples")
-      .select("id, category_key, title, prompt, image_urls, sort_order, is_active, created_at, updated_at")
+      .select("id, category_key, title, prompt, image_urls, input_mentions, sort_order, is_active, created_at, updated_at")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
   ]);

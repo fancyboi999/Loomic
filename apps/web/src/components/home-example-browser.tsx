@@ -53,12 +53,12 @@ function ExampleChip({
 
 function ExamplePreviewCard({
   title,
-  images,
+  previewImages,
   selected,
   onClick,
 }: {
   title: string;
-  images: string[];
+  previewImages: string[];
   selected: boolean;
   onClick: () => void;
 }) {
@@ -79,7 +79,7 @@ function ExamplePreviewCard({
         {title}
       </div>
       <div className="relative -mt-3 h-full w-full">
-        {images.slice(0, 3).map((image, index) => {
+        {previewImages.slice(0, 3).map((image, index) => {
           const positionClasses = [
             "left-[10%] top-0 w-[38%] -rotate-[15deg] group-hover:-translate-y-3",
             "left-[25%] -top-[10%] w-[44%] rotate-[9deg] group-hover:-translate-y-2",
@@ -114,7 +114,8 @@ function toSelection(
     categoryLabel: category.label,
     title: example.title,
     prompt: example.prompt,
-    images: example.images,
+    previewImages: example.previewImages,
+    inputMentions: example.inputMentions,
   };
 }
 
@@ -185,7 +186,7 @@ export function HomeExampleBrowser({
             <ExamplePreviewCard
               key={`${activeCategory?.key ?? "active"}-${example.title}`}
               title={example.title}
-              images={example.images}
+              previewImages={example.previewImages}
               selected={currentSelection?.prompt === example.prompt}
               onClick={() =>
                 activeCategory

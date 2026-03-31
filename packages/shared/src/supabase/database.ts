@@ -452,6 +452,7 @@ export type Database = {
           created_at: string
           id: string
           image_urls: string[]
+          input_mentions: Json
           is_active: boolean
           prompt: string
           sort_order: number
@@ -463,6 +464,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_urls?: string[]
+          input_mentions?: Json
           is_active?: boolean
           prompt: string
           sort_order?: number
@@ -474,6 +476,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_urls?: string[]
+          input_mentions?: Json
           is_active?: boolean
           prompt?: string
           sort_order?: number
