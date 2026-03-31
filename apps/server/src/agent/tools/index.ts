@@ -55,10 +55,9 @@ export function createMainAgentTools(
       createUserClient: deps.createUserClient,
       ...(deps.sandboxDir ? { sandboxDir: deps.sandboxDir } : {}),
     }),
-    // Custom execute tool for production (PGMQ-based code execution).
-    // In dev mode (sandboxDir present), deepagents' built-in execute from
-    // LocalShellBackend takes precedence — skip to avoid duplicate "execute" tool.
-    ...(deps.submitCodeExecution && !deps.sandboxDir
+    // PGMQ-based code execution tool (named "execute_code" to avoid conflict
+    // with deepagents' built-in "execute" which it manages via FilesystemMiddleware).
+    ...(deps.submitCodeExecution
       ? [createExecuteCodeTool({ submitCodeExecution: deps.submitCodeExecution })]
       : []),
   ];

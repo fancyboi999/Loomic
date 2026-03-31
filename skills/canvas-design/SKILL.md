@@ -1,6 +1,6 @@
 ---
 name: canvas-design
-description: Create beautiful visual art as .png and .pdf files using design philosophy. Use when the user asks to create a poster, visual artwork, design piece, or static visual output via code generation. Requires the execute tool and Python with Pillow/reportlab.
+description: Create beautiful visual art as .png and .pdf files using design philosophy. Use when the user asks to create a poster, visual artwork, design piece, or static visual output via code generation. Requires the execute_code tool and Python with Pillow/reportlab.
 license: Apache-2.0
 metadata:
   author: anthropic
@@ -49,7 +49,7 @@ Create a VISUAL PHILOSOPHY (not layouts or templates) that will be interpreted t
 
 ## Step 2: Canvas Creation
 
-Use the `execute` tool to run Python code that generates the artwork.
+Use the `execute_code` tool (or `execute` if available) to run Python code that generates the artwork.
 
 ### Font Usage
 

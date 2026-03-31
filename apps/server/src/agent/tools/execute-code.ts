@@ -76,10 +76,10 @@ export function createExecuteCodeTool(deps: {
       }
     },
     {
-      name: "execute",
+      name: "execute_code",
       description:
-        "Execute a shell command. The command runs in an isolated environment " +
-        "with Python, Node.js, and common CLI tools available. " +
+        "Execute a shell command in an isolated sandbox environment. " +
+        "Python 3, Pillow, reportlab, and common CLI tools are available. " +
         "Output files created in the working directory are automatically uploaded " +
         "and their URLs are returned.",
       schema: z.object({
