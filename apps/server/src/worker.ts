@@ -31,16 +31,15 @@ import { ReplicateVideoProvider } from "./generation/providers/replicate-video.j
 import { GoogleImageProvider } from "./generation/providers/google-image.js";
 import { GoogleVideoProvider } from "./generation/providers/google-video.js";
 
-const QUEUES = ["code_execution_jobs", "image_generation_jobs", "video_generation_jobs"] as const;
+// 代码执行由 LocalShellBackend 的内置 execute 工具直接处理，不走 PGMQ。
+const QUEUES = ["image_generation_jobs", "video_generation_jobs"] as const;
 
 const QUEUE_TO_TYPE: Record<string, BackgroundJobType> = {
-  code_execution_jobs: "code_execution",
   image_generation_jobs: "image_generation",
   video_generation_jobs: "video_generation",
 };
 
 const VT_BY_QUEUE: Record<string, number> = {
-  code_execution_jobs: 120,
   image_generation_jobs: 120,
   video_generation_jobs: 300,
 };
@@ -82,7 +81,6 @@ async function main() {
   };
 
   const CONCURRENCY_BY_QUEUE: Record<string, number> = {
-    code_execution_jobs: env.workerCodeConcurrency ?? 3,
     image_generation_jobs: env.workerImageConcurrency ?? 3,
     video_generation_jobs: env.workerVideoConcurrency ?? 2,
   };

@@ -28,7 +28,6 @@ export type ServerEnv = {
   volcesBaseUrl?: string;
   skillsRoot?: string;
   webOrigin: string;
-  workerCodeConcurrency?: number;
   workerConcurrency?: number;
   workerImageConcurrency?: number;
   workerVideoConcurrency?: number;
@@ -75,9 +74,6 @@ export function loadServerEnv(
     overrides.volcesBaseUrl ?? normalizeOptionalString(source.VOLCES_BASE_URL);
   const skillsRoot =
     overrides.skillsRoot ?? normalizeOptionalString(source.LOOMIC_SKILLS_ROOT);
-  const workerCodeConcurrency = overrides.workerCodeConcurrency ??
-    (source.WORKER_CODE_CONCURRENCY
-      ? parseInt(source.WORKER_CODE_CONCURRENCY, 10) : undefined);
   const workerConcurrency = overrides.workerConcurrency ??
     (source.WORKER_CONCURRENCY
       ? parseInt(source.WORKER_CONCURRENCY, 10) : undefined);
@@ -123,7 +119,6 @@ export function loadServerEnv(
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
     ...(skillsRoot ? { skillsRoot } : {}),
-    ...(workerCodeConcurrency ? { workerCodeConcurrency } : {}),
     ...(workerConcurrency ? { workerConcurrency } : {}),
     ...(workerImageConcurrency ? { workerImageConcurrency } : {}),
     ...(workerVideoConcurrency ? { workerVideoConcurrency } : {}),
