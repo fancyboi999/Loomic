@@ -16,18 +16,18 @@ const ICON_GOOGLE =
   "https://tjzk.replicate.delivery/models_organizations_avatar/27e1e3fe-f766-4748-83b3-777bc282d8dd/1342004.png";
 
 /**
- * Maps our internal model IDs (with `google-direct/` prefix) to the
+ * Maps our internal model IDs (with `google-official/` prefix) to the
  * actual Gemini API model name. The prefix avoids collision with
  * Replicate-hosted `google/*` models.
  */
 const MODEL_MAP: Record<string, string> = {
-  "google-direct/veo-3.1-generate-preview": "veo-3.1-generate-preview",
+  "google-official/veo-3.1-generate-preview": "veo-3.1-generate-preview",
 };
 
 const GOOGLE_VIDEO_MODELS: readonly ModelInfo[] = [
   {
-    id: "google-direct/veo-3.1-generate-preview",
-    displayName: "Veo 3.1 (Direct)",
+    id: "google-official/veo-3.1-generate-preview",
+    displayName: "Veo 3.1 (Official)",
     description:
       "Google Veo 3.1 video generation via direct API. Supports text-to-video, image-to-video, and audio generation. Max 8s at 1080p. Up to 3 input images.",
     iconUrl: ICON_GOOGLE,

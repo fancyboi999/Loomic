@@ -16,26 +16,26 @@ const ICON_GOOGLE =
   "https://tjzk.replicate.delivery/models_organizations_avatar/27e1e3fe-f766-4748-83b3-777bc282d8dd/1342004.png";
 
 /**
- * Maps our internal model IDs (with `google-direct/` prefix) to the
+ * Maps our internal model IDs (with `google-official/` prefix) to the
  * actual Gemini API model name. The prefix avoids collision with
  * Replicate-hosted `google/*` models.
  */
 const MODEL_MAP: Record<string, string> = {
-  "google-direct/gemini-2.5-flash-image": "gemini-2.5-flash-image",
-  "google-direct/gemini-3.1-flash-image-preview":
+  "google-official/gemini-2.5-flash-image": "gemini-2.5-flash-image",
+  "google-official/gemini-3.1-flash-image-preview":
     "gemini-3.1-flash-image-preview",
 };
 
 const GOOGLE_IMAGE_MODELS: readonly ModelInfo[] = [
   {
-    id: "google-direct/gemini-2.5-flash-image",
+    id: "google-official/gemini-2.5-flash-image",
     displayName: "Gemini 2.5 Flash Image",
     description:
       "Google Gemini native image generation & editing via direct API. Image input: up to 14 images. Stable. Best balance of speed and quality.",
     iconUrl: ICON_GOOGLE,
   },
   {
-    id: "google-direct/gemini-3.1-flash-image-preview",
+    id: "google-official/gemini-3.1-flash-image-preview",
     displayName: "Gemini 3.1 Flash Image",
     description:
       "Google Gemini 3.1 image generation & editing preview. Image input: up to 14 images. Faster generation, newest capabilities.",

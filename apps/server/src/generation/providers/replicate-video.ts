@@ -10,7 +10,6 @@ const ICON_WAN = "https://github.com/Wan-Video.png";
 const ICON_OPENAI = "https://github.com/openai.png";
 const ICON_GOOGLE = "https://tjzk.replicate.delivery/models_organizations_avatar/27e1e3fe-f766-4748-83b3-777bc282d8dd/1342004.png";
 const ICON_MINIMAX = "https://github.com/MiniMax-AI.png";
-const ICON_VIDU = "https://github.com/vidu-ai.png";
 
 // ── Model definitions ──────────────────────────────────────────────────────
 
@@ -111,14 +110,6 @@ const REPLICATE_VIDEO_MODELS: readonly VideoModelInfo[] = [
     capabilities: { textToVideo: true, imageToVideo: true, videoToVideo: false, audio: false },
     limits: { maxDuration: 10, allowedDurations: [6, 10], maxResolution: "1080p", maxInputImages: 1 },
   },
-  {
-    id: "vidu/q3-pro",
-    displayName: "Vidu Q3 Pro",
-    description: "Vidu Q3 Pro: T2V+I2V, audio (dialogue+SFX), start/end frame control, 4-16s, 1080p. Best value.",
-    iconUrl: ICON_VIDU,
-    capabilities: { textToVideo: true, imageToVideo: true, videoToVideo: false, audio: true },
-    limits: { maxDuration: 16, allowedDurations: [4, 6, 8, 10, 12, 16], maxResolution: "1080p", maxInputImages: 1 },
-  },
 ];
 
 // ── Model-specific parameter builders ──────────────────────────────────────
@@ -206,15 +197,6 @@ function buildModelInput(
       input.duration = duration;
       input.aspect_ratio = aspectRatio;
       if (hasImage) input.image_url = params.inputImages![0];
-      break;
-    }
-
-    case "vidu/q3-pro": {
-      input.duration = duration;
-      input.aspect_ratio = aspectRatio;
-      if (params.resolution) input.resolution = params.resolution;
-      if (hasImage) input.image = params.inputImages![0];
-      if (params.enableAudio !== false) input.audio = true;
       break;
     }
 
