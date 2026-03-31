@@ -1,10 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
-import type { BackgroundJobStatus, BackgroundJobType } from "@loomic/shared";
+import type { BackgroundJobStatus, BackgroundJobType, ImageQualityLevel } from "@loomic/shared";
 import {
   applicationErrorResponseSchema,
   createImageJobRequestSchema,
   createVideoJobRequestSchema,
+  getPlanConfig,
   jobListResponseSchema,
   jobResponseSchema,
   unauthenticatedErrorResponseSchema,
@@ -50,10 +51,12 @@ export async function registerJobRoutes(
 
       if (options.creditService && options.tierGuard) {
         const sub = await options.creditService.getSubscription(viewer.workspace.id);
+        const planConfig = getPlanConfig(sub.plan);
+        // Use the plan's max resolution as the quality for cost calculation
+        const quality: ImageQualityLevel = planConfig.maxResolution;
         options.tierGuard.checkModelAccess(sub.plan, model);
-        options.tierGuard.checkResolution(sub.plan, "hd");
         await options.tierGuard.checkConcurrency(viewer.workspace.id, sub.plan);
-        creditsCost = options.tierGuard.calculateCreditCost(model, "image_generation", { quality: "hd" });
+        creditsCost = options.tierGuard.calculateCreditCost(model, "image_generation", { quality });
       }
 
       const job = await options.jobService.createJob(user, {
