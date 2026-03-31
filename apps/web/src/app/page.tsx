@@ -1,23 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { FloatingNav } from "@/components/landing/floating-nav";
+import { HeroSection } from "@/components/landing/hero-section";
+import { TrustBar } from "@/components/landing/trust-bar";
+import { FeatureShowcase } from "@/components/landing/feature-showcase";
+import { ShowcaseGallery } from "@/components/landing/showcase-gallery";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { PricingPreview } from "@/components/landing/pricing-preview";
+import { FinalCTA } from "@/components/landing/final-cta";
+import { LandingFooter } from "@/components/landing/landing-footer";
 
-import { useAuth } from "../lib/auth-context";
-import { LoadingScreen } from "../components/loading-screen";
-
-export default function HomePage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (loading) return;
-    router.replace(user ? "/home" : "/login");
-  }, [user, loading, router]);
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  return null;
+export default function LandingPage() {
+  return (
+    <div className="relative">
+      <FloatingNav />
+      <main>
+        <HeroSection />
+        <TrustBar />
+        <FeatureShowcase />
+        <ShowcaseGallery />
+        <HowItWorks />
+        <PricingPreview />
+        <FinalCTA />
+      </main>
+      <LandingFooter />
+    </div>
+  );
 }
