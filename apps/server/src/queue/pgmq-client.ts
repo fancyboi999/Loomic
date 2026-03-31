@@ -27,6 +27,11 @@ export function createPgmqClient(databaseUrl: string): PgmqClient {
     keepAliveInitialDelayMillis: 10_000,
   });
 
+  // Prevent unhandled pool errors from crashing the process on transient DB blips
+  pool.on("error", (err) => {
+    console.error("[pgmq-client] Pool error (non-fatal):", err.message);
+  });
+
   return {
     async send(queue, payload, delay = 0) {
       const { rows } = await pool.query(

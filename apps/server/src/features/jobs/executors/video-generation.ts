@@ -36,6 +36,13 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
   const model = payload.model ?? "wan-video/wan-2.6";
   const providerName = resolveVideoProviderName(model);
 
+  // Renew VT every 120s (roughly half of the 300s video queue VT) to prevent
+  // the message from becoming visible during long video generation.
+  const VIDEO_VT_SECONDS = 300;
+  const heartbeatTimer = setInterval(() => {
+    ctx.renewVt(VIDEO_VT_SECONDS);
+  }, 120_000);
+
   try {
     lap("replicate_call_start");
     const generated = await generateVideo(providerName, {
@@ -114,5 +121,7 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
     (wrapped as Error & { code?: string }).code =
       (err as { code?: string })?.code ?? "executor_error";
     throw wrapped;
+  } finally {
+    clearInterval(heartbeatTimer);
   }
 });

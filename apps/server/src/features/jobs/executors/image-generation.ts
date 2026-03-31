@@ -37,9 +37,11 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
   const model = payload.model ?? "black-forest-labs/flux-kontext-pro";
   const providerName = resolveImageProviderName(model);
 
+  // Renew VT every 60s (half of the 120s image queue VT) to prevent
+  // the message from becoming visible while we are still processing.
+  const IMAGE_VT_SECONDS = 120;
   const heartbeatTimer = setInterval(() => {
-    // Best-effort heartbeat placeholder — VT extension requires msg_id not
-    // available at this level. No-op intentionally.
+    ctx.renewVt(IMAGE_VT_SECONDS);
   }, 60_000);
 
   // Log input image format for debugging the data-URI-passthrough pipeline

@@ -10,6 +10,16 @@ export type ExecutorContext = {
   pgmq: PgmqClient;
   getAdminClient: () => AdminSupabaseClient;
   env: ServerEnv;
+  /** PGMQ queue name for the current job (set per-message by the worker). */
+  queue: string;
+  /** PGMQ message id for the current job (set per-message by the worker). */
+  msgId: number;
+  /**
+   * Best-effort VT renewal — extends visibility timeout so the message
+   * stays invisible while the executor is still working.
+   * Never throws; logs on failure.
+   */
+  renewVt: (vtSeconds: number) => Promise<void>;
 };
 
 export type JobExecutor = (

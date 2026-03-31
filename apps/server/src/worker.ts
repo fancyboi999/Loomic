@@ -73,7 +73,8 @@ async function main() {
 
   const jobService = createJobService({ createUserClient, getAdminClient, pgmq });
 
-  const ctx: ExecutorContext = {
+  // Base context — queue/msgId/renewVt are overridden per-message in processMessage()
+  const baseCtx: Omit<ExecutorContext, "queue" | "msgId" | "renewVt"> = {
     jobService,
     pgmq,
     getAdminClient,
@@ -128,7 +129,7 @@ async function main() {
         const messages = await pgmq.read(queue, vt, available);
 
         for (const msg of messages) {
-          const task = processMessage(queue, msg, ctx, tag)
+          const task = processMessage(queue, msg, baseCtx, tag)
             .finally(() => inFlight.delete(task));
           inFlight.add(task);
         }
@@ -144,7 +145,7 @@ async function main() {
 async function processMessage(
   queue: string,
   msg: PgmqMessage,
-  ctx: ExecutorContext,
+  baseCtx: Omit<ExecutorContext, "queue" | "msgId" | "renewVt">,
   tag: string,
 ) {
   const jobId = msg.message.job_id as string;
@@ -152,7 +153,10 @@ async function processMessage(
 
   if (!jobId || !jobType) {
     console.error(`${tag} Invalid message in ${queue}:`, msg.message);
-    await ctx.pgmq.archive(queue, msg.msg_id);
+    await retryPgmqOp(
+      () => baseCtx.pgmq.archive(queue, msg.msg_id),
+      `archive(invalid) msg=${msg.msg_id} queue=${queue}`,
+    );
     return;
   }
 
@@ -162,12 +166,58 @@ async function processMessage(
   const executor = getExecutor(jobType);
   if (!executor) {
     console.error(`${tag} No executor for job type: ${jobType}`);
-    await ctx.jobService.markFailed(jobId, "no_executor", `No executor registered for ${jobType}`);
-    await ctx.pgmq.archive(queue, msg.msg_id);
+    await baseCtx.jobService.markFailed(jobId, "no_executor", `No executor registered for ${jobType}`);
+    await retryPgmqOp(
+      () => baseCtx.pgmq.archive(queue, msg.msg_id),
+      `archive(no-executor) msg=${msg.msg_id} queue=${queue}`,
+    );
     return;
   }
 
-  // Increment attempt count
+  // Build per-message context with queue info and heartbeat helper
+  const ctx: ExecutorContext = {
+    ...baseCtx,
+    queue,
+    msgId: msg.msg_id,
+    renewVt: async (vtSeconds: number) => {
+      try {
+        await baseCtx.pgmq.setVt(queue, msg.msg_id, vtSeconds);
+      } catch (err) {
+        // Best-effort: log but never propagate to avoid disrupting the executor
+        console.warn(
+          `${tag} Failed to renew VT for msg ${msg.msg_id} in ${queue}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    },
+  };
+
+  // Idempotency guard: skip if job already reached a terminal state
+  // (e.g. re-delivered message after VT expired + deleteMsg failure)
+  const TERMINAL_STATUSES = new Set(["succeeded", "dead_letter", "canceled"]);
+  try {
+    const existingJob = await ctx.jobService.getJobAdmin(jobId);
+    if (TERMINAL_STATUSES.has(existingJob.status)) {
+      console.log(
+        `${tag} Skipping job ${jobId} — already ${existingJob.status}`,
+      );
+      await retryPgmqOp(
+        () => ctx.pgmq.archive(queue, msg.msg_id),
+        `archive(skip-terminal) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
+      );
+      return;
+    }
+  } catch (guardErr) {
+    // If job record is missing, archive the orphan message and bail
+    console.warn(`${tag} Idempotency guard failed for job ${jobId}:`, guardErr instanceof Error ? guardErr.message : guardErr);
+    await retryPgmqOp(
+      () => ctx.pgmq.archive(queue, msg.msg_id),
+      `archive(guard-error) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
+    );
+    return;
+  }
+
+  // Increment attempt count (atomic — prevents race conditions)
   const { attempt_count, max_attempts } = await ctx.jobService.incrementAttempt(jobId);
 
   // Mark running
@@ -176,7 +226,10 @@ async function processMessage(
   try {
     const result = await executor(jobId, msg.message as Record<string, unknown>, ctx);
     await ctx.jobService.markSucceeded(jobId, result);
-    await ctx.pgmq.deleteMsg(queue, msg.msg_id);
+    await retryPgmqOp(
+      () => ctx.pgmq.deleteMsg(queue, msg.msg_id),
+      `deleteMsg(success) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
+    );
     console.log(`${tag} Job ${jobId} succeeded +${Date.now() - startTime}ms`);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -195,7 +248,10 @@ async function processMessage(
 
     if (shouldDeadLetter) {
       await ctx.jobService.markDeadLetter(jobId, errorCode, errorMessage);
-      await ctx.pgmq.archive(queue, msg.msg_id);
+      await retryPgmqOp(
+        () => ctx.pgmq.archive(queue, msg.msg_id),
+        `archive(dead-letter) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
+      );
       console.error(`${tag} Job ${jobId} dead-lettered after ${attempt_count} attempts +${Date.now() - startTime}ms: ${errorMessage}`);
     } else {
       await ctx.jobService.markFailed(jobId, errorCode, errorMessage);
@@ -203,6 +259,40 @@ async function processMessage(
       console.warn(`${tag} Job ${jobId} failed (attempt ${attempt_count}/${max_attempts}) +${Date.now() - startTime}ms: ${errorMessage}`);
     }
   }
+}
+
+/**
+ * Retries a pgmq queue operation (delete/archive) up to maxRetries times with
+ * linear backoff. On final failure, logs the error but does NOT throw — callers
+ * must never crash because of a cleanup step failing.
+ *
+ * If deleteMsg fails after all retries, the message will reappear after VT
+ * expires. The idempotency guard (Task 3) ensures re-execution is safe.
+ */
+async function retryPgmqOp(
+  op: () => Promise<unknown>,
+  label: string,
+  maxRetries = 2,
+): Promise<boolean> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await op();
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt < maxRetries) {
+        console.warn(
+          `[pgmq] ${label} failed (attempt ${attempt + 1}/${maxRetries + 1}): ${msg}, retrying...`,
+        );
+        await sleep(1000 * (attempt + 1)); // linear backoff: 1 s, 2 s
+      } else {
+        console.error(
+          `[pgmq] ${label} failed after ${maxRetries + 1} attempts: ${msg}`,
+        );
+      }
+    }
+  }
+  return false;
 }
 
 function sleep(ms: number): Promise<void> {

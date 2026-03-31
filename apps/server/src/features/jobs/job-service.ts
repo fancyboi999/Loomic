@@ -279,20 +279,23 @@ export function createJobService(options: {
 
     async incrementAttempt(jobId) {
       const admin = options.getAdminClient();
-      const { data: job } = await admin
-        .from("background_jobs")
-        .select("attempt_count, max_attempts")
-        .eq("id", jobId)
-        .single();
+      const { data, error } = await admin.rpc("increment_job_attempt", {
+        p_job_id: jobId,
+      });
 
-      if (job) {
-        const newCount = (job.attempt_count ?? 0) + 1;
-        await admin
-          .from("background_jobs")
-          .update({ attempt_count: newCount })
-          .eq("id", jobId);
-        return { attempt_count: newCount, max_attempts: job.max_attempts ?? 3 };
+      if (error) {
+        console.error("[job-service] increment_job_attempt RPC failed:", error.message);
+        return { attempt_count: 1, max_attempts: 3 };
       }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        return {
+          attempt_count: row.attempt_count,
+          max_attempts: row.max_attempts ?? 3,
+        };
+      }
+      // Job not found — return safe defaults
       return { attempt_count: 1, max_attempts: 3 };
     },
   };

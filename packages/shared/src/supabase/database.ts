@@ -767,6 +767,10 @@ export type Database = {
         }
         Returns: Json
       }
+      increment_job_attempt: {
+        Args: { p_job_id: string }
+        Returns: { attempt_count: number; max_attempts: number }[]
+      }
     }
     Enums: {
       background_job_status:
