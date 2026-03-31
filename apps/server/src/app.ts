@@ -245,6 +245,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerViewerRoutes(app, {
     auth,
     createUserClient,
+    creditService,
     viewerService,
   });
   void registerBrandKitRoutes(app, {
@@ -265,8 +266,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerModelRoutes(app, env);
-  void registerImageModelRoutes(app);
-  void registerVideoModelRoutes(app);
+  void registerImageModelRoutes(app, { auth, creditService, viewerService });
+  void registerVideoModelRoutes(app, { auth, creditService, viewerService });
   void registerChatRoutes(app, {
     auth,
     chatService,

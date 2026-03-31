@@ -26,10 +26,23 @@ export const runCancelResponseSchema = z.object({
   status: z.enum(["canceling", "canceled"]),
 });
 
+export const viewerCreditsSchema = z.object({
+  balance: z.number().int(),
+  plan: z.string(),
+  dailyClaimed: z.boolean(),
+  limits: z.object({
+    maxConcurrentJobs: z.number().int(),
+    maxResolution: z.string(),
+    monthlyCredits: z.number().int(),
+    dailyCredits: z.number().int(),
+  }),
+});
+
 export const viewerResponseSchema = z.object({
   profile: viewerProfileSchema,
   workspace: workspaceSummarySchema,
   membership: workspaceMembershipSchema,
+  credits: viewerCreditsSchema.optional(),
 });
 
 export const projectListResponseSchema = z.object({
@@ -121,6 +134,7 @@ export const canvasSaveResponseSchema = z.object({
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type RunCancelResponse = z.infer<typeof runCancelResponseSchema>;
+export type ViewerCredits = z.infer<typeof viewerCreditsSchema>;
 export type ViewerResponse = z.infer<typeof viewerResponseSchema>;
 export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
 export type ProjectCreateRequest = z.infer<typeof projectCreateRequestSchema>;
