@@ -68,7 +68,7 @@ export const homeExampleSeedCategories: HomeExampleCategory[] = [
   cat("nano-banana-pro", "Nano Banana Pro", "Special", [
     ex(
       "Design pixel-perfect web interface.",
-      "Generate a landing page for a furniture shop called Lovart, Neo Brutalism style. These are the product images:",
+      "Generate a landing page for a furniture shop called Loomic, Neo Brutalism style. These are the product images:",
       [
         "https://jmcrxgenontlkxktpihl.supabase.co/storage/v1/object/public/project-assets/home-seeds/examples/nano-banana-pro/e1-1.webp",
         "https://jmcrxgenontlkxktpihl.supabase.co/storage/v1/object/public/project-assets/home-seeds/examples/nano-banana-pro/e1-2.webp",

@@ -837,6 +837,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         return;
       }
 
+      try {
       for await (const event of adaptDeepAgentStream({
         conversationId: run.conversationId,
         now,
@@ -876,6 +877,19 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             return;
           }
         }
+      }
+      } catch (streamError) {
+        // Catch DB / checkpoint errors that bubble up from the LangGraph stream
+        // (e.g. Supabase circuit-breaker, connection pool exhaustion).
+        // Instead of crashing the process, yield a clean failure event.
+        console.error("[agent-runtime] Stream iteration failed:", streamError);
+        const failedEvent = toFailedEvent(runId, now, streamError);
+        run.status = "failed";
+        await updatePersistedRunFailure(options.agentRunMetadataService, run, now, streamError).catch(
+          (persistErr) => console.error("[agent-runtime] Failed to persist run failure:", persistErr),
+        );
+        yield failedEvent;
+        return;
       }
       } finally {
         if (backendResult.sandboxDir) {
