@@ -32,9 +32,8 @@ describe("phase-a backend factory", () => {
   it("resolves a virtualized filesystem backend when explicitly enabled", async () => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), "loomic-backend-"));
     tempDirs.add(workspaceRoot);
-    await mkdir(join(workspaceRoot, "workspace"), { recursive: true });
     await writeFile(
-      join(workspaceRoot, "workspace", "notes.md"),
+      join(workspaceRoot, "notes.md"),
       "Loomic filesystem backend sample\n",
       "utf8",
     );

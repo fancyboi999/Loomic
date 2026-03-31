@@ -180,6 +180,7 @@ describe("agent run routes", () => {
     });
 
     const created = agentRuns.createRun({
+      canvasId: "test-canvas-1",
       sessionId: "session-1",
       conversationId: "conversation-1",
       prompt: "Stream something",
@@ -231,6 +232,7 @@ describe("agent run routes", () => {
     });
 
     const created = agentRuns.createRun({
+      canvasId: "test-canvas-1",
       sessionId: "session-1",
       conversationId: "conversation-1",
       prompt: "Cancel me",

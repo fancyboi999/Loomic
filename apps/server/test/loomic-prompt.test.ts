@@ -44,8 +44,8 @@ describe("LOOMIC_SYSTEM_PROMPT", () => {
 
   it("keeps image generation on the main agent tool path", () => {
     expect(LOOMIC_SYSTEM_PROMPT).toContain("多张图片或复杂图片工作流");
-    expect(LOOMIC_SYSTEM_PROMPT).toContain("主代理自行规划");
-    expect(LOOMIC_SYSTEM_PROMPT).toContain("直接多次调用 generate_image");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("自行规划");
+    expect(LOOMIC_SYSTEM_PROMPT).toContain("generate_image 工具");
     expect(LOOMIC_SYSTEM_PROMPT).not.toContain("委派给 image_generate 子代理");
   });
 });

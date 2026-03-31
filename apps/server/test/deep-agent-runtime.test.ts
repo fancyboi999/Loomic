@@ -68,6 +68,7 @@ describe("deep-agent runtime integration", () => {
     });
 
     const created = agentRuns.createRun({
+      canvasId: "test-canvas-1",
       conversationId: "conversation_123",
       prompt: "Search the workspace for Loomic foundation docs",
       sessionId: "session_123",
@@ -142,6 +143,7 @@ describe("deep-agent runtime integration", () => {
     });
 
     const created = agentRuns.createRun({
+      canvasId: "test-canvas-1",
       conversationId: "conversation_123",
       prompt: "Search the workspace for Loomic foundation docs",
       sessionId: "session_123",
@@ -168,6 +170,7 @@ describe("deep-agent runtime integration", () => {
     });
 
     const created = agentRuns.createRun({
+      canvasId: "test-canvas-1",
       conversationId: "conversation_123",
       prompt: "Search the workspace for Loomic foundation docs",
       sessionId: "session_123",
@@ -214,6 +217,7 @@ describe("deep-agent runtime integration", () => {
     for (let index = 0; index < 2; index += 1) {
       const created = agentRuns.createRun(
         {
+          canvasId: "test-canvas-1",
           conversationId: "conversation_123",
           prompt: `Prompt ${index + 1}`,
           sessionId: "session_123",
@@ -279,6 +283,7 @@ describe("deep-agent runtime integration", () => {
 
     const created = agentRuns.createRun(
       {
+        canvasId: "test-canvas-1",
         conversationId: "conversation_123",
         prompt: "Persist status",
         sessionId: "session_123",
@@ -341,6 +346,7 @@ describe("deep-agent runtime integration", () => {
 
     const created = agentRuns.createRun(
       {
+        canvasId: "test-canvas-1",
         conversationId: "conversation_123",
         prompt: "Persist status",
         sessionId: "session_123",
