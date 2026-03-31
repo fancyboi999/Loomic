@@ -107,18 +107,24 @@ pdfmetrics.registerFont(TTFont("WorkSans", os.path.join(font_dir, "WorkSans-Bold
 
 ### Code Execution Pattern
 
-Write a complete Python script using `write_file`, then execute it:
+Write a complete Python script, then execute it.
+
+**所有路径必须用相对路径**（多用户并发时绝对路径会冲突）：
 
 ```
-1. write_file to save the Python script (e.g., write_file path="/generate.py")
+1. write_file path="generate.py"       ← 相对路径，不要用 /tmp/xxx
 2. execute: python3 generate.py
-3. Output file saved to current working directory (use relative path like "output.png")
-4. persist_sandbox_file: upload the output file using its FULL path from `pwd`
-   Example: persist_sandbox_file filePath="/private/tmp/loomic-sandbox/{id}/output.png"
+3. Output: img.save("output.png")      ← 相对路径
+4. execute: pwd                        ← 获取当前工作目录的完整路径
+5. persist_sandbox_file filePath="{pwd输出}/output.png"
 ```
+
+**禁止使用绝对路径写文件**：
+- ❌ `write_file path="/tmp/script.py"` — 多用户会覆盖
+- ✅ `write_file path="script.py"` — 每个用户独立沙箱
 
 **Critical**: In Python scripts:
-- Use `os.environ["FONT_DIR"]` for font paths
+- Use `os.environ["FONT_DIR"]` for font paths（唯一允许的绝对路径）
 - Save output with RELATIVE paths (e.g., `img.save("poster.png")`)
 - Do NOT use `/skills/...` paths — those are virtual backend paths, not real filesystem
 

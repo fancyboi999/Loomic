@@ -47,8 +47,12 @@ export function createProductionBackendFactory(
 
   // LocalShellBackend = FilesystemBackend + execute tool
   // env 只传必要变量，不传 API key 等敏感信息
+  // virtualMode: true 限制文件工具（write_file/read_file/ls 等）只能操作 rootDir 内的文件。
+  // 防止多用户并发时通过 write_file 写绝对路径导致冲突。
+  // 注意：virtualMode 不限制 execute 工具（shell 命令仍可访问全文件系统）。
   const sandbox = new LocalShellBackend({
     rootDir: sandboxDir,
+    virtualMode: true,
     timeout: 120,
     maxOutputBytes: 200_000,
     env: {
