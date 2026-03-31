@@ -94,7 +94,6 @@ export const pricingTiers: PricingTier[] = [
       "全部图片 + 视频模型",
       "最高 2K 分辨率",
       "4 个并发任务",
-      "无限慢速生成",
       "50 个项目",
       "10 个品牌套件",
       "完整商业授权",
@@ -117,7 +116,6 @@ export const pricingTiers: PricingTier[] = [
       "一切 Pro 功能",
       "最高 4K 分辨率",
       "8 个并发任务",
-      "优先慢速队列",
       "200 个项目",
       "30 个品牌套件",
       "3 个团队席位",
@@ -139,7 +137,6 @@ export const pricingTiers: PricingTier[] = [
     features: [
       "一切 Ultra 功能",
       "12 个并发任务",
-      "极速慢速队列",
       "无限项目",
       "100 个品牌套件",
       "10+ 团队席位",
@@ -175,10 +172,6 @@ export const featureCategories: FeatureCategory[] = [
       {
         name: "并发任务",
         tiers: { free: "1", starter: "2", pro: "4", ultra: "8", business: "12" },
-      },
-      {
-        name: "无限慢速生成",
-        tiers: { free: false, starter: false, pro: true, ultra: "优先队列", business: "极速队列" },
       },
     ],
   },
@@ -253,11 +246,6 @@ export const faqItems: FAQItem[] = [
     question: "未使用的积分会累积吗？",
     answer:
       "订阅积分在每个计费周期重置，不会累积到下月。但通过充值购买的额外积分永不过期，可以一直使用。",
-  },
-  {
-    question: "什么是「无限慢速生成」？",
-    answer:
-      "Pro 及以上套餐可使用慢速队列进行无限制生成，不消耗积分。生成请求会在 GPU 空闲时处理，速度取决于当前负载。更高级的套餐享有更高的队列优先级。",
   },
   {
     question: "可以随时升级或降级吗？",
