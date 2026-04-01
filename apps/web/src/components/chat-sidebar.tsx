@@ -909,6 +909,12 @@ export function ChatSidebar({
     const sessionId = activeSessionIdRef.current;
     if (!sessionId) return;
 
+    // When arriving from Home with an initialPrompt, the initialPrompt effect
+    // will call handleSend → ws.startRun which binds the canvas and registers
+    // its own event listener. Running resumeCanvas here at the same time would
+    // register a SECOND listener for the same run → duplicate assistant messages.
+    if (initialPrompt && !initialPromptSent.current) return;
+
     // Reload messages from DB first (server may have persisted while we were disconnected),
     // then resume canvas binding. Sequential order avoids fetchMessages overwriting the
     // placeholder message that canvas.resume creates for active runs.
