@@ -83,14 +83,26 @@ export const canvasSyncEventSchema = z.object({
   timestamp: timestampSchema,
 });
 
-export const creditsInsufficientEventSchema = z.object({
-  type: z.literal("credits.insufficient"),
+export const billingErrorCodeSchema = z.enum([
+  "insufficient_credits",
+  "model_not_accessible",
+  "resolution_not_allowed",
+  "concurrency_limit",
+]);
+
+export type BillingErrorCode = z.infer<typeof billingErrorCodeSchema>;
+
+export const billingErrorEventSchema = z.object({
+  type: z.literal("billing.error"),
   runId: runIdSchema,
   timestamp: timestampSchema,
-  currentBalance: z.number(),
-  requiredAmount: z.number(),
-  plan: z.string(),
-  dailyClaimed: z.boolean(),
+  code: billingErrorCodeSchema,
+  message: z.string(),
+  // Credits-specific (only for insufficient_credits)
+  currentBalance: z.number().optional(),
+  requiredAmount: z.number().optional(),
+  plan: z.string().optional(),
+  dailyClaimed: z.boolean().optional(),
 });
 
 export const streamEventSchema = z.discriminatedUnion("type", [
@@ -103,7 +115,7 @@ export const streamEventSchema = z.discriminatedUnion("type", [
   runCompletedEventSchema,
   runFailedEventSchema,
   canvasSyncEventSchema,
-  creditsInsufficientEventSchema,
+  billingErrorEventSchema,
 ]);
 
 export type StreamEvent = z.infer<typeof streamEventSchema>;
