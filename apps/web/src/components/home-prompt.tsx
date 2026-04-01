@@ -152,7 +152,8 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
+        // Ignore Enter during IME composition (e.g. Chinese input confirming a candidate)
+        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
           e.preventDefault();
           handleSubmit();
         }
