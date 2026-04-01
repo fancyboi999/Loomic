@@ -18,7 +18,7 @@ export class CanvasEventBuffer {
   private lastWrite = new Map<string, number>();
 
   constructor(options?: { maxPerCanvas?: number; ttlMs?: number }) {
-    this.maxPerCanvas = options?.maxPerCanvas ?? 500;
+    this.maxPerCanvas = options?.maxPerCanvas ?? 5000;
     this.ttlMs = options?.ttlMs ?? 10 * 60 * 1000;
   }
 
