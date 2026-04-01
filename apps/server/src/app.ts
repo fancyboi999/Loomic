@@ -9,11 +9,7 @@ import {
   type AgentPersistenceService,
 } from "./agent/persistence/index.js";
 import { createAgentRunService } from "./agent/runtime.js";
-import { registerImageProvider, registerVideoProvider } from "./generation/providers/registry.js";
-import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
-import { ReplicateVideoProvider } from "./generation/providers/replicate-video.js";
-import { GoogleImageProvider } from "./generation/providers/google-image.js";
-import { GoogleVideoProvider } from "./generation/providers/google-video.js";
+import { registerAllProviders } from "./generation/providers/register-all.js";
 import {
   createViewerService,
   type ViewerService,
@@ -126,15 +122,8 @@ export type BuildAppOptions = {
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const env = loadServerEnv(options.env);
 
-  // Register generation providers
-  if (env.replicateApiToken) {
-    registerImageProvider(new ReplicateImageProvider(env.replicateApiToken));
-    registerVideoProvider(new ReplicateVideoProvider(env.replicateApiToken));
-  }
-  if (env.googleApiKey) {
-    registerImageProvider(new GoogleImageProvider(env.googleApiKey));
-    registerVideoProvider(new GoogleVideoProvider(env.googleApiKey));
-  }
+  // Register generation providers (shared with worker.ts)
+  registerAllProviders(env);
 
   const app = Fastify({
     logger: { level: "info" },

@@ -7,9 +7,11 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { WebSocketHandle } from "../hooks/use-websocket";
+import { getServerBaseUrl } from "../lib/env";
 import { saveCanvas, uploadThumbnail } from "../lib/server-api";
 import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 import { CanvasToolMenu } from "./canvas-tool-menu";
+import { ErrorBoundary } from "./error-boundary";
 
 const Excalidraw = dynamic(
   () => import("@excalidraw/excalidraw").then((mod) => mod.Excalidraw),
@@ -64,10 +66,19 @@ export function CanvasEditor({
   const thumbnailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
+  const canvasIdRef = useRef(canvasId);
+  canvasIdRef.current = canvasId;
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
   const prevSelectedIdsRef = useRef<string>("");
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
+
+  // Track pending save payload so we can flush on tab close / unmount
+  const pendingSaveRef = useRef<{
+    elements: Record<string, unknown>[];
+    appState: Record<string, unknown>;
+    files: Record<string, Record<string, unknown>>;
+  } | null>(null);
 
   // Separate inline files (ready) from storage URLs (need async fetch)
   const { inlineFiles, pendingUrls } = useMemo(() => {
@@ -133,32 +144,41 @@ export function CanvasEditor({
   const handleChange = useCallback(
     (elements: readonly any[], appState: any) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        const files: Record<string, Record<string, unknown>> = {};
-        if (excalidrawApi) {
-          const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
-          for (const [id, file] of Object.entries(rawFiles)) {
-            files[id] = {
-              id: file.id,
-              dataURL: file.dataURL,
-              mimeType: file.mimeType,
-              created: file.created,
-            };
-          }
+      // Build save payload eagerly so it's available for flush on tab close
+      const files: Record<string, Record<string, unknown>> = {};
+      if (excalidrawApi) {
+        const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
+        for (const [id, file] of Object.entries(rawFiles)) {
+          files[id] = {
+            id: file.id,
+            dataURL: file.dataURL,
+            mimeType: file.mimeType,
+            created: file.created,
+          };
         }
-        const content = {
-          elements: elements.filter(
-            (el: any) => !el.isDeleted,
-          ) as Record<string, unknown>[],
-          appState: {
-            viewBackgroundColor: appState.viewBackgroundColor,
-            gridModeEnabled: appState.gridModeEnabled,
-          },
-          files,
-        };
-        saveCanvas(accessTokenRef.current, canvasId, content).catch(
-          console.error,
-        );
+      }
+      const content = {
+        elements: elements.filter(
+          (el: any) => !el.isDeleted,
+        ) as Record<string, unknown>[],
+        appState: {
+          viewBackgroundColor: appState.viewBackgroundColor,
+          gridModeEnabled: appState.gridModeEnabled,
+        },
+        files,
+      };
+      pendingSaveRef.current = content;
+
+      saveTimerRef.current = setTimeout(() => {
+        saveCanvas(accessTokenRef.current, canvasId, content)
+          .then(() => {
+            // Clear pending ref only if it still points to the same payload
+            // (a newer edit may have replaced it while we were saving)
+            if (pendingSaveRef.current === content) {
+              pendingSaveRef.current = null;
+            }
+          })
+          .catch(console.error);
       }, SAVE_DEBOUNCE_MS);
 
       // Debounced thumbnail generation — runs less frequently than save
@@ -324,32 +344,76 @@ export function CanvasEditor({
     return cleanup;
   }, [ws, excalidrawApi, canvasId]);
 
+  // Flush pending save on page close (beforeunload) and component unmount
   useEffect(() => {
+    const flushBeforeUnload = () => {
+      const pending = pendingSaveRef.current;
+      if (!pending) return;
+
+      // Use fetch with keepalive to ensure the request survives page teardown.
+      // keepalive requests are limited to 64 KiB total in-flight per page; for
+      // canvases with very large embedded files this may exceed the limit, but
+      // it's the best-effort approach — sendBeacon has the same constraint.
+      const url = `${getServerBaseUrl()}/api/canvases/${canvasIdRef.current}`;
+      try {
+        fetch(url, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${accessTokenRef.current}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: pending }),
+          keepalive: true,
+        });
+      } catch {
+        // Best-effort — nothing we can do if it fails during page teardown
+      }
+      pendingSaveRef.current = null;
+    };
+
+    window.addEventListener("beforeunload", flushBeforeUnload);
+
     return () => {
+      window.removeEventListener("beforeunload", flushBeforeUnload);
+
+      // Cancel pending debounce timers
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (thumbnailTimerRef.current) clearTimeout(thumbnailTimerRef.current);
+
+      // Flush pending save on component unmount (e.g. SPA navigation)
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        saveCanvas(accessTokenRef.current, canvasIdRef.current, pending).catch(
+          console.error,
+        );
+        pendingSaveRef.current = null;
+      }
     };
   }, []);
 
   return (
-    <div className="h-full w-full relative">
-      <Excalidraw
-        theme={resolvedTheme === "dark" ? "dark" : "light"}
-        initialData={{
-          elements: initialContent.elements as any,
-          appState: initialContent.appState as any,
-          files: inlineFiles as any,
-        }}
-        onChange={handleChange}
-        excalidrawAPI={handleExcalidrawApi}
-      />
-      {excalidrawApi && (
-        <CanvasToolMenu
-          accessToken={accessToken}
-          excalidrawApi={excalidrawApi}
-          leftPanelOpen={leftPanelOpen}
+    <ErrorBoundary
+      onError={(err) => console.error("[canvas-editor] render crashed:", err)}
+    >
+      <div className="h-full w-full relative">
+        <Excalidraw
+          theme={resolvedTheme === "dark" ? "dark" : "light"}
+          initialData={{
+            elements: initialContent.elements as any,
+            appState: initialContent.appState as any,
+            files: inlineFiles as any,
+          }}
+          onChange={handleChange}
+          excalidrawAPI={handleExcalidrawApi}
         />
-      )}
-    </div>
+        {excalidrawApi && (
+          <CanvasToolMenu
+            accessToken={accessToken}
+            excalidrawApi={excalidrawApi}
+            leftPanelOpen={leftPanelOpen}
+          />
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }

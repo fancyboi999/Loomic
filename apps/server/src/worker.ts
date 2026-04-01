@@ -25,12 +25,8 @@ import "./features/jobs/executors/video-generation.js";
 
 import type { BackgroundJobType } from "@loomic/shared";
 
-// Register image/video providers (same as app.ts does)
-import { registerImageProvider, registerVideoProvider } from "./generation/providers/registry.js";
-import { ReplicateImageProvider } from "./generation/providers/replicate-image.js";
-import { ReplicateVideoProvider } from "./generation/providers/replicate-video.js";
-import { GoogleImageProvider } from "./generation/providers/google-image.js";
-import { GoogleVideoProvider } from "./generation/providers/google-video.js";
+// Register all image/video providers via shared helper (keeps parity with app.ts)
+import { registerAllProviders } from "./generation/providers/register-all.js";
 
 // 代码执行由 LocalShellBackend 的内置 execute 工具直接处理，不走 PGMQ。
 const QUEUES = ["image_generation_jobs", "video_generation_jobs"] as const;
@@ -53,15 +49,8 @@ async function main() {
     process.exit(1);
   }
 
-  // Register image/video providers (worker needs them too)
-  if (env.replicateApiToken) {
-    registerImageProvider(new ReplicateImageProvider(env.replicateApiToken));
-    registerVideoProvider(new ReplicateVideoProvider(env.replicateApiToken));
-  }
-  if (env.googleApiKey) {
-    registerImageProvider(new GoogleImageProvider(env.googleApiKey));
-    registerVideoProvider(new GoogleVideoProvider(env.googleApiKey));
-  }
+  // Register all generation providers (shared with app.ts)
+  registerAllProviders(env);
 
   const pgmq = createPgmqClient(env.supabaseDbUrl);
   const createUserClient = createUserSupabaseClientFactory(env);

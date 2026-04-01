@@ -1,8 +1,8 @@
 // @credits-system — Core credit operations: balance queries, deductions, refunds, grants, plan updates
 import type {
+  BillingPeriod,
   CreditTransaction,
   SubscriptionPlan,
-  BillingPeriod,
 } from "@loomic/shared";
 import { PLAN_CONFIGS } from "@loomic/shared";
 
@@ -286,11 +286,16 @@ export function createCreditService(options: {
 
     async updatePlan(workspaceId, plan) {
       const admin = options.getAdminClient();
+      const config = PLAN_CONFIGS[plan];
 
-      const { error } = await admin
-        .from("subscriptions")
-        .update({ plan, updated_at: new Date().toISOString() })
-        .eq("workspace_id", workspaceId);
+      // Atomic plan update + credit grant via RPC to avoid read-then-write race condition.
+      // The RPC uses FOR UPDATE row locking so concurrent deductions cannot be overwritten.
+      // TODO: Remove `as any` after running `supabase gen types` to regenerate database.ts
+      const { error } = await (admin.rpc as any)("grant_plan_credits", {
+        p_workspace_id: workspaceId,
+        p_plan: plan,
+        p_credits: config.monthlyCredits,
+      });
 
       if (error) {
         throw new CreditServiceError(
@@ -298,37 +303,6 @@ export function createCreditService(options: {
           `Failed to update plan: ${error.message}`,
           500,
         );
-      }
-
-      // If the new plan has monthly credits, grant them
-      const config = PLAN_CONFIGS[plan];
-      if (config.monthlyCredits > 0) {
-        const { data: balanceRow } = await admin
-          .from("credit_balances")
-          .select("balance, version")
-          .eq("workspace_id", workspaceId)
-          .maybeSingle();
-
-        if (balanceRow) {
-          const newBalance =
-            (balanceRow.balance ?? 0) + config.monthlyCredits;
-          await admin
-            .from("credit_balances")
-            .update({
-              balance: newBalance,
-              version: (balanceRow.version ?? 0) + 1,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("workspace_id", workspaceId);
-
-          await admin.from("credit_transactions").insert({
-            workspace_id: workspaceId,
-            transaction_type: "subscription_grant",
-            amount: config.monthlyCredits,
-            balance_after: newBalance,
-            description: `Plan upgraded to ${plan} — monthly credits granted`,
-          });
-        }
       }
     },
   };
