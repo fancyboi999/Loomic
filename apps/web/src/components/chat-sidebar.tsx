@@ -126,6 +126,7 @@ export function ChatSidebar({
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [atQuery, setAtQuery] = useState<string | null>(null);
   const [messageMentions, setMessageMentions] = useState<MessageMention[]>([]);
   const [brandKitMentionItems, setBrandKitMentionItems] = useState<
@@ -336,6 +337,7 @@ export function ChatSidebar({
       setActiveSessionId(sessionId);
       onSessionChangeRef.current?.(sessionId);
       setMessages([]);
+      setMessagesLoading(true);
       try {
         const msgRes = await fetchMessages(
           accessTokenRef.current,
@@ -344,6 +346,8 @@ export function ChatSidebar({
         setMessages(mapServerMessages(msgRes.messages));
       } catch (err) {
         console.error("[chat] Failed to load session messages:", err);
+      } finally {
+        setMessagesLoading(false);
       }
     },
     [streaming],
@@ -388,9 +392,11 @@ export function ChatSidebar({
           const next = remaining[0]!;
           setActiveSessionId(next.id);
           onSessionChangeRef.current?.(next.id);
+          setMessagesLoading(true);
           fetchMessages(token, next.id)
             .then((msgRes) => setMessages(mapServerMessages(msgRes.messages)))
-            .catch(() => setMessages([]));
+            .catch(() => setMessages([]))
+            .finally(() => setMessagesLoading(false));
         }
       }
 
@@ -1075,7 +1081,7 @@ export function ChatSidebar({
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
-          {sessionsLoading ? (
+          {sessionsLoading || messagesLoading ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
             </div>
