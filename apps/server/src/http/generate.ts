@@ -3,10 +3,17 @@ import { z } from "zod";
 
 import {
   applicationErrorResponseSchema,
+  getPlanConfig,
   unauthenticatedErrorResponseSchema,
+  type ImageQualityLevel,
 } from "@loomic/shared";
 
 import { generateImage } from "../generation/image-generation.js";
+import { resolveImageProviderName } from "../generation/providers/registry.js";
+import type { CreditService } from "../features/credits/credit-service.js";
+import { CreditServiceError } from "../features/credits/credit-service.js";
+import type { TierGuard } from "../features/credits/tier-guard.js";
+import { TierGuardError } from "../features/credits/tier-guard.js";
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type { UploadService } from "../features/uploads/upload-service.js";
 import type { AuthenticatedUser, RequestAuthenticator } from "../supabase/user.js";
@@ -21,6 +28,8 @@ export async function registerGenerateRoutes(
   app: FastifyInstance,
   options: {
     auth: RequestAuthenticator;
+    creditService?: CreditService;
+    tierGuard?: TierGuard;
     uploadService: UploadService;
     viewerService: ViewerService;
   },
@@ -52,14 +61,38 @@ export async function registerGenerateRoutes(
       );
     }
 
+    const model = payload.model ?? "black-forest-labs/flux-kontext-pro";
+
     try {
-      const result = await generateImage("replicate", {
+      // ── Tier guard + credit checks ──
+      const viewer = await options.viewerService.ensureViewer(user);
+      let creditsCost = 0;
+
+      if (options.creditService && options.tierGuard) {
+        const sub = await options.creditService.getSubscription(viewer.workspace.id);
+        const planConfig = getPlanConfig(sub.plan);
+        const quality: ImageQualityLevel = planConfig.maxResolution;
+        options.tierGuard.checkModelAccess(sub.plan, model);
+        await options.tierGuard.checkConcurrency(viewer.workspace.id, sub.plan);
+        creditsCost = options.tierGuard.calculateCreditCost(model, "image_generation", { quality });
+
+        // Deduct credits before generation
+        if (creditsCost > 0) {
+          await options.creditService.deductCredits(
+            viewer.workspace.id, user.id, creditsCost, undefined,
+            `Direct image generation: ${model}`,
+          );
+        }
+      }
+
+      const providerName = resolveImageProviderName(model);
+      const result = await generateImage(providerName, {
         prompt: payload.prompt,
-        model: payload.model ?? "black-forest-labs/flux-kontext-pro",
+        model,
         aspectRatio: payload.aspectRatio ?? "1:1",
       });
 
-      // Download from Replicate CDN and persist to Supabase Storage
+      // Download and persist to Supabase Storage
       const { signedUrl, assetId } = await downloadAndUpload(
         result.url,
         result.mimeType,
@@ -77,6 +110,22 @@ export async function registerGenerateRoutes(
         height: result.height,
       });
     } catch (error) {
+      // Handle tier/credit errors
+      if (error instanceof TierGuardError) {
+        return reply.code(error.statusCode).send(
+          applicationErrorResponseSchema.parse({
+            error: { code: error.code, message: error.message },
+          }),
+        );
+      }
+      if (error instanceof CreditServiceError) {
+        return reply.code(error.statusCode).send(
+          applicationErrorResponseSchema.parse({
+            error: { code: error.code, message: error.message },
+          }),
+        );
+      }
+
       const message =
         error instanceof Error ? error.message : "Image generation failed.";
 

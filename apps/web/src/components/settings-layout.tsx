@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Separator } from "./ui/separator";
 
-type SettingsSection = "profile" | "agent";
+type SettingsSection = "profile" | "agent" | "billing";
 
 interface SettingsLayoutProps {
   children: (activeSection: SettingsSection) => React.ReactNode;
@@ -13,11 +13,13 @@ interface SettingsLayoutProps {
 
 export function SettingsLayout({ children }: SettingsLayoutProps) {
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>("profile");
 
   const sections: Array<{ id: SettingsSection; label: string }> = [
     { id: "profile", label: "Profile" },
     { id: "agent", label: "Agent" },
+    { id: "billing", label: "Billing" },
   ];
 
   return (

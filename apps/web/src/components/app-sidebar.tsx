@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { LoomicLogo } from "@/components/icons/loomic-logo";
+import { CreditBalance } from "@/components/credits/credit-balance";
 import { useAuth } from "@/lib/auth-context";
 
 // ---------------------------------------------------------------------------
@@ -135,8 +136,11 @@ export function AppSidebar() {
         <NavButton key={item.href} item={item} active={isActive(item.href)} />
       ))}
 
-      {/* Spacer pushes settings to the bottom */}
+      {/* Spacer pushes bottom section down */}
       <div className="flex-1" />
+
+      {/* Credits balance */}
+      <CreditBalance />
 
       {/* Settings / Profile */}
       <NavButton item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} />

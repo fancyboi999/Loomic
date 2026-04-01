@@ -13,12 +13,12 @@ import { randomUUID } from "node:crypto";
 import { loadServerEnv } from "./config/env.js";
 import { createPgmqClient, type PgmqMessage } from "./queue/pgmq-client.js";
 import { createJobService } from "./features/jobs/job-service.js";
+import { createCreditService, type CreditService } from "./features/credits/credit-service.js";
 import { getExecutor, type ExecutorContext } from "./features/jobs/job-executor.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
 import { createUserSupabaseClientFactory } from "./supabase/user.js";
 
 // Import executors to trigger registration via side effects
-// (code-execution is handled by LocalShellBackend, not the PGMQ worker)
 import "./features/jobs/executors/image-generation.js";
 import "./features/jobs/executors/video-generation.js";
 
@@ -72,9 +72,9 @@ async function main() {
   };
 
   const jobService = createJobService({ createUserClient, getAdminClient, pgmq });
+  const creditService = createCreditService({ getAdminClient });
 
-  // Base context — queue/msgId/renewVt are overridden per-message in processMessage()
-  const baseCtx: Omit<ExecutorContext, "queue" | "msgId" | "renewVt"> = {
+  const ctx: ExecutorContext = {
     jobService,
     pgmq,
     getAdminClient,
@@ -129,7 +129,7 @@ async function main() {
         const messages = await pgmq.read(queue, vt, available);
 
         for (const msg of messages) {
-          const task = processMessage(queue, msg, baseCtx, tag)
+          const task = processMessage(queue, msg, ctx, creditService, tag)
             .finally(() => inFlight.delete(task));
           inFlight.add(task);
         }
@@ -145,7 +145,8 @@ async function main() {
 async function processMessage(
   queue: string,
   msg: PgmqMessage,
-  baseCtx: Omit<ExecutorContext, "queue" | "msgId" | "renewVt">,
+  ctx: ExecutorContext,
+  creditService: CreditService,
   tag: string,
 ) {
   const jobId = msg.message.job_id as string;
@@ -153,10 +154,7 @@ async function processMessage(
 
   if (!jobId || !jobType) {
     console.error(`${tag} Invalid message in ${queue}:`, msg.message);
-    await retryPgmqOp(
-      () => baseCtx.pgmq.archive(queue, msg.msg_id),
-      `archive(invalid) msg=${msg.msg_id} queue=${queue}`,
-    );
+    await ctx.pgmq.archive(queue, msg.msg_id);
     return;
   }
 
@@ -166,58 +164,12 @@ async function processMessage(
   const executor = getExecutor(jobType);
   if (!executor) {
     console.error(`${tag} No executor for job type: ${jobType}`);
-    await baseCtx.jobService.markFailed(jobId, "no_executor", `No executor registered for ${jobType}`);
-    await retryPgmqOp(
-      () => baseCtx.pgmq.archive(queue, msg.msg_id),
-      `archive(no-executor) msg=${msg.msg_id} queue=${queue}`,
-    );
+    await ctx.jobService.markFailed(jobId, "no_executor", `No executor registered for ${jobType}`);
+    await ctx.pgmq.archive(queue, msg.msg_id);
     return;
   }
 
-  // Build per-message context with queue info and heartbeat helper
-  const ctx: ExecutorContext = {
-    ...baseCtx,
-    queue,
-    msgId: msg.msg_id,
-    renewVt: async (vtSeconds: number) => {
-      try {
-        await baseCtx.pgmq.setVt(queue, msg.msg_id, vtSeconds);
-      } catch (err) {
-        // Best-effort: log but never propagate to avoid disrupting the executor
-        console.warn(
-          `${tag} Failed to renew VT for msg ${msg.msg_id} in ${queue}:`,
-          err instanceof Error ? err.message : err,
-        );
-      }
-    },
-  };
-
-  // Idempotency guard: skip if job already reached a terminal state
-  // (e.g. re-delivered message after VT expired + deleteMsg failure)
-  const TERMINAL_STATUSES = new Set(["succeeded", "dead_letter", "canceled"]);
-  try {
-    const existingJob = await ctx.jobService.getJobAdmin(jobId);
-    if (TERMINAL_STATUSES.has(existingJob.status)) {
-      console.log(
-        `${tag} Skipping job ${jobId} — already ${existingJob.status}`,
-      );
-      await retryPgmqOp(
-        () => ctx.pgmq.archive(queue, msg.msg_id),
-        `archive(skip-terminal) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
-      );
-      return;
-    }
-  } catch (guardErr) {
-    // If job record is missing, archive the orphan message and bail
-    console.warn(`${tag} Idempotency guard failed for job ${jobId}:`, guardErr instanceof Error ? guardErr.message : guardErr);
-    await retryPgmqOp(
-      () => ctx.pgmq.archive(queue, msg.msg_id),
-      `archive(guard-error) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
-    );
-    return;
-  }
-
-  // Increment attempt count (atomic — prevents race conditions)
+  // Increment attempt count
   const { attempt_count, max_attempts } = await ctx.jobService.incrementAttempt(jobId);
 
   // Mark running
@@ -226,10 +178,7 @@ async function processMessage(
   try {
     const result = await executor(jobId, msg.message as Record<string, unknown>, ctx);
     await ctx.jobService.markSucceeded(jobId, result);
-    await retryPgmqOp(
-      () => ctx.pgmq.deleteMsg(queue, msg.msg_id),
-      `deleteMsg(success) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
-    );
+    await ctx.pgmq.deleteMsg(queue, msg.msg_id);
     console.log(`${tag} Job ${jobId} succeeded +${Date.now() - startTime}ms`);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -248,10 +197,11 @@ async function processMessage(
 
     if (shouldDeadLetter) {
       await ctx.jobService.markDeadLetter(jobId, errorCode, errorMessage);
-      await retryPgmqOp(
-        () => ctx.pgmq.archive(queue, msg.msg_id),
-        `archive(dead-letter) job=${jobId} msg=${msg.msg_id} queue=${queue}`,
-      );
+      await ctx.pgmq.archive(queue, msg.msg_id);
+
+      // Auto-refund credits for dead-lettered jobs
+      await refundDeadLetteredJob(jobId, ctx, creditService, tag);
+
       console.error(`${tag} Job ${jobId} dead-lettered after ${attempt_count} attempts +${Date.now() - startTime}ms: ${errorMessage}`);
     } else {
       await ctx.jobService.markFailed(jobId, errorCode, errorMessage);
@@ -262,37 +212,43 @@ async function processMessage(
 }
 
 /**
- * Retries a pgmq queue operation (delete/archive) up to maxRetries times with
- * linear backoff. On final failure, logs the error but does NOT throw — callers
- * must never crash because of a cleanup step failing.
- *
- * If deleteMsg fails after all retries, the message will reappear after VT
- * expires. The idempotency guard (Task 3) ensures re-execution is safe.
+ * Refund credits for a dead-lettered job if credits were deducted.
+ * Only dead-lettered (permanently failed) jobs get refunds — not cancelled jobs.
  */
-async function retryPgmqOp(
-  op: () => Promise<unknown>,
-  label: string,
-  maxRetries = 2,
-): Promise<boolean> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      await op();
-      return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (attempt < maxRetries) {
-        console.warn(
-          `[pgmq] ${label} failed (attempt ${attempt + 1}/${maxRetries + 1}): ${msg}, retrying...`,
-        );
-        await sleep(1000 * (attempt + 1)); // linear backoff: 1 s, 2 s
-      } else {
-        console.error(
-          `[pgmq] ${label} failed after ${maxRetries + 1} attempts: ${msg}`,
-        );
-      }
-    }
+async function refundDeadLetteredJob(
+  jobId: string,
+  ctx: ExecutorContext,
+  creditService: CreditService,
+  tag: string,
+) {
+  try {
+    const admin = ctx.getAdminClient();
+    const { data: jobRow } = await admin
+      .from("background_jobs")
+      .select("credits_cost, workspace_id, created_by")
+      .eq("id", jobId)
+      .single();
+
+    if (!jobRow) return;
+
+    const creditsCost = jobRow.credits_cost ?? 0;
+    const workspaceId = jobRow.workspace_id;
+    const createdBy = jobRow.created_by;
+
+    if (creditsCost <= 0 || !workspaceId || !createdBy) return;
+
+    const txId = await creditService.refundCredits(
+      workspaceId,
+      createdBy,
+      creditsCost,
+      jobId,
+      "Auto-refund: job failed",
+    );
+    console.log(`${tag} Refunded ${creditsCost} credits for job ${jobId} (tx: ${txId})`);
+  } catch (refundErr) {
+    // Log but don't crash the worker — the job is already dead-lettered
+    console.error(`${tag} Failed to refund credits for job ${jobId}:`, refundErr);
   }
-  return false;
 }
 
 function sleep(ms: number): Promise<void> {

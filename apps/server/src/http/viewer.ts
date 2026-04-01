@@ -1,17 +1,20 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
 import {
+  PLAN_CONFIGS,
   applicationErrorResponseSchema,
   profileUpdateRequestSchema,
   profileUpdateResponseSchema,
   unauthenticatedErrorResponseSchema,
   viewerResponseSchema,
+  type SubscriptionPlan,
 } from "@loomic/shared";
 
 import {
   BootstrapError,
   type ViewerService,
 } from "../features/bootstrap/ensure-user-foundation.js";
+import type { CreditService } from "../features/credits/credit-service.js";
 import type {
   RequestAuthenticator,
   UserSupabaseClient,
@@ -22,6 +25,7 @@ export async function registerViewerRoutes(
   options: {
     auth: RequestAuthenticator;
     createUserClient: (accessToken: string) => UserSupabaseClient;
+    creditService?: CreditService;
     viewerService: ViewerService;
   },
 ) {
@@ -41,7 +45,34 @@ export async function registerViewerRoutes(
       }
 
       const viewer = await options.viewerService.ensureViewer(user);
-      return reply.code(200).send(viewerResponseSchema.parse(viewer));
+
+      // Attach credits info if creditService is available
+      let credits: Record<string, unknown> | undefined;
+      if (options.creditService) {
+        try {
+          const balance = await options.creditService.getBalance(
+            viewer.workspace.id,
+          );
+          const config = PLAN_CONFIGS[balance.plan as SubscriptionPlan];
+          credits = {
+            balance: balance.balance,
+            plan: balance.plan,
+            dailyClaimed: balance.dailyClaimed,
+            limits: {
+              maxConcurrentJobs: config.maxConcurrentJobs,
+              maxResolution: config.maxResolution,
+              monthlyCredits: config.monthlyCredits,
+              dailyCredits: config.dailyCredits,
+            },
+          };
+        } catch {
+          // Credits fetch failure is non-fatal — viewer still works
+        }
+      }
+
+      return reply
+        .code(200)
+        .send(viewerResponseSchema.parse({ ...viewer, credits }));
     } catch (error) {
       return sendApplicationError(
         error,

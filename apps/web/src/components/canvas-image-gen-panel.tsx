@@ -6,6 +6,7 @@ import type { ImageArtifact } from "@loomic/shared";
 
 import { generateImageDirect } from "../lib/server-api";
 import { insertImageOnCanvas } from "../lib/canvas-elements";
+import { useGenerationErrorHandler } from "../hooks/use-generation-error-handler";
 
 type CanvasImageGenPanelProps = {
   accessToken: string;
@@ -24,6 +25,7 @@ export function CanvasImageGenPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
+  const { handleGenerationError } = useGenerationErrorHandler();
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || loading) return;
@@ -46,11 +48,14 @@ export function CanvasImageGenPanel({
 
       setPrompt("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
+      const handled = handleGenerationError(err);
+      if (!handled) {
+        setError(err instanceof Error ? err.message : "Generation failed");
+      }
     } finally {
       setLoading(false);
     }
-  }, [prompt, loading, excalidrawApi]);
+  }, [prompt, loading, excalidrawApi, handleGenerationError]);
 
   return (
     <div className="w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">

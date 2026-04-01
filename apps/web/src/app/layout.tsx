@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={cn(geist.variable, "scroll-smooth")} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>{children}</Providers>
+        <Script
+          src="https://app.lemonsqueezy.com/js/lemon.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

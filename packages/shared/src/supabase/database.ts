@@ -117,6 +117,8 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string
+          credits_cost: number | null
+          credits_transaction_id: string | null
           error_code: string | null
           error_message: string | null
           failed_at: string | null
@@ -141,6 +143,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by: string
+          credits_cost?: number | null
+          credits_transaction_id?: string | null
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
@@ -165,6 +169,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string
+          credits_cost?: number | null
+          credits_transaction_id?: string | null
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
@@ -333,6 +339,124 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_balances: {
+        Row: {
+          id: string
+          workspace_id: string
+          balance: number
+          version: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          balance?: number
+          version?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          balance?: number
+          version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_balances_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_transactions: {
+        Row: {
+          id: string
+          workspace_id: string
+          user_id: string | null
+          transaction_type: Database["public"]["Enums"]["credit_transaction_type"]
+          amount: number
+          balance_after: number
+          job_id: string | null
+          description: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          user_id?: string | null
+          transaction_type: Database["public"]["Enums"]["credit_transaction_type"]
+          amount: number
+          balance_after: number
+          job_id?: string | null
+          description?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          user_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["credit_transaction_type"]
+          amount?: number
+          balance_after?: number
+          job_id?: string | null
+          description?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "background_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_credit_claims: {
+        Row: {
+          id: string
+          workspace_id: string
+          claim_date: string
+          amount: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          claim_date?: string
+          amount: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          claim_date?: string
+          amount?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_credit_claims_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -663,6 +787,56 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          id: string
+          workspace_id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          billing_period: Database["public"]["Enums"]["billing_period"] | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          current_period_start: string | null
+          current_period_end: string | null
+          canceled_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          billing_period?: Database["public"]["Enums"]["billing_period"] | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_start?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          billing_period?: Database["public"]["Enums"]["billing_period"] | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          current_period_start?: string | null
+          current_period_end?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -757,6 +931,10 @@ export type Database = {
         Args: { p_email: string; p_user_id: string; p_user_meta: Json }
         Returns: string
       }
+      claim_daily_credits: {
+        Args: { p_workspace_id: string; p_amount: number }
+        Returns: boolean
+      }
       create_project_with_canvas: {
         Args: {
           p_canvas_name?: string
@@ -767,9 +945,25 @@ export type Database = {
         }
         Returns: Json
       }
-      increment_job_attempt: {
-        Args: { p_job_id: string }
-        Returns: { attempt_count: number; max_attempts: number }[]
+      deduct_credits: {
+        Args: {
+          p_workspace_id: string
+          p_user_id: string
+          p_amount: number
+          p_job_id: string
+          p_description?: string | null
+        }
+        Returns: string
+      }
+      refund_credits: {
+        Args: {
+          p_workspace_id: string
+          p_user_id: string
+          p_amount: number
+          p_job_id: string
+          p_description?: string | null
+        }
+        Returns: string
       }
     }
     Enums: {
@@ -780,8 +974,18 @@ export type Database = {
         | "failed"
         | "canceled"
         | "dead_letter"
-      background_job_type: "image_generation"
+      background_job_type: "image_generation" | "video_generation"
+      billing_period: "monthly" | "yearly"
       brand_kit_asset_type: "color" | "font" | "logo" | "image"
+      credit_transaction_type:
+        | "subscription_grant"
+        | "daily_grant"
+        | "purchase"
+        | "generation_deduct"
+        | "generation_refund"
+        | "admin_adjustment"
+        | "bonus"
+      subscription_plan: "free" | "starter" | "pro" | "ultra" | "business"
       workspace_member_role: "owner" | "admin" | "member"
       workspace_type: "personal" | "team"
     }
@@ -919,8 +1123,19 @@ export const Constants = {
         "canceled",
         "dead_letter",
       ],
-      background_job_type: ["image_generation"],
+      background_job_type: ["image_generation", "video_generation"],
+      billing_period: ["monthly", "yearly"],
       brand_kit_asset_type: ["color", "font", "logo", "image"],
+      credit_transaction_type: [
+        "subscription_grant",
+        "daily_grant",
+        "purchase",
+        "generation_deduct",
+        "generation_refund",
+        "admin_adjustment",
+        "bonus",
+      ],
+      subscription_plan: ["free", "starter", "pro", "ultra", "business"],
       workspace_member_role: ["owner", "admin", "member"],
       workspace_type: ["personal", "team"],
     },

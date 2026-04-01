@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { AgentSection } from "@/components/agent-section";
+import { BillingSection } from "@/components/billing-section";
 import { ProfileSection } from "@/components/profile-section";
 import { SettingsSkeleton } from "@/components/skeletons/settings-skeleton";
 import { useAuth } from "@/lib/auth-context";
@@ -15,17 +17,22 @@ import {
   updateWorkspaceSettings,
 } from "@/lib/server-api";
 
-type SettingsTab = "profile" | "agent";
+type SettingsTab = "profile" | "agent" | "billing";
 
 const tabs: Array<{ id: SettingsTab; label: string }> = [
   { id: "profile", label: "Profile" },
   { id: "agent", label: "Agent" },
+  { id: "billing", label: "Billing" },
 ];
 
 export default function SettingsPage() {
   const { session } = useAuth();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const initialTab = (searchParams.get("tab") as SettingsTab) ?? "profile";
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabs.some((t) => t.id === initialTab) ? initialTab : "profile",
+  );
   const [profile, setProfile] = useState<{
     displayName: string;
     email: string;
@@ -134,12 +141,14 @@ export default function SettingsPage() {
             email={profile.email}
             onSave={handleProfileSave}
           />
-        ) : (
+        ) : activeTab === "agent" ? (
           <AgentSection
             defaultModel={defaultModel}
             onSave={handleAgentSave}
             fetchModels={stableFetchModels}
           />
+        ) : (
+          <BillingSection />
         )}
       </div>
     </div>

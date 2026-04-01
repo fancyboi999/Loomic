@@ -53,9 +53,26 @@ import {
 import { type ServerEnv, loadServerEnv } from "./config/env.js";
 import { createPgmqClient } from "./queue/pgmq-client.js";
 import {
+  createCreditService,
+  type CreditService,
+} from "./features/credits/credit-service.js";
+import {
+  createTierGuard,
+  type TierGuard,
+} from "./features/credits/tier-guard.js";
+import {
   createJobService,
   type JobService,
 } from "./features/jobs/job-service.js";
+import { createLemonSqueezyClient } from "./features/payments/lemon-squeezy-client.js";
+import {
+  createPaymentService,
+  buildVariantMap,
+  type PaymentService,
+} from "./features/payments/payment-service.js";
+import { registerPaymentRoutes } from "./http/payments.js";
+import { registerPaymentWebhookRoute } from "./http/payments-webhook.js";
+import { registerCreditRoutes } from "./http/credits.js";
 import { registerFontsRoutes } from "./http/fonts.js";
 import { registerJobRoutes } from "./http/jobs.js";
 import { registerBrandKitRoutes } from "./http/brand-kits.js";
@@ -92,8 +109,11 @@ export type BuildAppOptions = {
   canvasService?: CanvasService;
   chatService?: ChatService;
   connectionManager?: ConnectionManager;
+  creditService?: CreditService;
   env?: Partial<ServerEnv>;
   jobService?: JobService;
+  paymentService?: PaymentService;
+  tierGuard?: TierGuard;
   uploadService?: UploadService;
   mockEventDelayMs?: number;
   projectService?: ProjectService;
@@ -172,6 +192,26 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     (pgmq
       ? createJobService({ createUserClient, getAdminClient, pgmq })
       : undefined);
+  const creditService =
+    options.creditService ?? createCreditService({ getAdminClient });
+  const tierGuard =
+    options.tierGuard ?? createTierGuard({ getAdminClient });
+
+  // Payment service — only created when Lemon Squeezy is configured
+  let paymentService: PaymentService | undefined = options.paymentService;
+  if (!paymentService && env.lemonSqueezyApiKey && env.lemonSqueezyStoreId) {
+    const lsClient = createLemonSqueezyClient({
+      apiKey: env.lemonSqueezyApiKey,
+      storeId: env.lemonSqueezyStoreId,
+    });
+    paymentService = createPaymentService({
+      lemonSqueezy: lsClient,
+      getAdminClient,
+      variantMap: buildVariantMap(env),
+      webOrigin: env.webOrigin,
+    });
+  }
+
   const connectionManager = options.connectionManager ?? new ConnectionManager();
   const agentRuns = createAgentRunService({
     agentPersistenceService,
@@ -185,6 +225,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       : { eventDelayMs: options.mockEventDelayMs }),
     env,
     ...(jobService ? { jobService } : {}),
+    creditService,
+    tierGuard,
     viewerService,
   });
 
@@ -230,6 +272,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   void registerViewerRoutes(app, {
     auth,
     createUserClient,
+    creditService,
     viewerService,
   });
   void registerBrandKitRoutes(app, {
@@ -250,8 +293,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     viewerService,
   });
   void registerModelRoutes(app, env);
-  void registerImageModelRoutes(app);
-  void registerVideoModelRoutes(app);
+  void registerImageModelRoutes(app, { auth, creditService, viewerService });
+  void registerVideoModelRoutes(app, { auth, creditService, viewerService });
   void registerChatRoutes(app, {
     auth,
     chatService,
@@ -261,11 +304,30 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     uploadService,
     viewerService,
   });
-  void registerGenerateRoutes(app, { auth, uploadService, viewerService });
+  void registerGenerateRoutes(app, { auth, creditService, tierGuard, uploadService, viewerService });
+  void registerCreditRoutes(app, { auth, creditService, viewerService });
   if (jobService) {
-    void registerJobRoutes(app, { auth, jobService, viewerService });
+    void registerJobRoutes(app, { auth, creditService, jobService, tierGuard, viewerService });
   }
   void registerSkillRoutes(app, { auth, createUserClient, viewerService });
+
+  // Payment routes — only registered when Lemon Squeezy is configured
+  if (paymentService) {
+    void registerPaymentRoutes(app, { auth, paymentService, viewerService });
+
+    if (env.lemonSqueezyWebhookSecret) {
+      // Webhook route is registered in an encapsulated plugin so the custom
+      // content-type parser (needed for raw body access) does not leak to
+      // other routes.
+      void app.register(async (webhookScope) => {
+        await registerPaymentWebhookRoute(webhookScope, {
+          getAdminClient,
+          paymentService: paymentService!,
+          webhookSecret: env.lemonSqueezyWebhookSecret!,
+        });
+      });
+    }
+  }
 
   return app;
 }

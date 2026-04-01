@@ -8,9 +8,15 @@ import { PricingCard } from "./pricing-card";
 
 interface PricingCardsProps {
   billingPeriod: BillingPeriod;
+  currentPlan?: string | null | undefined;
+  onCheckout?: ((plan: string, billingPeriod: BillingPeriod) => Promise<void>) | undefined;
 }
 
-export function PricingCards({ billingPeriod }: PricingCardsProps) {
+export function PricingCards({
+  billingPeriod,
+  currentPlan,
+  onCheckout,
+}: PricingCardsProps) {
   return (
     <motion.div
       variants={staggerContainer}
@@ -25,6 +31,8 @@ export function PricingCards({ billingPeriod }: PricingCardsProps) {
           tier={tier}
           billingPeriod={billingPeriod}
           index={index}
+          {...(currentPlan !== undefined ? { currentPlan } : {})}
+          {...(onCheckout !== undefined ? { onCheckout } : {})}
         />
       ))}
     </motion.div>

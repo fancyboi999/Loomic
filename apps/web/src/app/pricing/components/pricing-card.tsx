@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Crown, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -12,11 +13,87 @@ interface PricingCardProps {
   tier: PricingTier;
   billingPeriod: BillingPeriod;
   index: number;
+  currentPlan?: string | null | undefined;
+  onCheckout?: (plan: string, billingPeriod: BillingPeriod) => Promise<void> | undefined;
 }
 
-export function PricingCard({ tier, billingPeriod, index }: PricingCardProps) {
+export function PricingCard({
+  tier,
+  billingPeriod,
+  index,
+  currentPlan,
+  onCheckout,
+}: PricingCardProps) {
   const price =
     billingPeriod === "monthly" ? tier.monthlyPrice : tier.yearlyPrice;
+  const isCurrentPlan = currentPlan === tier.id;
+  const [loading, setLoading] = useState(false);
+
+  async function handleCheckout() {
+    if (!onCheckout || tier.id === "free" || tier.id === "business") return;
+    setLoading(true);
+    try {
+      await onCheckout(tier.id, billingPeriod);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderCta() {
+    if (isCurrentPlan) {
+      return (
+        <Button
+          className="w-full cursor-default"
+          size="lg"
+          variant="outline"
+          disabled
+        >
+          <Crown className="mr-1.5 h-4 w-4" />
+          Current Plan
+        </Button>
+      );
+    }
+
+    const buttonContent = loading ? (
+      <Loader2 className="h-4 w-4 animate-spin" />
+    ) : (
+      tier.cta
+    );
+
+    if (tier.ctaVariant === "accent") {
+      return (
+        <Button
+          className="w-full cursor-pointer"
+          size="lg"
+          disabled={loading}
+          onClick={handleCheckout}
+          style={{
+            backgroundColor: "oklch(0.90 0.17 115)",
+            color: "oklch(0.205 0 0)",
+            borderColor: "oklch(0.90 0.17 115)",
+          }}
+        >
+          {buttonContent}
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        className="w-full cursor-pointer"
+        size="lg"
+        variant={tier.ctaVariant === "outline" ? "outline" : "default"}
+        disabled={loading || (tier.id === "free" && !onCheckout)}
+        onClick={
+          tier.id === "free" || tier.id === "business"
+            ? undefined
+            : handleCheckout
+        }
+      >
+        {buttonContent}
+      </Button>
+    );
+  }
 
   return (
     <motion.div
@@ -64,11 +141,11 @@ export function PricingCard({ tier, billingPeriod, index }: PricingCardProps) {
             <span className="text-foreground text-4xl font-bold">
               ${price}
             </span>
-            <span className="text-muted-foreground text-sm">/月</span>
+            <span className="text-muted-foreground text-sm">/month</span>
           </motion.div>
         </AnimatePresence>
         {billingPeriod === "yearly" && tier.yearlyPrice > 0 && (
-          <p className="text-muted-foreground mt-1 text-xs">按年付费</p>
+          <p className="text-muted-foreground mt-1 text-xs">Billed annually</p>
         )}
       </div>
 
@@ -89,29 +166,7 @@ export function PricingCard({ tier, billingPeriod, index }: PricingCardProps) {
       </ul>
 
       {/* CTA */}
-      <div className="mt-6">
-        {tier.ctaVariant === "accent" ? (
-          <Button
-            className="w-full cursor-pointer"
-            size="lg"
-            style={{
-              backgroundColor: "oklch(0.90 0.17 115)",
-              color: "oklch(0.205 0 0)",
-              borderColor: "oklch(0.90 0.17 115)",
-            }}
-          >
-            {tier.cta}
-          </Button>
-        ) : (
-          <Button
-            className="w-full cursor-pointer"
-            size="lg"
-            variant={tier.ctaVariant === "outline" ? "outline" : "default"}
-          >
-            {tier.cta}
-          </Button>
-        )}
-      </div>
+      <div className="mt-6">{renderCta()}</div>
     </motion.div>
   );
 }

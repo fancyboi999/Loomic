@@ -58,7 +58,8 @@ export type JobService = {
   cancelJob(user: AuthenticatedUser, jobId: string): Promise<BackgroundJob>;
   getJobAdmin(jobId: string): Promise<BackgroundJob>;
 
-  // Worker-only methods (use admin client, no user auth)
+  // Admin-only methods (use admin client, no user auth)
+  setCreditsInfo(jobId: string, creditsCost: number, transactionId: string): Promise<void>;
   markRunning(jobId: string): Promise<void>;
   markSucceeded(jobId: string, result: Record<string, unknown>): Promise<void>;
   markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<void>;
@@ -228,7 +229,18 @@ export function createJobService(options: {
       return mapJobRow(job as unknown as Record<string, unknown>);
     },
 
-    // --- Worker-only methods (admin client, bypasses RLS) ---
+    // --- Admin-only methods (admin client, bypasses RLS) ---
+
+    async setCreditsInfo(jobId, creditsCost, transactionId) {
+      const admin = options.getAdminClient();
+      await admin
+        .from("background_jobs")
+        .update({
+          credits_cost: creditsCost,
+          credits_transaction_id: transactionId,
+        })
+        .eq("id", jobId);
+    },
 
     async markRunning(jobId) {
       const admin = options.getAdminClient();

@@ -26,10 +26,23 @@ export const runCancelResponseSchema = z.object({
   status: z.enum(["canceling", "canceled"]),
 });
 
+export const viewerCreditsSchema = z.object({
+  balance: z.number().int(),
+  plan: z.string(),
+  dailyClaimed: z.boolean(),
+  limits: z.object({
+    maxConcurrentJobs: z.number().int(),
+    maxResolution: z.string(),
+    monthlyCredits: z.number().int(),
+    dailyCredits: z.number().int(),
+  }),
+});
+
 export const viewerResponseSchema = z.object({
   profile: viewerProfileSchema,
   workspace: workspaceSummarySchema,
   membership: workspaceMembershipSchema,
+  credits: viewerCreditsSchema.optional(),
 });
 
 export const projectListResponseSchema = z.object({
@@ -89,6 +102,15 @@ export const applicationErrorCodeSchema = z.enum([
   "skill_install_failed",
   "skill_uninstall_failed",
   "skill_toggle_failed",
+  "insufficient_credits",
+  "credit_query_failed",
+  "credit_claim_failed",
+  "credit_deduct_failed",
+  "credit_refund_failed",
+  "credit_plan_update_failed",
+  "model_not_accessible",
+  "resolution_not_allowed",
+  "concurrency_limit",
 ]);
 
 export const applicationErrorResponseSchema = z.object({
@@ -112,6 +134,7 @@ export const canvasSaveResponseSchema = z.object({
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type RunCancelResponse = z.infer<typeof runCancelResponseSchema>;
+export type ViewerCredits = z.infer<typeof viewerCreditsSchema>;
 export type ViewerResponse = z.infer<typeof viewerResponseSchema>;
 export type ProjectListResponse = z.infer<typeof projectListResponseSchema>;
 export type ProjectCreateRequest = z.infer<typeof projectCreateRequestSchema>;

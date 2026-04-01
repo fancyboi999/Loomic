@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import type { ImageModelInfo } from "../../lib/server-api";
 import { fetchImageModels, generateImageDirect } from "../../lib/server-api";
+import { useGenerationErrorHandler } from "../../hooks/use-generation-error-handler";
 import {
   updateImageGeneratorElement,
   resizeImageGeneratorElement,
@@ -64,6 +65,7 @@ export function ImageGeneratorPanel({
   const refInputRef = useRef<HTMLInputElement>(null);
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
+  const { handleGenerationError } = useGenerationErrorHandler();
 
   // Fetch available models
   useEffect(() => {
@@ -172,9 +174,11 @@ export function ImageGeneratorPanel({
 
       onClose();
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Generation failed";
-      setError(msg);
+      const handled = handleGenerationError(err);
+      const msg = err instanceof Error ? err.message : "Generation failed";
+      if (!handled) {
+        setError(msg);
+      }
       setLoading(false);
       updateImageGeneratorElement(excalidrawApi, elementId, {
         status: "error",
@@ -191,6 +195,7 @@ export function ImageGeneratorPanel({
     elementId,
     elementBounds,
     onClose,
+    handleGenerationError,
   ]);
 
   return createPortal(
