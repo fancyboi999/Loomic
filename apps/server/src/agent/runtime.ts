@@ -26,6 +26,9 @@ import type { ConnectionManager } from "../ws/connection-manager.js";
 // 不需要自定义代码执行工具
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
+import type { CreditService } from "../features/credits/credit-service.js";
+import type { TierGuard } from "../features/credits/tier-guard.js";
+import { getPlanConfig, type ImageQualityLevel } from "@loomic/shared";
 import { createAgentBackend } from "./backends/index.js";
 import {
   type LoomicAgent,
@@ -220,12 +223,14 @@ type CreateAgentRuntimeOptions = {
   agentRunMetadataService?: AgentRunMetadataService;
   connectionManager?: ConnectionManager;
   createUserClient?: (accessToken: string) => unknown;
+  creditService?: CreditService;
   env: ServerEnv;
   eventDelayMs?: number;
   jobService?: JobService;
   model?: BaseLanguageModel | string;
   now?: () => string;
   runIdFactory?: () => string;
+  tierGuard?: TierGuard;
   viewerService?: ViewerService;
 };
 
@@ -398,8 +403,21 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             email: "",
             userMetadata: {},
           };
+
+          // ── Tier guard + credit checks (same as HTTP route) ──
+          const workspaceId = ws.id;
+          let creditsCost = 0;
+          if (options.creditService && options.tierGuard) {
+            const sub = await options.creditService.getSubscription(workspaceId);
+            const planConfig = getPlanConfig(sub.plan);
+            const quality: ImageQualityLevel = planConfig.maxResolution;
+            options.tierGuard.checkModelAccess(sub.plan, input.model);
+            await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
+            creditsCost = options.tierGuard.calculateCreditCost(input.model, "image_generation", { quality });
+          }
+
           const job = await jobSvc.createJob(user, {
-            workspaceId: ws.id,
+            workspaceId,
             ...(canvasId ? { canvasId } : {}),
             jobType: "image_generation",
             payload: {
@@ -410,7 +428,21 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               ...(input.inputImages ? { input_images: input.inputImages } : {}),
             },
           });
-          jobLap("job_created", { jobId: job.id });
+
+          // Deduct credits after job creation
+          if (options.creditService && creditsCost > 0) {
+            try {
+              const txId = await options.creditService.deductCredits(
+                workspaceId, userId, creditsCost, job.id,
+                `Image generation: ${input.model}`,
+              );
+              await jobSvc.setCreditsInfo(job.id, creditsCost, txId);
+            } catch (deductError) {
+              await jobSvc.cancelJob(user, job.id).catch(() => {});
+              throw deductError;
+            }
+          }
+          jobLap("job_created", { jobId: job.id, creditsCost });
 
           // Poll until terminal state
           const POLL_INTERVAL = 2000;
@@ -494,8 +526,22 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             email: "",
             userMetadata: {},
           };
+
+          // ── Tier guard + credit checks (same as HTTP route) ──
+          const workspaceId = ws.id;
+          let creditsCost = 0;
+          if (options.creditService && options.tierGuard) {
+            const sub = await options.creditService.getSubscription(workspaceId);
+            options.tierGuard.checkModelAccess(sub.plan, input.model);
+            await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
+            creditsCost = options.tierGuard.calculateCreditCost(
+              input.model, "video_generation",
+              input.duration != null ? { duration: input.duration } : {},
+            );
+          }
+
           const job = await jobSvc.createJob(user, {
-            workspaceId: ws.id,
+            workspaceId,
             ...(canvasId ? { canvasId } : {}),
             jobType: "video_generation",
             payload: {
@@ -509,7 +555,21 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               ...(input.enableAudio != null ? { enable_audio: input.enableAudio } : {}),
             },
           });
-          jobLap("job_created", { jobId: job.id });
+
+          // Deduct credits after job creation
+          if (options.creditService && creditsCost > 0) {
+            try {
+              const txId = await options.creditService.deductCredits(
+                workspaceId, userId, creditsCost, job.id,
+                `Video generation: ${input.model}`,
+              );
+              await jobSvc.setCreditsInfo(job.id, creditsCost, txId);
+            } catch (deductError) {
+              await jobSvc.cancelJob(user, job.id).catch(() => {});
+              throw deductError;
+            }
+          }
+          jobLap("job_created", { jobId: job.id, creditsCost });
 
           // Poll until terminal state — video generation is slower
           const POLL_INTERVAL = 3000;
