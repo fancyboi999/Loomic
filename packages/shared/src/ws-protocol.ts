@@ -40,9 +40,19 @@ export const wsCancelCommandSchema = z.object({
   payload: z.object({ runId: z.string().min(1) }),
 });
 
+export const wsResumeCommandSchema = z.object({
+  type: z.literal("command"),
+  action: z.literal("canvas.resume"),
+  payload: z.object({
+    canvasId: z.string().min(1),
+    lastSeq: z.number().int().min(0).default(0),
+  }),
+});
+
 export const wsCommandSchema = z.discriminatedUnion("action", [
   wsRunCommandSchema,
   wsCancelCommandSchema,
+  wsResumeCommandSchema,
 ]);
 
 // --- Client → Server: RPC Response ---
@@ -62,6 +72,7 @@ export const wsRpcResponseSchema = z.object({
 export const wsClientMessageSchema = z.union([
   wsRunCommandSchema,
   wsCancelCommandSchema,
+  wsResumeCommandSchema,
   wsRpcResponseSchema,
 ]);
 
@@ -80,6 +91,7 @@ export type WsRpcRequest = z.infer<typeof wsRpcRequestSchema>;
 export type WsCommandAck = z.infer<typeof wsCommandAckSchema>;
 export type WsRunCommand = z.infer<typeof wsRunCommandSchema>;
 export type WsCancelCommand = z.infer<typeof wsCancelCommandSchema>;
+export type WsResumeCommand = z.infer<typeof wsResumeCommandSchema>;
 export type WsCommand = z.infer<typeof wsCommandSchema>;
 export type WsRpcResponse = z.infer<typeof wsRpcResponseSchema>;
 export type WsClientMessage = z.infer<typeof wsClientMessageSchema>;

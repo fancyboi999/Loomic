@@ -24,6 +24,7 @@ export type WebSocketHandle = {
   cancelRun: (runId: string) => void;
   onEvent: (cb: EventCallback) => () => void;
   registerRPC: (method: string, handler: RPCHandler) => () => void;
+  resumeCanvas: (canvasId: string, onAck?: (ack: WsCommandAck) => void) => void;
 };
 
 export function useWebSocket(
@@ -31,9 +32,20 @@ export function useWebSocket(
 ): WebSocketHandle {
   const wsRef = useRef<WebSocket | null>(null);
   const connectionIdRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    (() => {
+      if (typeof sessionStorage !== "undefined") {
+        const stored = sessionStorage.getItem("ws_connection_id");
+        if (stored) return stored;
+        const id = typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        sessionStorage.setItem("ws_connection_id", id);
+        return id;
+      }
+      return typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    })(),
   );
   const [connected, setConnected] = useState(false);
   const reconnectAttempt = useRef(0);
@@ -218,6 +230,19 @@ export function useWebSocket(
     [sendCommand],
   );
 
+  const resumeCanvas = useCallback(
+    (canvasId: string, onAck?: (ack: WsCommandAck) => void) => {
+      if (onAck) {
+        ackListeners.current.set("canvas.resume", onAck);
+      }
+      const sent = sendCommand("canvas.resume", { canvasId, lastSeq: 0 });
+      if (!sent) {
+        ackListeners.current.delete("canvas.resume");
+      }
+    },
+    [sendCommand],
+  );
+
   const onEvent = useCallback((cb: EventCallback) => {
     eventListeners.current.add(cb);
     return () => {
@@ -235,5 +260,5 @@ export function useWebSocket(
     [],
   );
 
-  return { connected, startRun, cancelRun, onEvent, registerRPC };
+  return { connected, startRun, cancelRun, onEvent, registerRPC, resumeCanvas };
 }

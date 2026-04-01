@@ -17,13 +17,18 @@ import type {
   RequestAuthenticator,
 } from "../supabase/user.js";
 import type { ConnectionManager } from "./connection-manager.js";
+import type { CanvasEventBuffer } from "./event-buffer.js";
+import type { ChatService } from "../features/chat/chat-service.js";
+import type { ContentBlock, ToolBlock } from "@loomic/shared";
 import { createPipelineLogger } from "./logger.js";
 
 type RegisterWsOptions = {
   agentRuns: AgentRunService;
   agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
+  chatService?: ChatService;
   connectionManager: ConnectionManager;
+  eventBuffer?: CanvasEventBuffer;
   settingsService?: SettingsService;
   threadService?: ThreadService;
   viewerService?: ViewerService;
@@ -168,6 +173,34 @@ async function authenticateAndBind(
         if (!cancelResult) {
           socket.send(JSON.stringify({ type: "error", message: `Run not found: ${msg.payload.runId}` }));
         }
+      } else if (msg.action === "canvas.resume") {
+        const p = msg.payload;
+        log.info("canvas_resume", { userId: authenticatedUser.id, canvasId: p.canvasId, lastSeq: p.lastSeq });
+
+        // Re-bind this connection to the canvas
+        connectionManager.bindCanvas(connectionId, p.canvasId);
+
+        // Replay missed events from buffer
+        const missed = options.eventBuffer?.getAfter(p.canvasId, p.lastSeq) ?? [];
+        for (const entry of missed) {
+          connectionManager.sendTo(connectionId, {
+            type: "event",
+            event: entry.event,
+          });
+        }
+
+        // Notify client of current state
+        const activeRun = connectionManager.getActiveRun(p.canvasId);
+        connectionManager.sendTo(connectionId, {
+          type: "command.ack",
+          action: "canvas.resume",
+          payload: {
+            canvasId: p.canvasId,
+            latestSeq: options.eventBuffer?.getLatestSeq(p.canvasId) ?? 0,
+            activeRunId: activeRun?.runId ?? null,
+            replayed: missed.length,
+          },
+        });
       }
     }
   });
@@ -282,13 +315,16 @@ async function handleRunCommand(
   }
   log.lap("ack_sent", { runId, connectionId, delivered: ackSent });
 
-  // Stream events to ALL connections viewing this canvas.
-  // Send periodic keep-alive pings during long-running tool calls (e.g. image
-  // generation) to prevent Railway's proxy or the WS idle timeout from
-  // closing the connection while the agent is waiting for an external API.
+  // Track active run so reconnecting clients can detect it
+  connectionManager.setActiveRun(canvasId, runId);
+
   const keepAlive = setInterval(() => {
     connectionManager.sendTo(connectionId, { type: "keep-alive" });
   }, 15_000);
+
+  // Accumulate assistant content blocks for server-side persistence
+  const assistantText: string[] = [];
+  const assistantBlocks: ContentBlock[] = [];
 
   try {
     let firstEvent = true;
@@ -297,21 +333,82 @@ async function handleRunCommand(
         log.lap("first_token", { runId });
         firstEvent = false;
       }
+
+      // Buffer for replay on reconnect
+      services.eventBuffer?.push(canvasId, event);
+
+      // Broadcast to all viewers
       connectionManager.pushToCanvas(canvasId, event);
+
+      // Accumulate content for server-side persistence
+      if (event.type === "message.delta") {
+        const lastBlock = assistantBlocks[assistantBlocks.length - 1];
+        if (lastBlock && lastBlock.type === "text") {
+          (lastBlock as { type: "text"; text: string }).text += event.delta;
+        } else {
+          assistantBlocks.push({ type: "text", text: event.delta });
+        }
+        assistantText.push(event.delta);
+      } else if (event.type === "tool.started") {
+        assistantBlocks.push({
+          type: "tool",
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          status: "running" as const,
+          ...(event.input ? { input: event.input } : {}),
+        });
+      } else if (event.type === "tool.completed") {
+        const idx = assistantBlocks.findIndex(
+          (b) => b.type === "tool" && (b as ToolBlock).toolCallId === event.toolCallId,
+        );
+        if (idx >= 0) {
+          assistantBlocks[idx] = {
+            ...(assistantBlocks[idx] as ToolBlock),
+            status: "completed" as const,
+            ...(event.output ? { output: event.output } : {}),
+            ...(event.outputSummary ? { outputSummary: event.outputSummary } : {}),
+            ...(event.artifacts ? { artifacts: event.artifacts } : {}),
+          };
+        }
+      }
     }
     log.lap("stream_done", { runId });
+
+    // ── Server-side assistant message persistence ──
+    if (services.chatService && (assistantText.length > 0 || assistantBlocks.length > 0)) {
+      try {
+        await services.chatService.createMessage(
+          authenticatedUser,
+          payload.sessionId,
+          {
+            role: "assistant",
+            content: assistantText.join(""),
+            contentBlocks: assistantBlocks,
+          },
+        );
+        log.lap("assistant_message_persisted", { runId });
+      } catch (err) {
+        log.warn("assistant_message_persist_failed", {
+          runId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   } catch (error) {
     log.error("stream_error", { runId, error: error instanceof Error ? error.message : "unknown" });
-    connectionManager.pushToCanvas(canvasId, {
-      type: "run.failed",
+    const failedEvent = {
+      type: "run.failed" as const,
       runId,
       error: {
-        code: "run_failed",
+        code: "run_failed" as const,
         message: error instanceof Error ? error.message : "Stream failed",
       },
       timestamp: new Date().toISOString(),
-    });
+    };
+    services.eventBuffer?.push(canvasId, failedEvent);
+    connectionManager.pushToCanvas(canvasId, failedEvent);
   } finally {
     clearInterval(keepAlive);
+    connectionManager.clearActiveRun(canvasId);
   }
 }

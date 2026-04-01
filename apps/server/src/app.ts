@@ -90,6 +90,7 @@ import { registerSettingsRoutes } from "./http/settings.js";
 import { registerUploadRoutes } from "./http/uploads.js";
 import { registerSkillRoutes } from "./http/skills.js";
 import { registerViewerRoutes } from "./http/viewer.js";
+import { CanvasEventBuffer } from "./ws/event-buffer.js";
 import { ConnectionManager } from "./ws/connection-manager.js";
 import { registerWsRoute } from "./ws/handler.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
@@ -147,7 +148,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       agentRuns,
       agentRunMetadataService,
       auth,
+      chatService,
       connectionManager,
+      eventBuffer,
       settingsService,
       threadService,
       viewerService,
@@ -213,6 +216,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   }
 
   const connectionManager = options.connectionManager ?? new ConnectionManager();
+  const eventBuffer = new CanvasEventBuffer();
+  setInterval(() => eventBuffer.cleanup(), 5 * 60 * 1000);
   const agentRuns = createAgentRunService({
     agentPersistenceService,
     ...(options.agentFactory ? { agentFactory: options.agentFactory } : {}),

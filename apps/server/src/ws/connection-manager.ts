@@ -22,6 +22,8 @@ export class ConnectionManager {
   private userIndex = new Map<string, Set<string>>();
   /** Canvas-level index: canvasId -> set of connectionIds */
   private canvasIndex = new Map<string, Set<string>>();
+  /** Tracks active runIds per canvas so reconnecting clients know if a run is in progress */
+  private activeRuns = new Map<string, { runId: string; startedAt: number }>();
   /** Pending RPC calls, keyed by unique request UUID (unchanged) */
   private pendingRPCs = new Map<string, PendingRPC>();
 
@@ -85,6 +87,21 @@ export class ConnectionManager {
       this.canvasIndex.set(canvasId, canvasSet);
     }
     canvasSet.add(connectionId);
+  }
+
+  /** Mark a run as active for a canvas. */
+  setActiveRun(canvasId: string, runId: string): void {
+    this.activeRuns.set(canvasId, { runId, startedAt: Date.now() });
+  }
+
+  /** Clear active run for a canvas. */
+  clearActiveRun(canvasId: string): void {
+    this.activeRuns.delete(canvasId);
+  }
+
+  /** Get active run info for a canvas, if any. */
+  getActiveRun(canvasId: string): { runId: string; startedAt: number } | null {
+    return this.activeRuns.get(canvasId) ?? null;
   }
 
   // ---------------------------------------------------------------------------
@@ -273,6 +290,7 @@ export class ConnectionManager {
     this.connections.clear();
     this.userIndex.clear();
     this.canvasIndex.clear();
+    this.activeRuns.clear();
   }
 
   // ---------------------------------------------------------------------------

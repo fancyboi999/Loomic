@@ -149,6 +149,7 @@ export function ChatSidebar({
   messageMentionsRef.current = messageMentions;
   const selectedCanvasElementsRef = useRef(selectedCanvasElements);
   selectedCanvasElementsRef.current = selectedCanvasElements;
+  const prevConnectedRef = useRef(false);
 
   const {
     attachments: imageAttachments,
@@ -739,16 +740,8 @@ export function ChatSidebar({
           .map((b) => b.text)
           .join("");
 
-        // Persist assistant message (fire-and-forget with error logging)
-        if (flatContent || finalBlocks.length > 0) {
-          saveMessage(accessTokenRef.current, currentSessionId, {
-            role: "assistant",
-            content: flatContent,
-            contentBlocks: finalBlocks,
-          }).catch((err) =>
-            console.error("[chat] Failed to save assistant message:", err),
-          );
-        }
+        // Assistant message is now persisted server-side in handler.ts
+        // after the stream completes, so no client-side save needed.
       } catch {
         setMessages((prev) =>
           prev.map((m) => {
@@ -889,6 +882,106 @@ export function ChatSidebar({
 
     return () => clearTimeout(timer);
   }, [initialPrompt, sessionsLoading, ws.connected, handleSend]);
+
+  // ── Reconnection: resume canvas binding + reload messages ──
+  useEffect(() => {
+    // Only trigger on reconnect (connected transitions false→true), not initial connect
+    if (!ws.connected) {
+      prevConnectedRef.current = false;
+      return;
+    }
+    if (prevConnectedRef.current) return; // already connected, skip
+    prevConnectedRef.current = true;
+
+    // Skip initial connect (no session yet)
+    const sessionId = activeSessionIdRef.current;
+    if (!sessionId) return;
+
+    // Resume canvas binding so server routes events to this connection
+    ws.resumeCanvas(canvasId, (ack) => {
+        const activeRunId = (ack.payload as Record<string, unknown>).activeRunId;
+        if (activeRunId && typeof activeRunId === "string") {
+          setStreaming(true);
+
+          // Register temporary listener to handle run terminal events and
+          // apply live deltas to a placeholder assistant message.
+          const assistantId = `resumed_${activeRunId}`;
+          setMessages((prev) => {
+            // Only add placeholder if not already present (avoid duplicates on rapid reconnects)
+            if (prev.some((m) => m.id === assistantId)) return prev;
+            return [...prev, { id: assistantId, role: "assistant" as const, contentBlocks: [] }];
+          });
+
+          const unsub = ws.onEvent((evt) => {
+            if (evt.runId !== activeRunId) return;
+
+            // Apply live events to the placeholder message
+            if (evt.type === "message.delta") {
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== assistantId) return m;
+                  const blocks = [...m.contentBlocks];
+                  const last = blocks[blocks.length - 1];
+                  if (last && last.type === "text") {
+                    blocks[blocks.length - 1] = { ...last, text: last.text + evt.delta };
+                  } else {
+                    blocks.push({ type: "text", text: evt.delta });
+                  }
+                  return { ...m, contentBlocks: blocks };
+                }),
+              );
+            } else if (evt.type === "tool.started") {
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== assistantId) return m;
+                  return {
+                    ...m,
+                    contentBlocks: [
+                      ...m.contentBlocks,
+                      { type: "tool" as const, toolCallId: evt.toolCallId, toolName: evt.toolName, status: "running" as const, ...(evt.input ? { input: evt.input } : {}) },
+                    ],
+                  };
+                }),
+              );
+            } else if (evt.type === "tool.completed") {
+              setMessages((prev) =>
+                prev.map((m) => {
+                  if (m.id !== assistantId) return m;
+                  return {
+                    ...m,
+                    contentBlocks: m.contentBlocks.map((block) => {
+                      if (block.type === "tool" && block.toolCallId === evt.toolCallId) {
+                        return { ...block, status: "completed" as const, ...(evt.output ? { output: evt.output } : {}), ...(evt.outputSummary ? { outputSummary: evt.outputSummary } : {}), ...(evt.artifacts ? { artifacts: evt.artifacts } : {}) };
+                      }
+                      return block;
+                    }),
+                  };
+                }),
+              );
+            }
+
+            // Terminal events: stop streaming + cleanup
+            if (evt.type === "run.completed" || evt.type === "run.failed" || evt.type === "run.canceled") {
+              setStreaming(false);
+              unsub();
+            }
+          });
+        }
+    });
+
+    // Reload messages from server to recover any persisted during disconnect
+    void (async () => {
+      try {
+        const msgRes = await fetchMessages(accessTokenRef.current, sessionId);
+        if (msgRes.messages.length > 0) {
+          const mapped = mapServerMessages(msgRes.messages);
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.warn("[chat] Failed to reload messages on reconnect:", err);
+      }
+    })();
+  }, [ws.connected, ws, canvasId]);
 
   if (!open) {
     return (
