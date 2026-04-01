@@ -155,6 +155,25 @@ export function ChatSidebar({
   sessionsRef.current = sessions;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+
+  // Per-session message cache: keeps messages alive across session switches
+  // so streaming results accumulate in background even when the user views
+  // another session. Cache is keyed by sessionId.
+  const sessionsMsgCacheRef = useRef<Record<string, Message[]>>({});
+
+  // Update messages for a specific session. Always writes to the cache;
+  // only syncs to React state if the target session is currently visible.
+  const updateSessionMessages = useCallback(
+    (targetSessionId: string, updater: (prev: Message[]) => Message[]) => {
+      const prev = sessionsMsgCacheRef.current[targetSessionId] ?? [];
+      const next = updater(prev);
+      sessionsMsgCacheRef.current[targetSessionId] = next;
+      if (activeSessionIdRef.current === targetSessionId) {
+        setMessages(next);
+      }
+    },
+    [],
+  );
   const messageMentionsRef = useRef(messageMentions);
   messageMentionsRef.current = messageMentions;
   const selectedCanvasElementsRef = useRef(selectedCanvasElements);
@@ -308,7 +327,9 @@ export function ChatSidebar({
           onSessionChangeRef.current?.(target.id);
           const msgRes = await fetchMessages(token, target.id);
           if (cancelled) return;
-          setMessages(mapServerMessages(msgRes.messages));
+          const mapped = mapServerMessages(msgRes.messages);
+          sessionsMsgCacheRef.current[target.id] = mapped;
+          setMessages(mapped);
         } else {
           const created = await createSession(token, canvasId);
           if (cancelled) return;
@@ -335,23 +356,32 @@ export function ChatSidebar({
     async (sessionId: string) => {
       if (sessionId === activeSessionIdRef.current) return;
       // Allow switching even while streaming — the run continues server-side
-      // and results are persisted. When the user switches back, fetchMessages
-      // will load the completed (or partial) response from DB.
+      // and results accumulate in sessionsMsgCacheRef. When the user switches
+      // back, the cache is restored instantly.
       if (streaming) setStreaming(false);
       setActiveSessionId(sessionId);
       onSessionChangeRef.current?.(sessionId);
-      setMessages([]);
-      setMessagesLoading(true);
-      try {
-        const msgRes = await fetchMessages(
-          accessTokenRef.current,
-          sessionId,
-        );
-        setMessages(mapServerMessages(msgRes.messages));
-      } catch (err) {
-        console.error("[chat] Failed to load session messages:", err);
-      } finally {
-        setMessagesLoading(false);
+
+      // Restore from cache if available (instant), otherwise fetch from DB
+      const cached = sessionsMsgCacheRef.current[sessionId];
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+      } else {
+        setMessages([]);
+        setMessagesLoading(true);
+        try {
+          const msgRes = await fetchMessages(
+            accessTokenRef.current,
+            sessionId,
+          );
+          const mapped = mapServerMessages(msgRes.messages);
+          sessionsMsgCacheRef.current[sessionId] = mapped;
+          setMessages(mapped);
+        } catch (err) {
+          console.error("[chat] Failed to load session messages:", err);
+        } finally {
+          setMessagesLoading(false);
+        }
       }
     },
     [streaming],
@@ -398,7 +428,11 @@ export function ChatSidebar({
           onSessionChangeRef.current?.(next.id);
           setMessagesLoading(true);
           fetchMessages(token, next.id)
-            .then((msgRes) => setMessages(mapServerMessages(msgRes.messages)))
+            .then((msgRes) => {
+              const mapped = mapServerMessages(msgRes.messages);
+              sessionsMsgCacheRef.current[next.id] = mapped;
+              setMessages(mapped);
+            })
             .catch(() => setMessages([]))
             .finally(() => setMessagesLoading(false));
         }
@@ -416,10 +450,13 @@ export function ChatSidebar({
   );
 
   const handleStreamEvent = useCallback(
-    (event: StreamEvent, assistantId: string) => {
+    (event: StreamEvent, assistantId: string, sessionId: string) => {
+      const update = (updater: (prev: Message[]) => Message[]) =>
+        updateSessionMessages(sessionId, updater);
+
       switch (event.type) {
         case "message.delta":
-          setMessages((prev) =>
+          update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
               const blocks = [...m.contentBlocks];
@@ -438,7 +475,7 @@ export function ChatSidebar({
           break;
 
         case "thinking.delta":
-          setMessages((prev) =>
+          update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
               const blocks = [...m.contentBlocks];
@@ -457,7 +494,7 @@ export function ChatSidebar({
           break;
 
         case "tool.started":
-          setMessages((prev) =>
+          update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
               const newBlock: ToolBlock = {
@@ -476,7 +513,7 @@ export function ChatSidebar({
           break;
 
         case "tool.completed":
-          setMessages((prev) =>
+          update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
               return {
@@ -504,7 +541,7 @@ export function ChatSidebar({
           break;
 
         case "run.failed":
-          setMessages((prev) =>
+          update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
               const hasText = m.contentBlocks.some((b) => b.type === "text");
@@ -521,7 +558,7 @@ export function ChatSidebar({
           break;
       }
     },
-    [],
+    [updateSessionMessages],
   );
 
   const handleSend = useCallback(
@@ -604,7 +641,7 @@ export function ChatSidebar({
           ...imageBlocks,
         ],
       };
-      setMessages((prev) => [...prev, userMsg]);
+      updateSessionMessages(currentSessionId, (prev) => [...prev, userMsg]);
 
       // Persist user message (fire-and-forget with error logging)
       saveMessage(accessTokenRef.current, currentSessionId, {
@@ -634,7 +671,7 @@ export function ChatSidebar({
 
       // Create assistant placeholder
       const assistantId = `assistant-${Date.now()}`;
-      setMessages((prev) => [
+      updateSessionMessages(currentSessionId, (prev) => [
         ...prev,
         { id: assistantId, role: "assistant", contentBlocks: [] },
       ]);
@@ -682,7 +719,7 @@ export function ChatSidebar({
             });
           }
 
-          handleStreamEvent(event, assistantId);
+          handleStreamEvent(event, assistantId, currentSessionId);
 
           // Fire canvas insertion callback for image artifacts.
           // Skip screenshot_canvas — those are for the agent to see, not for canvas insertion.
@@ -763,7 +800,7 @@ export function ChatSidebar({
         // Assistant message is persisted server-side in handler.ts after the run completes.
         // No client-side save needed — dual save caused duplicate messages in DB.
       } catch {
-        setMessages((prev) =>
+        updateSessionMessages(currentSessionId, (prev) =>
           prev.map((m) => {
             if (m.id !== assistantId) return m;
             const hasText = m.contentBlocks.some((b) => b.type === "text");
@@ -781,7 +818,7 @@ export function ChatSidebar({
         setStreaming(false);
       }
     },
-    [streaming, canvasId, handleStreamEvent, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments, ws],
+    [streaming, canvasId, handleStreamEvent, updateSessionMessages, onImageGenerated, onCanvasSync, readyAttachments, clearAttachments, ws],
   );
 
   const mentionPickerItems: MessageMentionPickerItem[] = [
@@ -932,7 +969,9 @@ export function ChatSidebar({
       try {
         const msgRes = await fetchMessages(accessTokenRef.current, sessionId);
         if (msgRes.messages.length > 0) {
-          setMessages(mapServerMessages(msgRes.messages));
+          const mapped = mapServerMessages(msgRes.messages);
+          sessionsMsgCacheRef.current[sessionId] = mapped;
+          setMessages(mapped);
         }
       } catch (err) {
         console.warn("[chat] Failed to reload messages on reconnect:", err);
