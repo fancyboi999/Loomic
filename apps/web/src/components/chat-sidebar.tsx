@@ -48,6 +48,7 @@ import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
 import { SessionSelector } from "./session-selector";
 import { CreditInsufficientDialog } from "./credits/credit-insufficient-dialog";
+import { useTierLimitToast } from "./credits/tier-limit-toast";
 import { claimDailyCredits } from "../lib/credits-api";
 
 type Message = {
@@ -187,6 +188,8 @@ export function ChatSidebar({
   const { model: agentModel } = useAgentModel();
   const agentModelRef = useRef(agentModel);
   agentModelRef.current = agentModel;
+
+  const { showTierLimit } = useTierLimitToast();
 
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const isResizing = useRef(false);
@@ -671,15 +674,20 @@ export function ChatSidebar({
             );
           }
 
-          // Credits insufficient: show dialog, let run.canceled resolve stream
-          if (event.type === "credits.insufficient") {
-            setCreditDialog({
-              open: true,
-              currentBalance: event.currentBalance,
-              requiredAmount: event.requiredAmount,
-              plan: event.plan,
-              dailyClaimed: event.dailyClaimed,
-            });
+          // Billing error: route to appropriate UI, run.canceled will follow
+          if (event.type === "billing.error") {
+            if (event.code === "insufficient_credits") {
+              setCreditDialog({
+                open: true,
+                currentBalance: event.currentBalance ?? 0,
+                requiredAmount: event.requiredAmount ?? 0,
+                plan: event.plan ?? "free",
+                dailyClaimed: event.dailyClaimed ?? false,
+              });
+            } else {
+              // model_not_accessible, resolution_not_allowed, concurrency_limit
+              showTierLimit({ code: event.code, message: event.message });
+            }
           }
 
           handleStreamEvent(event, assistantId);
