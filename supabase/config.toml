@@ -21,6 +21,15 @@ api_url = "http://127.0.0.1"
 enabled = true
 port = 54324
 
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
 [storage]
 enabled = true
 file_size_limit = "50MiB"

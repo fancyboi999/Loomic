@@ -254,10 +254,19 @@ export class GoogleVideoProvider implements VideoProvider {
         },
       });
     } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error(`[google-video] generateVideos API error:`, detail);
+      if (detail.includes("PERMISSION_DENIED") || detail.includes("403") || detail.includes("SERVICE_DISABLED")) {
+        throw new GenerationError(
+          PROVIDER_NAME,
+          "api_error",
+          "Video generation service is temporarily unavailable. Please try a different model.",
+        );
+      }
       throw new GenerationError(
         PROVIDER_NAME,
         "api_error",
-        `Veo API error: ${err instanceof Error ? err.message : String(err)}`,
+        "Video generation failed unexpectedly. Please try again or use a different model.",
       );
     }
 
@@ -277,20 +286,23 @@ export class GoogleVideoProvider implements VideoProvider {
           operation,
         });
       } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.error(`[google-video] polling error:`, detail);
         throw new GenerationError(
           PROVIDER_NAME,
           "api_error",
-          `Polling error: ${err instanceof Error ? err.message : String(err)}`,
+          "Video generation status check failed. Please try again.",
         );
       }
     }
 
     // Check for operation-level errors.
     if (operation.error) {
+      console.error(`[google-video] operation error:`, JSON.stringify(operation.error));
       throw new GenerationError(
         PROVIDER_NAME,
         "api_error",
-        `Video generation failed: ${JSON.stringify(operation.error)}`,
+        "Video generation was rejected by the provider. Please try a different prompt or model.",
       );
     }
 

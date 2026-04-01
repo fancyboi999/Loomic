@@ -39,13 +39,20 @@ function ExampleChip({
       className={cn(
         "inline-flex h-8 items-center gap-1 rounded-full border-[0.5px] px-3 text-xs transition-all",
         accent === "special"
-          ? "border-[#F37A12] bg-[#FFFBE3] text-[#F37A12] hover:bg-[#FFF6C2]"
+          ? "border-[#dbeb56] bg-[#dbeb56]/30 text-foreground hover:bg-[#dbeb56]/40"
           : active
             ? "border-foreground bg-foreground text-background"
             : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
         disabled && accent !== "special" && "cursor-not-allowed opacity-60",
       )}
     >
+      {accent === "special" && (
+        <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+          <path d="M13.75 10.0833L16.0385 4.80183C16.3152 4.16327 16.9447 3.75 17.6407 3.75C18.5452 3.75 19.3073 4.44094 19.3323 5.34511C19.4072 8.05343 19.0343 10.6168 18.1409 13.25" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M14.5361 12.9296C12.5114 12.3981 10.6182 11.9456 8.62026 12.2406C8.11731 12.3149 7.6003 12.123 7.31974 11.699C6.99241 11.2043 7.07386 10.5374 7.56853 10.21C10.4464 8.30551 15.4043 7.68165 14.5361 12.9296ZM14.5361 12.9296C16.3881 14.9538 17.1589 16.3907 16.5589 18.2873C16.2732 19.1904 16.8285 20.25 17.7756 20.25C18.0315 20.25 18.2841 20.1696 18.4802 20.0052C22.2553 16.8415 20.0288 11.3487 14.5361 12.9296Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M12.0833 12.25C10.244 14.6149 7.91962 16.0396 4.96102 16.4467C4.28748 16.5394 3.75 17.0908 3.75 17.7707C3.75 18.205 3.97012 18.6163 4.35366 18.8201C8.53837 21.0434 12.8945 18.9413 16.25 16.0765" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      )}
       <span className="whitespace-nowrap">{label}</span>
     </button>
   );

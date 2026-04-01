@@ -47,6 +47,8 @@ import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
 import { SessionSelector } from "./session-selector";
+import { CreditInsufficientDialog } from "./credits/credit-insufficient-dialog";
+import { claimDailyCredits } from "../lib/credits-api";
 
 type Message = {
   id: string;
@@ -132,6 +134,13 @@ export function ChatSidebar({
   const [imageModelMentionItems, setImageModelMentionItems] = useState<
     ImageModelMentionItem[]
   >([]);
+  const [creditDialog, setCreditDialog] = useState<{
+    open: boolean;
+    currentBalance: number;
+    requiredAmount: number;
+    plan: string;
+    dailyClaimed: boolean;
+  } | null>(null);
   const chatInputRef = useRef<import("./chat-input").ChatInputHandle>(null);
 
   const initialPromptSent = useRef(false);
@@ -652,6 +661,17 @@ export function ChatSidebar({
             );
           }
 
+          // Credits insufficient: show dialog, let run.canceled resolve stream
+          if (event.type === "credits.insufficient") {
+            setCreditDialog({
+              open: true,
+              currentBalance: event.currentBalance,
+              requiredAmount: event.requiredAmount,
+              plan: event.plan,
+              dailyClaimed: event.dailyClaimed,
+            });
+          }
+
           handleStreamEvent(event, assistantId);
 
           // Fire canvas insertion callback for image artifacts.
@@ -884,21 +904,36 @@ export function ChatSidebar({
   }, [initialPrompt, sessionsLoading, ws.connected, handleSend]);
 
   // ── Reconnection: resume canvas binding + reload messages ──
+  // Depends on sessionsLoading so it re-evaluates after sessions finish loading
+  // (on page refresh, WS connects before sessions load — without this dep the
+  // effect would skip because activeSessionIdRef is still null).
   useEffect(() => {
-    // Only trigger on reconnect (connected transitions false→true), not initial connect
-    if (!ws.connected) {
-      prevConnectedRef.current = false;
+    if (!ws.connected || sessionsLoading) {
+      if (!ws.connected) prevConnectedRef.current = false;
       return;
     }
     if (prevConnectedRef.current) return; // already connected, skip
     prevConnectedRef.current = true;
 
-    // Skip initial connect (no session yet)
+    // Skip if no session loaded yet
     const sessionId = activeSessionIdRef.current;
     if (!sessionId) return;
 
-    // Resume canvas binding so server routes events to this connection
-    ws.resumeCanvas(canvasId, (ack) => {
+    // Reload messages from DB first (server may have persisted while we were disconnected),
+    // then resume canvas binding. Sequential order avoids fetchMessages overwriting the
+    // placeholder message that canvas.resume creates for active runs.
+    void (async () => {
+      try {
+        const msgRes = await fetchMessages(accessTokenRef.current, sessionId);
+        if (msgRes.messages.length > 0) {
+          setMessages(mapServerMessages(msgRes.messages));
+        }
+      } catch (err) {
+        console.warn("[chat] Failed to reload messages on reconnect:", err);
+      }
+
+      // Now resume canvas binding (after DB messages are set)
+      ws.resumeCanvas(canvasId, (ack) => {
         const activeRunId = (ack.payload as Record<string, unknown>).activeRunId;
         if (activeRunId && typeof activeRunId === "string") {
           setStreaming(true);
@@ -968,20 +1003,8 @@ export function ChatSidebar({
           });
         }
     });
-
-    // Reload messages from server to recover any persisted during disconnect
-    void (async () => {
-      try {
-        const msgRes = await fetchMessages(accessTokenRef.current, sessionId);
-        if (msgRes.messages.length > 0) {
-          const mapped = mapServerMessages(msgRes.messages);
-          setMessages(mapped);
-        }
-      } catch (err) {
-        console.warn("[chat] Failed to reload messages on reconnect:", err);
-      }
     })();
-  }, [ws.connected, ws, canvasId]);
+  }, [ws.connected, ws, canvasId, sessionsLoading]);
 
   if (!open) {
     return (
@@ -1109,6 +1132,19 @@ export function ChatSidebar({
           />
         </div>
       </div>
+      {creditDialog && (
+        <CreditInsufficientDialog
+          open={creditDialog.open}
+          onClose={() => setCreditDialog(null)}
+          currentBalance={creditDialog.currentBalance}
+          requiredAmount={creditDialog.requiredAmount}
+          plan={creditDialog.plan}
+          dailyClaimed={creditDialog.dailyClaimed}
+          onClaimDaily={async () => {
+            await claimDailyCredits(accessTokenRef.current);
+          }}
+        />
+      )}
     </div>
   );
 }

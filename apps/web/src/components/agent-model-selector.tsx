@@ -113,10 +113,10 @@ export function AgentModelSelector({ compact }: { compact?: boolean } = {}) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center justify-center gap-1 box-border rounded-full border-[0.5px] cursor-pointer font-inter transition-[border-color,background-color] duration-100 ease-in-out ${
-          compact ? "h-7 px-2" : "h-8 px-3"
+          compact ? "h-8 px-2.5" : "h-8 px-3"
         } ${
           isActive
-            ? "border-accent bg-accent/30 text-accent-foreground hover:bg-accent/40 active:bg-accent/50"
+            ? "border-[#dbeb56] bg-[#dbeb56]/10 text-foreground hover:bg-[#dbeb56]/20 active:bg-[#dbeb56]/30"
             : "border-border text-foreground hover:bg-muted"
         } bg-transparent`}
       >

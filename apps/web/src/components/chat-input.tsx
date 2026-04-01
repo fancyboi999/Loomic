@@ -258,7 +258,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           className="min-h-[48px] max-h-60 resize-none bg-transparent px-1 text-sm leading-[1.8] text-foreground placeholder:text-muted-foreground focus:outline-none [&::-webkit-scrollbar]:hidden"
         />
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
             {onAddFiles && (
               <>
                 <input
@@ -272,7 +272,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Attach images"
                 >
                   <svg
@@ -294,10 +294,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 type="button"
                 onClick={() => setModelPopoverOpen((prev) => !prev)}
                 title="Image model"
-                className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] transition-colors ${
                   preference.mode === "manual" || videoPreference.mode === "manual"
-                    ? "bg-accent/20 text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "border-accent bg-accent/20 text-accent-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <svg className="h-[14px] w-[14px]" viewBox="0 0 24 24" fill="currentColor">
@@ -314,14 +314,18 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           <button
             onClick={handleSubmit}
             disabled={disabled || !hasContent || isUploading}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-80 disabled:opacity-20 disabled:cursor-not-allowed"
+            className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#2F3640] text-white transition-colors hover:bg-[#4A535F] active:bg-[#191E26] disabled:opacity-20 disabled:cursor-not-allowed"
           >
             <svg
-              className="h-3.5 w-3.5"
-              viewBox="0 0 16 16"
-              fill="currentColor"
+              className="h-[14px] w-[14px]"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
             >
-              <path d="M3 14V2l11 6z" />
+              <path d="M7 11.5V2.5" />
+              <path d="M3 6.5L7 2.5L11 6.5" />
             </svg>
           </button>
         </div>
