@@ -333,7 +333,11 @@ export function ChatSidebar({
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
-      if (sessionId === activeSessionIdRef.current || streaming) return;
+      if (sessionId === activeSessionIdRef.current) return;
+      // Allow switching even while streaming — the run continues server-side
+      // and results are persisted. When the user switches back, fetchMessages
+      // will load the completed (or partial) response from DB.
+      if (streaming) setStreaming(false);
       setActiveSessionId(sessionId);
       onSessionChangeRef.current?.(sessionId);
       setMessages([]);
@@ -354,7 +358,7 @@ export function ChatSidebar({
   );
 
   const handleNewChat = useCallback(async () => {
-    if (streaming) return;
+    if (streaming) setStreaming(false);
     try {
       const res = await createSession(accessTokenRef.current, canvasId);
       setSessions((prev) => [res.session, ...prev]);
