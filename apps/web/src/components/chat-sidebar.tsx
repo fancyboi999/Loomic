@@ -760,8 +760,17 @@ export function ChatSidebar({
           .map((b) => b.text)
           .join("");
 
-        // Assistant message is now persisted server-side in handler.ts
-        // after the stream completes, so no client-side save needed.
+        // Persist assistant message (client-side backup — server also saves in handler.ts,
+        // but we keep this as a safety net in case the server-side persist fails).
+        if (flatContent || finalBlocks.length > 0) {
+          saveMessage(accessTokenRef.current, currentSessionId, {
+            role: "assistant",
+            content: flatContent,
+            contentBlocks: finalBlocks,
+          }).catch((err) =>
+            console.error("[chat] Failed to save assistant message:", err),
+          );
+        }
       } catch {
         setMessages((prev) =>
           prev.map((m) => {
