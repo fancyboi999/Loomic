@@ -158,7 +158,7 @@ export function createChatService(options: {
         throw new ChatServiceError("chat_error", "Failed to list messages.", 500);
       }
 
-      return (data ?? []).map((row) => {
+      const rows = (data ?? []).map((row) => {
         const contentBlocks =
           Array.isArray(row.content_blocks) && row.content_blocks.length > 0
             ? (row.content_blocks as ContentBlock[])
@@ -176,6 +176,15 @@ export function createChatService(options: {
           createdAt: row.created_at,
         };
       });
+
+      // Deduplicate consecutive messages with same role + content
+      // (caused by dual client+server save in earlier versions)
+      return rows.filter(
+        (msg, i) =>
+          i === 0 ||
+          msg.role !== rows[i - 1].role ||
+          msg.content !== rows[i - 1].content,
+      );
     },
 
     async createMessage(user, sessionId, input) {

@@ -750,27 +750,8 @@ export function ChatSidebar({
         await streamDone;
         cleanup();
 
-        // Derive flat content + full blocks from the final message state
-        const finalMsg = messagesRef.current.find(
-          (m) => m.id === assistantId,
-        );
-        const finalBlocks = finalMsg?.contentBlocks ?? [];
-        const flatContent = finalBlocks
-          .filter((b): b is TextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("");
-
-        // Persist assistant message (client-side backup — server also saves in handler.ts,
-        // but we keep this as a safety net in case the server-side persist fails).
-        if (flatContent || finalBlocks.length > 0) {
-          saveMessage(accessTokenRef.current, currentSessionId, {
-            role: "assistant",
-            content: flatContent,
-            contentBlocks: finalBlocks,
-          }).catch((err) =>
-            console.error("[chat] Failed to save assistant message:", err),
-          );
-        }
+        // Assistant message is persisted server-side in handler.ts after the run completes.
+        // No client-side save needed — dual save caused duplicate messages in DB.
       } catch {
         setMessages((prev) =>
           prev.map((m) => {
