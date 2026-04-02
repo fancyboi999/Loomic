@@ -14,7 +14,7 @@ import {
 } from "../../lib/canvas-video-generator";
 import {
   createExcalidrawImageElement,
-  fetchAsDataURL,
+  extractVideoPosterFrame,
 } from "../../lib/canvas-elements";
 
 type VideoGeneratorPanelProps = {
@@ -176,14 +176,14 @@ export function VideoGeneratorPanel({
         },
       );
 
-      // Download poster frame and insert as image element on canvas
+      // Extract poster frame from video and insert as image element on canvas
       // Video displays as an image element with videoUrl in customData
-      const dataURL = await fetchAsDataURL(result.url);
+      const posterDataURL = await extractVideoPosterFrame(result.url);
       const fileId = generateId();
       excalidrawApi.addFiles([
         {
           id: fileId,
-          dataURL,
+          dataURL: posterDataURL,
           mimeType: "image/png",
           created: Date.now(),
         },
