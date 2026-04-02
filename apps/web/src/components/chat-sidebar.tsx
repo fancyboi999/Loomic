@@ -691,7 +691,12 @@ export function ChatSidebar({
           setStreaming(true);
 
           const assistantId = `resumed_${activeRunId}`;
-          setMessages((prev) => {
+          // Must use updateSessionMessages (not setMessages) so the placeholder
+          // lands in msgCacheRef as well as React state. applyStreamEvent reads
+          // from the cache — if the placeholder only lives in React state, stream
+          // events can't find it and the first updateSessionMessages call
+          // overwrites state back to the stale cache (losing the placeholder).
+          updateSessionMessages(sessionId, (prev) => {
             if (prev.some((m) => m.id === assistantId)) return prev;
             return [
               ...prev,
@@ -754,7 +759,7 @@ export function ChatSidebar({
     onCanvasSync,
     activeSessionIdRef,
     reloadMessages,
-    setMessages,
+    updateSessionMessages,
     setStreaming,
     initialPrompt,
   ]);
