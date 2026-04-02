@@ -1,6 +1,7 @@
 // @credits-system — Tier enforcement: model access, resolution limits, concurrency guards per plan
 import type {
   BackgroundJobType,
+  BillingErrorCode,
   ImageQualityLevel,
   SubscriptionPlan,
   VideoResolution,
@@ -18,12 +19,11 @@ import type { AdminSupabaseClient } from "../../supabase/admin.js";
 
 // ── Error ────────────────────────────────────────────────────
 
+export type TierGuardErrorCode = Exclude<BillingErrorCode, "insufficient_credits">;
+
 export class TierGuardError extends Error {
   readonly statusCode: number;
-  readonly code:
-    | "model_not_accessible"
-    | "resolution_not_allowed"
-    | "concurrency_limit";
+  readonly code: TierGuardErrorCode;
 
   constructor(
     code: TierGuardError["code"],

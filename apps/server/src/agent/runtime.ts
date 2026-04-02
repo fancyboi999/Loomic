@@ -28,8 +28,8 @@ import type { ConnectionManager } from "../ws/connection-manager.js";
 import type { SubmitImageJobFn } from "./tools/image-generate.js";
 import type { SubmitVideoJobFn } from "./tools/video-generate.js";
 import type { CreditService } from "../features/credits/credit-service.js";
-import type { TierGuard } from "../features/credits/tier-guard.js";
-import { getPlanConfig, type ImageQualityLevel } from "@loomic/shared";
+import { TierGuardError, type TierGuard } from "../features/credits/tier-guard.js";
+import { getPlanConfig, type BillingErrorCode, type ImageQualityLevel } from "@loomic/shared";
 import { createAgentBackend } from "./backends/index.js";
 import {
   type LoomicAgent,
@@ -254,6 +254,38 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           : {}),
       }));
 
+  // ── Billing error helper: push WS event + abort run ──────────
+  function pushBillingErrorAndAbort(
+    run: { runId: string; conversationId: string; controller: AbortController },
+    canvasId: string | undefined,
+    opts: { connectionManager?: ConnectionManager },
+    code: BillingErrorCode,
+    message: string,
+    extra?: {
+      currentBalance?: number;
+      requiredAmount?: number;
+      plan?: string;
+      dailyClaimed?: boolean;
+    },
+  ): void {
+    const canvasTarget = canvasId ?? run.conversationId;
+    if (!opts.connectionManager || !canvasTarget) {
+      console.warn(`[billing] pushBillingErrorAndAbort: no connectionManager or canvasTarget, billing.error (${code}) not sent to client`);
+    } else {
+      opts.connectionManager.pushToCanvas(canvasTarget, {
+        type: "billing.error",
+        runId: run.runId,
+        timestamp: new Date().toISOString(),
+        code,
+        message,
+        ...extra,
+      });
+    }
+    if (!run.controller.signal.aborted) {
+      run.controller.abort();
+    }
+  }
+
   return {
     cancelRun(runId: string): RunCancelResponse | null {
       const run = runs.get(runId);
@@ -411,11 +443,17 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           if (options.creditService && options.tierGuard) {
             const sub = await options.creditService.getSubscription(workspaceId);
             const quality = (input.quality as ImageQualityLevel) ?? "hd";
-            options.tierGuard.checkModelAccess(sub.plan, input.model);
-            // Throws TierGuardError if plan doesn't allow this quality —
-            // propagates as tool error so the LLM informs the user to upgrade.
-            options.tierGuard.checkResolution(sub.plan, quality);
-            await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
+            try {
+              options.tierGuard.checkModelAccess(sub.plan, input.model);
+              options.tierGuard.checkResolution(sub.plan, quality);
+              await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
+            } catch (err) {
+              if (err instanceof TierGuardError) {
+                pushBillingErrorAndAbort(run, canvasId, options, err.code, err.message);
+                throw err;
+              }
+              throw err;
+            }
             creditsCost = options.tierGuard.calculateCreditCost(input.model, "image_generation", { quality });
           }
 
@@ -423,19 +461,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           if (options.creditService && creditsCost > 0) {
             const balanceInfo = await options.creditService.getBalance(workspaceId);
             if (balanceInfo.balance < creditsCost) {
-              const canvasTarget = canvasId ?? run.conversationId;
-              if (options.connectionManager && canvasTarget) {
-                options.connectionManager.pushToCanvas(canvasTarget, {
-                  type: "credits.insufficient",
-                  runId: run.runId,
-                  timestamp: new Date().toISOString(),
-                  currentBalance: balanceInfo.balance,
-                  requiredAmount: creditsCost,
-                  plan: balanceInfo.plan,
-                  dailyClaimed: balanceInfo.dailyClaimed,
-                });
-              }
-              run.controller.abort();
+              pushBillingErrorAndAbort(run, canvasId, options, "insufficient_credits", "Insufficient credits", {
+                currentBalance: balanceInfo.balance,
+                requiredAmount: creditsCost,
+                plan: balanceInfo.plan,
+                dailyClaimed: balanceInfo.dailyClaimed,
+              });
               throw new Error("Insufficient credits");
             }
           }
@@ -556,12 +587,19 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           let creditsCost = 0;
           if (options.creditService && options.tierGuard) {
             const sub = await options.creditService.getSubscription(workspaceId);
-            options.tierGuard.checkModelAccess(sub.plan, input.model);
-            // Throws TierGuardError if plan doesn't allow this video resolution
-            if (input.resolution) {
-              options.tierGuard.checkVideoResolution(sub.plan, input.resolution as any);
+            try {
+              options.tierGuard.checkModelAccess(sub.plan, input.model);
+              if (input.resolution) {
+                options.tierGuard.checkVideoResolution(sub.plan, input.resolution as any);
+              }
+              await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
+            } catch (err) {
+              if (err instanceof TierGuardError) {
+                pushBillingErrorAndAbort(run, canvasId, options, err.code, err.message);
+                throw err;
+              }
+              throw err;
             }
-            await options.tierGuard.checkConcurrency(workspaceId, sub.plan);
             creditsCost = options.tierGuard.calculateCreditCost(
               input.model, "video_generation",
               {
@@ -575,19 +613,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           if (options.creditService && creditsCost > 0) {
             const balanceInfo = await options.creditService.getBalance(workspaceId);
             if (balanceInfo.balance < creditsCost) {
-              const canvasTarget = canvasId ?? run.conversationId;
-              if (options.connectionManager && canvasTarget) {
-                options.connectionManager.pushToCanvas(canvasTarget, {
-                  type: "credits.insufficient",
-                  runId: run.runId,
-                  timestamp: new Date().toISOString(),
-                  currentBalance: balanceInfo.balance,
-                  requiredAmount: creditsCost,
-                  plan: balanceInfo.plan,
-                  dailyClaimed: balanceInfo.dailyClaimed,
-                });
-              }
-              run.controller.abort();
+              pushBillingErrorAndAbort(run, canvasId, options, "insufficient_credits", "Insufficient credits", {
+                currentBalance: balanceInfo.balance,
+                requiredAmount: creditsCost,
+                plan: balanceInfo.plan,
+                dailyClaimed: balanceInfo.dailyClaimed,
+              });
               throw new Error("Insufficient credits");
             }
           }
