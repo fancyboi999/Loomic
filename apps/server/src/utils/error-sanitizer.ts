@@ -17,8 +17,25 @@ export function sanitizeErrorForClient(error: unknown): string {
 
   // Log full detail server-side for debugging
   console.error("[error-sanitizer] Raw error:", raw);
-  if (error instanceof Error && error.stack) {
-    console.error("[error-sanitizer] Stack:", error.stack);
+  if (error instanceof Error) {
+    // Log nested cause chain (LangChain wraps errors multiple levels deep)
+    let cause = (error as any).cause;
+    while (cause) {
+      console.error("[error-sanitizer] Caused by:", cause.message ?? cause);
+      cause = cause.cause;
+    }
+    // Log response details if present (Google API errors attach response/details)
+    const errAny = error as any;
+    if (errAny.response) {
+      console.error("[error-sanitizer] Response status:", errAny.response.status);
+      console.error("[error-sanitizer] Response data:", JSON.stringify(errAny.response.data ?? errAny.response.body ?? "").substring(0, 2000));
+    }
+    if (errAny.details) {
+      console.error("[error-sanitizer] Details:", JSON.stringify(errAny.details).substring(0, 2000));
+    }
+    if (error.stack) {
+      console.error("[error-sanitizer] Stack:", error.stack);
+    }
   }
 
   // Map to user-friendly messages
