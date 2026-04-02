@@ -356,7 +356,7 @@ export async function insertVideoOnCanvas(
     y,
     width,
     height,
-    title: artifact.title,
+    ...(artifact.title ? { title: artifact.title } : {}),
   });
 
   element.customData = {
