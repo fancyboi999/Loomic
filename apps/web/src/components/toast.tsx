@@ -103,7 +103,7 @@ const variantStyles: Record<ToastVariant, { bg: string; icon: ReactNode }> = {
   success: {
     bg: "bg-[#0E1014] text-white",
     icon: (
-      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-neutral-400">
+      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-success">
         <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
       </svg>
     ),
@@ -111,7 +111,7 @@ const variantStyles: Record<ToastVariant, { bg: string; icon: ReactNode }> = {
   error: {
     bg: "bg-[#0E1014] text-white",
     icon: (
-      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-red-400">
+      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-destructive">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM7.25 4.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5ZM8 11.5A.75.75 0 1 1 8 10a.75.75 0 0 1 0 1.5Z" />
       </svg>
     ),
@@ -119,7 +119,7 @@ const variantStyles: Record<ToastVariant, { bg: string; icon: ReactNode }> = {
   info: {
     bg: "bg-[#0E1014] text-white",
     icon: (
-      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-neutral-500">
+      <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 shrink-0 text-info">
         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM7.25 4.5a.75.75 0 0 1 1.5 0v.5a.75.75 0 0 1-1.5 0v-.5ZM6.75 7.75A.75.75 0 0 1 7.5 7h.25a.75.75 0 0 1 .75.75v3h.25a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1 0-1.5H7.5V8.5h-.25a.75.75 0 0 1-.75-.75Z" />
       </svg>
     ),

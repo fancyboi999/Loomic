@@ -39,7 +39,7 @@ export function CanvasAIToolbar({
           }
           className={`flex items-center justify-center h-8 w-8 rounded-lg text-sm transition-colors cursor-pointer ${
             activePanel === "image"
-              ? "bg-neutral-200 text-neutral-900"
+              ? "bg-accent text-accent-foreground"
               : "text-foreground/60 hover:bg-muted hover:text-foreground"
           }`}
           title="AI Image"

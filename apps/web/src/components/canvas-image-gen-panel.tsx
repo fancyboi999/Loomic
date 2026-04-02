@@ -58,7 +58,7 @@ export function CanvasImageGenPanel({
   }, [prompt, loading, excalidrawApi, handleGenerationError]);
 
   return (
-    <div className="w-80 rounded-xl bg-white shadow-xl border border-neutral-200 p-4">
+    <div className="w-80 rounded-xl bg-card shadow-xl border border-border p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#2F3640]">AI Image</h3>
         <button
@@ -82,7 +82,7 @@ export function CanvasImageGenPanel({
           }
         }}
         placeholder="Describe the image you want to create..."
-        className="w-full h-20 resize-none rounded-lg border border-neutral-200 px-3 py-2 text-sm text-[#2F3640] placeholder:text-[#A4A9B2] focus:outline-none focus:ring-1 focus:ring-neutral-400"
+        className="w-full h-20 resize-none rounded-lg border border-border px-3 py-2 text-sm text-[#2F3640] placeholder:text-[#A4A9B2] focus:outline-none focus:ring-1 focus:ring-ring"
         disabled={loading}
       />
 
