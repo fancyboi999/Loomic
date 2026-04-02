@@ -97,6 +97,26 @@ function buildVideoGenerateSchema(models: AvailableModel[]) {
       .describe(
         "Generate synchronized audio (dialogue, sound effects, ambient). Not all models support this — ignored for models without audio capability.",
       ),
+    placementX: z
+      .number()
+      .optional()
+      .describe(
+        "Canvas X coordinate for video placement. Use inspect_canvas to find a good position.",
+      ),
+    placementY: z
+      .number()
+      .optional()
+      .describe(
+        "Canvas Y coordinate for video placement. Use inspect_canvas to find a good position.",
+      ),
+    placementWidth: z
+      .number()
+      .optional()
+      .describe("Width on canvas (default: 640)"),
+    placementHeight: z
+      .number()
+      .optional()
+      .describe("Height on canvas (default: 360)"),
   });
 }
 
@@ -111,6 +131,7 @@ type VideoGenerateResult = {
   width?: number;
   height?: number;
   durationSeconds?: number;
+  placement?: { x: number; y: number; width: number; height: number };
   error?: string;
 };
 
@@ -157,7 +178,7 @@ export async function runVideoGenerate(
       }
       lap("job_complete", { jobId: jobResult.jobId });
 
-      return {
+      const result: VideoGenerateResult = {
         summary: `Generated ${jobResult.durationSeconds ?? input.duration}s video (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
         videoUrl: jobResult.videoUrl,
         mimeType: jobResult.mimeType ?? "video/mp4",
@@ -165,6 +186,15 @@ export async function runVideoGenerate(
         height: jobResult.height,
         durationSeconds: jobResult.durationSeconds,
       };
+      if (input.placementX != null && input.placementY != null) {
+        result.placement = {
+          x: input.placementX,
+          y: input.placementY,
+          width: input.placementWidth ?? 640,
+          height: input.placementHeight ?? 360,
+        };
+      }
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       return {
@@ -190,7 +220,7 @@ export async function runVideoGenerate(
     });
     lap("direct_generate_done");
 
-    return {
+    const directResult: VideoGenerateResult = {
       summary: `Generated ${result.durationSeconds}s video (${result.width}x${result.height}) via ${input.model}`,
       videoUrl: result.url,
       mimeType: result.mimeType,
@@ -198,6 +228,15 @@ export async function runVideoGenerate(
       height: result.height,
       durationSeconds: result.durationSeconds,
     };
+    if (input.placementX != null && input.placementY != null) {
+      directResult.placement = {
+        x: input.placementX,
+        y: input.placementY,
+        width: input.placementWidth ?? 640,
+        height: input.placementHeight ?? 360,
+      };
+    }
+    return directResult;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return {

@@ -457,6 +457,9 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
     if (typeof record.summary === "string") {
       candidate.title = record.summary.slice(0, 100);
     }
+    if (record.placement && typeof record.placement === "object") {
+      candidate.placement = record.placement;
+    }
     const result = videoArtifactSchema.safeParse(candidate);
     if (result.success) {
       artifacts.push(result.data);
