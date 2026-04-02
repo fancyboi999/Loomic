@@ -136,6 +136,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
       screenY: number;
       screenW: number;
       screenH: number;
+      model?: string;
     }>
   >([]);
 
@@ -286,6 +287,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
             screenY: ((el.y as number) + scrollY) * zoom,
             screenW: (el.width as number) * zoom,
             screenH: (el.height as number) * zoom,
+            ...(el.customData?.model ? { model: el.customData.model as string } : {}),
           }));
         setGeneratingElements(generating);
       },
@@ -493,7 +495,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
                   zIndex: 99,
                 }}
               >
-                {/* Mountain icon placeholder */}
+                {/* Mountain icon placeholder with model name */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F3F4F6]">
                   <svg
                     className="h-12 w-12 text-[#D1D5DB]"
@@ -502,6 +504,11 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
                   >
                     <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                   </svg>
+                  {el.model && (
+                    <span className="mt-2 rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-medium text-[#6B7280]">
+                      {el.model.split("/").pop()?.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                    </span>
+                  )}
                   <span className="mt-1 text-[11px] text-[#9CA3AF]">
                     Generating...
                   </span>

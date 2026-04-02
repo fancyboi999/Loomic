@@ -590,6 +590,15 @@ function getToolConfig(toolName: string) {
   return TOOL_CONFIG[toolName] ?? { label: formatToolName(toolName), icon: "tool", showCard: true };
 }
 
+/** Format raw model ID to human-readable name: "google/nano-banana-pro" → "Nano Banana Pro" */
+function formatModelDisplayName(model: string): string {
+  const slug = model.split("/").pop() ?? model;
+  return slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 /* ------------------------------------------------------------------ */
 /*  ToolIcon                                                           */
 /* ------------------------------------------------------------------ */
@@ -648,10 +657,15 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
   const previewLines = hasOutput ? formatOutputPreview(block.output!) : [];
   const showCard = config.showCard && isCompleted && (block.outputSummary || hasOutput);
 
-  // Extract image artifact for generate_image inline preview
+  // Extract artifacts for generate_image / generate_video inline preview
   const imageArtifact = block.artifacts?.find((a) => a.type === "image");
   const isImageTool = block.toolName === "generate_image";
-  const modelName = (block.input as Record<string, unknown> | undefined)?.model as string | undefined;
+  const isVideoTool = block.toolName === "generate_video";
+  const isMediaTool = isImageTool || isVideoTool;
+  const inputData = block.input as Record<string, unknown> | undefined;
+  const modelName = inputData?.model as string | undefined;
+  // Use agent-specified aspect ratio for shimmer placeholder, fall back to sensible defaults
+  const aspectRatio = (inputData?.aspectRatio as string) ?? (isVideoTool ? "16:9" : "1:1");
 
   const handleOpenPanel = () => {
     const rect = findSidebarRect(containerRef.current);
@@ -673,13 +687,54 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
           </svg>
         )}
         <span className="font-medium text-muted-foreground">
-          {isImageTool && modelName
-            ? modelName.split("/").pop() ?? config.label
+          {isMediaTool && modelName
+            ? formatModelDisplayName(modelName)
             : config.label}
         </span>
       </div>
 
-      {/* Layer 2: Image generation card — special layout with inline preview */}
+      {/* Layer 2a: Media generation shimmer placeholder — shown while generating (image or video) */}
+      {isMediaTool && !isCompleted && (
+        <div className="rounded-xl border-[0.5px] border-border overflow-hidden">
+          {/* Shimmer area — uses actual aspect ratio from tool input */}
+          <div className="relative w-full max-h-[280px] overflow-hidden" style={{ aspectRatio: aspectRatio.replace(":", " / ") }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-100">
+              {isVideoTool ? (
+                <svg className="h-10 w-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+              ) : (
+                <svg className="h-10 w-10 text-neutral-300" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+              )}
+            </div>
+            {/* Shimmer scan effect */}
+            <div className="absolute inset-0 animate-shimmer-scan">
+              <div
+                className="h-full w-1/2"
+                style={{
+                  background:
+                    "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+                }}
+              />
+            </div>
+          </div>
+          {/* Model info footer */}
+          <div className="px-3 py-2">
+            <div className="text-[12px] font-medium text-muted-foreground/70">
+              {isVideoTool ? "视频生成中..." : "图片生成中..."}
+            </div>
+            {modelName && (
+              <div className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                {formatModelDisplayName(modelName)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Layer 2b: Image generation card — special layout with inline preview */}
       {isImageTool && isCompleted && imageArtifact ? (
         <div
           className="group cursor-pointer rounded-xl border-[0.5px] border-border overflow-hidden transition-shadow hover:shadow-md"
@@ -726,7 +781,7 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
             </div>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               {modelName && (
-                <span className="truncate">{modelName.split("/").pop()}</span>
+                <span className="truncate">{formatModelDisplayName(modelName)}</span>
               )}
               {hasDetails && (
                 <>
