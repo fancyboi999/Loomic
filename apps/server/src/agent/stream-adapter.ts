@@ -12,6 +12,8 @@ import {
 import { imageArtifactSchema, videoArtifactSchema } from "@loomic/shared";
 import type { StreamEvent, ToolArtifact } from "@loomic/shared";
 
+import { sanitizeErrorForClient } from "../utils/error-sanitizer.js";
+
 /**
  * Shape of a LangChain v2 stream event from `streamEvents()`.
  */
@@ -266,11 +268,16 @@ export async function* adaptDeepAgentStream(
       return;
     }
 
+    // Log full error detail server-side
+    console.error(
+      `[stream-adapter] Stream error for run ${options.runId}:`,
+      error,
+    );
+
     yield {
       error: {
         code: "run_failed",
-        message:
-          error instanceof Error ? error.message : "Deep agent stream failed.",
+        message: sanitizeErrorForClient(error),
       },
       runId: options.runId,
       timestamp: now(),

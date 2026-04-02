@@ -39,6 +39,7 @@ import {
 } from "./deep-agent.js";
 import type { AgentPersistenceService } from "./persistence/index.js";
 import { adaptDeepAgentStream } from "./stream-adapter.js";
+import { sanitizeErrorForClient } from "../utils/error-sanitizer.js";
 import { loadWorkspaceSkills, type WorkspaceSkillEntry } from "./workspace-skills.js";
 
 /**
@@ -1072,11 +1073,13 @@ function toFailedEvent(
   now: () => string,
   error: unknown,
 ): StreamEvent {
+  // Log full error detail server-side
+  console.error(`[runtime] Agent run failed for run ${runId}:`, error);
+
   return {
     error: {
       code: "run_failed",
-      message:
-        error instanceof Error ? error.message : "Deep agent runtime failed.",
+      message: sanitizeErrorForClient(error),
     },
     runId,
     timestamp: now(),
