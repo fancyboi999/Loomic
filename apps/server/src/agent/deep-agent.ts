@@ -1,10 +1,11 @@
 import type { BaseCheckpointSaver, BaseStore } from "@langchain/langgraph-checkpoint";
 import type { BaseLanguageModel } from "@langchain/core/language_models/base";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatVertexAI } from "@langchain/google-vertexai";
 import { ChatOpenAI } from "@langchain/openai";
 import { createDeepAgent } from "deepagents";
 
-import type { ServerEnv } from "../config/env.js";
+import { DEFAULT_AGENT_MODEL, type ServerEnv } from "../config/env.js";
 import type { ConnectionManager } from "../ws/connection-manager.js";
 import { createAgentBackend, type AgentBackendResult } from "./backends/index.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
@@ -115,20 +116,25 @@ export function createLoomicDeepAgent(options: {
  * Supported providers:
  * - `openai` (default) — uses ChatOpenAI with `streamUsage: false` to work
  *   around the one-api proxy stripping `delta.role` from chunks.
- * - `google` — uses ChatGoogleGenerativeAI (Google AI Studio, direct connection).
+ * - `google` — uses ChatGoogleGenerativeAI (Google AI Studio, API Key) or
+ *   ChatVertexAI (Vertex AI, service account) depending on available config.
  */
 function createStreamingChatModel(specifier: string): BaseLanguageModel {
   const colonIdx = specifier.indexOf(":");
   let provider = colonIdx > 0 ? specifier.slice(0, colonIdx) : "openai";
   let modelName = colonIdx > 0 ? specifier.slice(colonIdx + 1) : specifier;
 
+  const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
+  const hasVertexAI = !!(process.env.GOOGLE_VERTEX_PROJECT && process.env.GOOGLE_VERTEX_LOCATION);
+  const hasGoogle = hasGoogleApiKey || hasVertexAI;
+
   // Provider availability fallback
-  if (provider === "google" && !process.env.GOOGLE_API_KEY) {
-    console.warn(`[model] Google unavailable (no GOOGLE_API_KEY), falling back to OpenAI for: ${specifier}`);
+  if (provider === "google" && !hasGoogle) {
+    console.warn(`[model] Google unavailable (no GOOGLE_API_KEY or Vertex AI config), falling back to OpenAI for: ${specifier}`);
     provider = "openai";
     modelName = DEFAULT_AGENT_MODEL;
   }
-  if (provider === "openai" && !process.env.OPENAI_API_KEY && process.env.GOOGLE_API_KEY) {
+  if (provider === "openai" && !process.env.OPENAI_API_KEY && hasGoogle) {
     console.warn(`[model] OpenAI unavailable (no OPENAI_API_KEY), falling back to Google for: ${specifier}`);
     provider = "google";
     modelName = "gemini-2.5-flash";
@@ -136,9 +142,21 @@ function createStreamingChatModel(specifier: string): BaseLanguageModel {
 
   switch (provider) {
     case "google":
+      // Prefer Vertex AI (service account) when configured; fall back to Developer API key
+      if (hasVertexAI) {
+        const vertexProject = process.env.GOOGLE_VERTEX_PROJECT!;
+        const vertexLocation = process.env.GOOGLE_VERTEX_LOCATION!;
+        console.log(`[model] Using Vertex AI for: ${modelName} (project=${vertexProject}, location=${vertexLocation})`);
+        return new ChatVertexAI({
+          model: modelName,
+          location: vertexLocation,
+          authOptions: { projectId: vertexProject },
+          streaming: true,
+        });
+      }
       return new ChatGoogleGenerativeAI({
         model: modelName,
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: process.env.GOOGLE_API_KEY!,
         streaming: true,
         thinkingConfig: {
           includeThoughts: true,

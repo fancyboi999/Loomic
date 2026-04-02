@@ -57,12 +57,20 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
     });
     lap("replicate_call_done");
 
-    const response = await fetch(generated.url);
-    if (!response.ok) {
-      throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+    // Vertex AI returns inline base64 data URIs; Developer API returns HTTP URLs.
+    let buffer: Buffer;
+    if (generated.url.startsWith("data:")) {
+      const commaIdx = generated.url.indexOf(",");
+      if (commaIdx === -1) throw new Error("Invalid data URI: no comma separator");
+      buffer = Buffer.from(generated.url.slice(commaIdx + 1), "base64");
+    } else {
+      const response = await fetch(generated.url);
+      if (!response.ok) {
+        throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     lap("video_download_done");
 
     const ext = generated.mimeType === "video/webm" ? "webm" : "mp4";

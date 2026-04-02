@@ -65,4 +65,16 @@ COPY skills/ /opt/loomic/skills/
 # SERVICE_MODE: "api" (default) or "worker"
 ENV SERVICE_MODE=api
 
-CMD ["sh", "-c", "if [ \"$SERVICE_MODE\" = \"worker\" ]; then exec node --import tsx src/worker.ts; else exec node --import tsx src/server.ts; fi"]
+# Write Google service account JSON from env var to file (for Vertex AI auth in cloud).
+# Set GOOGLE_SERVICE_ACCOUNT_JSON in Railway/cloud env vars with the full JSON content.
+CMD ["sh", "-c", "\
+  if [ -n \"$GOOGLE_SERVICE_ACCOUNT_JSON\" ]; then \
+    mkdir -p /app/apps/server/credentials && \
+    echo \"$GOOGLE_SERVICE_ACCOUNT_JSON\" > /app/apps/server/credentials/vertex-ai-service-account.json && \
+    export GOOGLE_APPLICATION_CREDENTIALS=/app/apps/server/credentials/vertex-ai-service-account.json; \
+  fi && \
+  if [ \"$SERVICE_MODE\" = \"worker\" ]; then \
+    exec node --import tsx src/worker.ts; \
+  else \
+    exec node --import tsx src/server.ts; \
+  fi"]

@@ -7,6 +7,8 @@
  */
 import type { ServerEnv } from "../../config/env.js";
 import { GoogleImageProvider } from "./google-image.js";
+import { GoogleVertexImageProvider } from "./google-vertex-image.js";
+import { GoogleVertexVideoProvider } from "./google-vertex-video.js";
 import { GoogleVideoProvider } from "./google-video.js";
 import { OpenAIImageProvider } from "./openai-image.js";
 import { registerImageProvider, registerVideoProvider } from "./registry.js";
@@ -28,10 +30,20 @@ export function registerAllProviders(env: ServerEnv): void {
     registerVideoProvider(new ReplicateVideoProvider(env.replicateApiToken));
   }
 
-  // Google — image + video
+  // Google Developer API — image + video
   if (env.googleApiKey) {
     registerImageProvider(new GoogleImageProvider(env.googleApiKey));
     registerVideoProvider(new GoogleVideoProvider(env.googleApiKey));
+  }
+
+  // Google Vertex AI — image + video (coexists with Developer API)
+  if (env.googleVertexProject && env.googleVertexLocation) {
+    const vertexConfig = {
+      project: env.googleVertexProject,
+      location: env.googleVertexLocation,
+    };
+    registerImageProvider(new GoogleVertexImageProvider(vertexConfig));
+    registerVideoProvider(new GoogleVertexVideoProvider(vertexConfig));
   }
 
   // OpenAI — image only

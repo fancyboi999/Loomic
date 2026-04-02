@@ -37,6 +37,9 @@ yarn-error.log*
 .env
 .env.cloud
 
+# service account credentials (never commit)
+**/credentials/*.json
+
 # vercel
 .vercel
 

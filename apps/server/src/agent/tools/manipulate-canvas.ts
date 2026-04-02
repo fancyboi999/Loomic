@@ -5,116 +5,73 @@ import { z } from "zod";
 // Schema
 // ---------------------------------------------------------------------------
 
-// Models sometimes emit color values as numbers instead of hex strings.
-// This helper coerces numeric colors to "#RRGGBB" so validation doesn't fail.
-const colorString = (defaultVal: string) =>
-  z.preprocess(
-    (v) => {
-      if (typeof v === "number") return `#${v.toString(16).padStart(6, "0")}`;
-      return v;
-    },
-    z.string().default(defaultVal),
-  );
+// Note: color coercion (number → hex string) moved to runtime handler.
+// Gemini cannot represent z.preprocess/z.transform in JSON Schema.
 
 const labelSchema = z
   .object({
     text: z.string().min(1).describe("Label text centered inside the shape"),
     fontSize: z.number().default(20).describe("Label font size"),
-    strokeColor: colorString("#000000").describe("Label text color"),
+    strokeColor: z.string().default("#000000").describe("Label text color hex"),
   })
   .optional()
   .describe("Optional centered text label inside the shape");
 
-// Use z.union + z.enum instead of z.discriminatedUnion + z.literal
-// because Gemini API doesn't support JSON Schema "const" keyword.
-const operationSchema = z.union([
-  z.object({
-    action: z.enum(["move"]).describe("Move an element"),
-    element_id: z.string().describe("ID of element to move"),
-    x: z.number().describe("New x coordinate (left edge)"),
-    y: z.number().describe("New y coordinate (top edge)"),
-  }),
-  z.object({
-    action: z.enum(["resize"]).describe("Resize an element"),
-    element_id: z.string().describe("ID of element to resize"),
-    width: z.number().min(1).describe("New width"),
-    height: z.number().min(1).describe("New height"),
-  }),
-  z.object({
-    action: z.enum(["delete"]).describe("Delete an element"),
-    element_id: z.string().describe("ID of element to delete"),
-  }),
-  z.object({
-    action: z.enum(["update_style"]).describe("Update element style"),
-    element_id: z.string().describe("ID of element to update"),
-    strokeColor: z.preprocess((v) => (typeof v === "number" ? `#${v.toString(16).padStart(6, "0")}` : v), z.string().optional()).describe("Stroke color hex, e.g. #FF0000"),
-    backgroundColor: z.preprocess((v) => (typeof v === "number" ? `#${v.toString(16).padStart(6, "0")}` : v), z.string().optional()).describe("Fill color hex"),
-    opacity: z.number().min(0).max(100).optional().describe("Opacity 0-100"),
-    fontSize: z.number().optional().describe("Font size (text elements only)"),
-    strokeWidth: z.number().optional().describe("Stroke width"),
-  }),
-  z.object({
-    action: z.enum(["add_text"]).describe("Add a text element"),
-    text: z.string().min(1).describe("Text content"),
-    x: z.number().describe("X coordinate"),
-    y: z.number().describe("Y coordinate"),
-    fontSize: z.number().default(20).describe("Font size"),
-    strokeColor: colorString("#000000").describe("Text color hex"),
-  }),
-  z.object({
-    action: z.enum(["add_shape"]).describe("Add a shape element"),
-    shape: z.enum(["rectangle", "ellipse", "diamond"]).describe("Shape type"),
-    x: z.number().describe("X coordinate"),
-    y: z.number().describe("Y coordinate"),
-    width: z.number().min(1).describe("Width"),
-    height: z.number().min(1).describe("Height"),
-    strokeColor: colorString("#000000").describe("Stroke color hex"),
-    backgroundColor: colorString("transparent").describe("Fill color hex"),
-    fillStyle: z
-      .enum(["solid", "hachure", "cross-hatch"])
-      .default("solid")
-      .describe("Fill style"),
-    label: labelSchema,
-  }),
-  z.object({
-    action: z.enum(["add_line"]).describe("Add a line or arrow"),
-    line_type: z.enum(["line", "arrow"]).default("arrow").describe("Line or arrow"),
-    points: z
-      .array(z.object({ x: z.number(), y: z.number() }))
-      .min(2)
-      .optional()
-      .describe("Array of {x, y} points. Optional when using element bindings."),
-    x: z.number().optional().describe("Starting x offset. Auto-computed when using bindings."),
-    y: z.number().optional().describe("Starting y offset. Auto-computed when using bindings."),
-    strokeColor: colorString("#000000").describe("Stroke color hex"),
-    strokeWidth: z.number().default(2).describe("Stroke width"),
-    start_element_id: z
-      .string()
-      .optional()
-      .describe("ID of element to bind arrow start to (auto-computes connection point)"),
-    end_element_id: z
-      .string()
-      .optional()
-      .describe("ID of element to bind arrow end to (auto-computes connection point)"),
-  }),
-  z.object({
-    action: z.enum(["reorder"]).describe("Reorder element z-index"),
-    element_id: z.string().describe("ID of element to reorder"),
-    position: z.enum(["front", "back"]).describe("Bring to front or send to back"),
-  }),
-  z.object({
-    action: z.enum(["align"]).describe("Align multiple elements"),
-    element_ids: z.array(z.string()).min(2).describe("IDs of elements to align"),
-    alignment: z
-      .enum(["left", "right", "center", "top", "bottom", "middle"])
-      .describe("Alignment direction"),
-  }),
-  z.object({
-    action: z.enum(["distribute"]).describe("Distribute elements evenly"),
-    element_ids: z.array(z.string()).min(3).describe("IDs of elements to distribute (>= 3)"),
-    direction: z.enum(["horizontal", "vertical"]).describe("Distribution direction"),
-  }),
-]);
+// Flat object schema — Gemini doesn't support union/oneOf/anyOf in tool params.
+// All fields are optional; which ones are required depends on `action`.
+const operationSchema = z.object({
+  action: z
+    .enum([
+      "move", "resize", "delete", "update_style",
+      "add_text", "add_shape", "add_line",
+      "reorder", "align", "distribute",
+    ])
+    .describe("The operation to perform"),
+
+  // Common: target element ID (move, resize, delete, update_style, reorder)
+  element_id: z.string().optional().describe("ID of element to operate on"),
+
+  // Position / size
+  x: z.number().optional().describe("X coordinate"),
+  y: z.number().optional().describe("Y coordinate"),
+  width: z.number().optional().describe("Width"),
+  height: z.number().optional().describe("Height"),
+
+  // Style (update_style, add_shape, add_line, add_text)
+  strokeColor: z.string().optional().describe("Stroke/text color hex, e.g. #FF0000"),
+  backgroundColor: z.string().optional().describe("Fill color hex"),
+  opacity: z.number().optional().describe("Opacity 0-100"),
+  fontSize: z.number().optional().describe("Font size"),
+  strokeWidth: z.number().optional().describe("Stroke width"),
+  fillStyle: z.enum(["solid", "hachure", "cross-hatch"]).optional().describe("Fill style"),
+
+  // add_text
+  text: z.string().optional().describe("Text content (add_text)"),
+
+  // add_shape
+  shape: z.enum(["rectangle", "ellipse", "diamond"]).optional().describe("Shape type (add_shape)"),
+  label: labelSchema,
+
+  // add_line
+  line_type: z.enum(["line", "arrow"]).optional().describe("Line or arrow (add_line)"),
+  points: z
+    .array(z.object({ x: z.number(), y: z.number() }))
+    .optional()
+    .describe("Array of {x,y} points (add_line, optional when using bindings)"),
+  start_element_id: z.string().optional().describe("Bind arrow start to this element ID"),
+  end_element_id: z.string().optional().describe("Bind arrow end to this element ID"),
+
+  // reorder
+  position: z.enum(["front", "back"]).optional().describe("Bring to front or send to back (reorder)"),
+
+  // align / distribute
+  element_ids: z.array(z.string()).optional().describe("IDs of elements (align/distribute)"),
+  alignment: z
+    .enum(["left", "right", "center", "top", "bottom", "middle"])
+    .optional()
+    .describe("Alignment direction (align)"),
+  direction: z.enum(["horizontal", "vertical"]).optional().describe("Distribution direction (distribute)"),
+});
 
 const manipulateCanvasSchema = z.object({
   operations: z
@@ -128,6 +85,7 @@ const manipulateCanvasSchema = z.object({
 // ---------------------------------------------------------------------------
 
 type CanvasElement = Record<string, unknown>;
+// Flat operation type — all fields optional except `action`.
 type Operation = z.infer<typeof operationSchema>;
 
 type HandlerResult = {
@@ -166,6 +124,13 @@ export function measureTextWidth(text: string, fontSize: number): number {
     width += isCJK ? fontSize : fontSize * 0.6;
   }
   return width;
+}
+
+/** Coerce numeric color values to hex strings at runtime (models sometimes emit numbers). */
+function coerceColor(v: unknown, fallback: string): string {
+  if (typeof v === "number") return `#${v.toString(16).padStart(6, "0")}`;
+  if (typeof v === "string" && v.length > 0) return v;
+  return fallback;
 }
 
 function createElementBase(): CanvasElement {
@@ -292,9 +257,9 @@ function computeEdgePoint(
 
 function applyMove(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "move" }>,
+  op: Operation,
 ): HandlerResult {
-  const el = findElement(elements, op.element_id);
+  const el = findElement(elements, op.element_id!);
   if (!el) return { description: `[skip] element ${op.element_id} not found` };
   el.x = op.x;
   el.y = op.y;
@@ -304,9 +269,9 @@ function applyMove(
 
 function applyResize(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "resize" }>,
+  op: Operation,
 ): HandlerResult {
-  const el = findElement(elements, op.element_id);
+  const el = findElement(elements, op.element_id!);
   if (!el) return { description: `[skip] element ${op.element_id} not found` };
   el.width = op.width;
   el.height = op.height;
@@ -318,9 +283,9 @@ function applyResize(
 
 function applyDelete(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "delete" }>,
+  op: Operation,
 ): HandlerResult {
-  const el = findElement(elements, op.element_id);
+  const el = findElement(elements, op.element_id!);
   if (!el) return { description: `[skip] element ${op.element_id} not found` };
   el.isDeleted = true;
   bumpVersion(el);
@@ -329,9 +294,9 @@ function applyDelete(
 
 function applyUpdateStyle(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "update_style" }>,
+  op: Operation,
 ): HandlerResult {
-  const el = findElement(elements, op.element_id);
+  const el = findElement(elements, op.element_id!);
   if (!el) return { description: `[skip] element ${op.element_id} not found` };
 
   const applied: string[] = [];
@@ -356,31 +321,31 @@ function applyUpdateStyle(
 
 function applyAddText(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "add_text" }>,
+  op: Operation,
 ): HandlerResult {
   const id = generateId();
   const el: CanvasElement = {
     ...createElementBase(),
     id,
     type: "text",
-    text: op.text,
+    text: op.text!,
     x: op.x,
     y: op.y,
-    width: measureTextWidth(op.text, op.fontSize),
-    height: op.fontSize * 1.25,
-    fontSize: op.fontSize,
+    width: measureTextWidth(op.text!, op.fontSize ?? 20),
+    height: (op.fontSize ?? 20) * 1.25,
+    fontSize: op.fontSize ?? 20,
     fontFamily: 1,
     textAlign: "left",
     verticalAlign: "top",
-    strokeColor: op.strokeColor,
+    strokeColor: op.strokeColor ?? "#000000",
     containerId: null,
-    originalText: op.text,
+    originalText: op.text!,
     autoResize: true,
     lineHeight: 1.25,
   };
   elements.push(el);
   const short =
-    op.text.length > 20 ? op.text.slice(0, 17) + "..." : op.text;
+    op.text!.length > 20 ? op.text!.slice(0, 17) + "..." : op.text!;
   return {
     description: `added text '${short}' at (${op.x}, ${op.y}) [id=${id}]`,
     createdId: id,
@@ -389,7 +354,7 @@ function applyAddText(
 
 function applyAddShape(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "add_shape" }>,
+  op: Operation,
 ): HandlerResult {
   const shapeId = generateId();
   const el: CanvasElement = {
@@ -400,9 +365,9 @@ function applyAddShape(
     y: op.y,
     width: op.width,
     height: op.height,
-    strokeColor: op.strokeColor,
-    backgroundColor: op.backgroundColor,
-    fillStyle: op.fillStyle,
+    strokeColor: op.strokeColor ?? "#000000",
+    backgroundColor: op.backgroundColor ?? "transparent",
+    fillStyle: op.fillStyle ?? "solid",
   };
 
   if (op.label) {
@@ -419,8 +384,8 @@ function applyAddShape(
     const paddingY = 40;
     const minWidth = textWidth + paddingX;
     const minHeight = textHeight + paddingY;
-    el.width = Math.max(el.width, minWidth);
-    el.height = Math.max(el.height, minHeight);
+    el.width = Math.max(Number(el.width) || 0, minWidth);
+    el.height = Math.max(Number(el.height) || 0, minHeight);
 
     // Bind text to shape
     ensureBoundElements(el).push({ type: "text", id: textId });
@@ -431,8 +396,8 @@ function applyAddShape(
       type: "text",
       text: op.label.text,
       originalText: op.label.text,
-      x: el.x + (el.width - textWidth) / 2,
-      y: el.y + (el.height - textHeight) / 2,
+      x: Number(el.x) + (Number(el.width) - textWidth) / 2,
+      y: Number(el.y) + (Number(el.height) - textHeight) / 2,
       width: textWidth,
       height: textHeight,
       fontSize,
@@ -467,7 +432,7 @@ function applyAddShape(
 
 function applyAddLine(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "add_line" }>,
+  op: Operation,
 ): HandlerResult {
   const hasBinding = op.start_element_id || op.end_element_id;
 
@@ -498,14 +463,14 @@ function applyAddLine(
   const el: CanvasElement = {
     ...createElementBase(),
     id: arrowId,
-    type: op.line_type,
+    type: op.line_type ?? "arrow",
     x: originX,
     y: originY,
     width,
     height,
     points: excalidrawPoints,
-    strokeColor: op.strokeColor,
-    strokeWidth: op.strokeWidth,
+    strokeColor: op.strokeColor ?? "#000000",
+    strokeWidth: op.strokeWidth ?? 2,
     lastCommittedPoint: excalidrawPoints[excalidrawPoints.length - 1],
     startBinding: null,
     endBinding: null,
@@ -521,7 +486,7 @@ function applyAddLine(
 
 function applyAddBoundLine(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "add_line" }>,
+  op: Operation,
 ): HandlerResult {
   const startEl = op.start_element_id
     ? findElement(elements, op.start_element_id)
@@ -599,8 +564,8 @@ function applyAddBoundLine(
       [0, 0],
       [relEnd.x, relEnd.y],
     ],
-    strokeColor: op.strokeColor,
-    strokeWidth: op.strokeWidth,
+    strokeColor: op.strokeColor ?? "#000000",
+    strokeWidth: op.strokeWidth ?? 2,
     lastCommittedPoint: [relEnd.x, relEnd.y],
     startBinding,
     endBinding,
@@ -619,7 +584,7 @@ function applyAddBoundLine(
 
 function applyReorder(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "reorder" }>,
+  op: Operation,
 ): HandlerResult {
   const idx = elements.findIndex(
     (el) => el.id === op.element_id && !el.isDeleted,
@@ -640,9 +605,9 @@ function applyReorder(
 
 function applyAlign(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "align" }>,
+  op: Operation,
 ): HandlerResult {
-  const targets = op.element_ids
+  const targets = (op.element_ids ?? [])
     .map((id) => findElement(elements, id))
     .filter((el): el is CanvasElement => el !== undefined);
 
@@ -724,9 +689,9 @@ function applyAlign(
 
 function applyDistribute(
   elements: CanvasElement[],
-  op: Extract<Operation, { action: "distribute" }>,
+  op: Operation,
 ): HandlerResult {
-  const targets = op.element_ids
+  const targets = (op.element_ids ?? [])
     .map((id) => findElement(elements, id))
     .filter((el): el is CanvasElement => el !== undefined);
 

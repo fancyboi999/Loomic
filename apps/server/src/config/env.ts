@@ -12,7 +12,10 @@ export type ServerEnv = {
   agentFilesRoot?: string;
   agentModel: string;
   googleApiKey?: string;
+  googleApplicationCredentials?: string;
   googleFontsApiKey?: string;
+  googleVertexLocation?: string;
+  googleVertexProject?: string;
   openAIApiBase?: string;
   openAIApiKey?: string;
   port: number;
@@ -75,8 +78,14 @@ export function loadServerEnv(
     normalizeOptionalString(source.SUPABASE_PROJECT_ID);
   const googleApiKey =
     overrides.googleApiKey ?? normalizeOptionalString(source.GOOGLE_API_KEY);
+  const googleApplicationCredentials =
+    overrides.googleApplicationCredentials ?? normalizeOptionalString(source.GOOGLE_APPLICATION_CREDENTIALS);
   const googleFontsApiKey =
     overrides.googleFontsApiKey ?? normalizeOptionalString(source.GOOGLE_FONTS_API_KEY);
+  const googleVertexProject =
+    overrides.googleVertexProject ?? normalizeOptionalString(source.GOOGLE_VERTEX_PROJECT);
+  const googleVertexLocation =
+    overrides.googleVertexLocation ?? normalizeOptionalString(source.GOOGLE_VERTEX_LOCATION);
   const replicateApiToken =
     overrides.replicateApiToken ?? normalizeOptionalString(source.REPLICATE_API_TOKEN);
   const volcesApiKey =
@@ -139,6 +148,7 @@ export function loadServerEnv(
       overrides.webOrigin ?? source.LOOMIC_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN,
     ...(agentFilesRoot ? { agentFilesRoot } : {}),
     ...(googleApiKey ? { googleApiKey } : {}),
+    ...(googleApplicationCredentials ? { googleApplicationCredentials } : {}),
     ...(openAIApiBase ? { openAIApiBase } : {}),
     ...(openAIApiKey ? { openAIApiKey } : {}),
     ...(supabaseUrl ? { supabaseUrl } : {}),
@@ -148,6 +158,8 @@ export function loadServerEnv(
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
     ...(supabaseProjectId ? { supabaseProjectId } : {}),
     ...(googleFontsApiKey ? { googleFontsApiKey } : {}),
+    ...(googleVertexProject ? { googleVertexProject } : {}),
+    ...(googleVertexLocation ? { googleVertexLocation } : {}),
     ...(replicateApiToken ? { replicateApiToken } : {}),
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
