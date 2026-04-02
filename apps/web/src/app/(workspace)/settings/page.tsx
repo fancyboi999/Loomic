@@ -119,7 +119,7 @@ export default function SettingsPage() {
     <div className="p-8">
       <h1 className="text-lg font-semibold mb-6">Settings</h1>
 
-      <div className="inline-flex gap-1 rounded-lg bg-neutral-100 p-1 mb-8">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1 mb-8">
         {tabs.map((tab) => (
           <button
             key={tab.id}

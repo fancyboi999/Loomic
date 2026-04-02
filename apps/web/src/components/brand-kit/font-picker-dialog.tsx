@@ -130,8 +130,8 @@ export function FontPickerDialog({
                 key={font.family}
                 type="button"
                 onClick={() => setSelected(font)}
-                className={`w-full px-4 py-2 text-left text-base hover:bg-neutral-50 cursor-pointer ${
-                  selected?.family === font.family ? "bg-neutral-100" : ""
+                className={`w-full px-4 py-2 text-left text-base hover:bg-muted cursor-pointer ${
+                  selected?.family === font.family ? "bg-muted" : ""
                 }`}
                 style={{ fontFamily: `"${font.family}", sans-serif` }}
               >
@@ -150,7 +150,7 @@ export function FontPickerDialog({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-sm border rounded-lg hover:bg-neutral-50 cursor-pointer"
+            className="px-4 py-1.5 text-sm border rounded-lg hover:bg-muted cursor-pointer"
           >
             取消
           </button>
@@ -158,7 +158,7 @@ export function FontPickerDialog({
             type="button"
             onClick={handleAdd}
             disabled={!selected}
-            className="px-4 py-1.5 text-sm bg-black text-white rounded-lg hover:bg-neutral-800 disabled:opacity-40 cursor-pointer"
+            className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
           >
             添加
           </button>

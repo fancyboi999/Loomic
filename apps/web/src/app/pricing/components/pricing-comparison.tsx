@@ -16,7 +16,7 @@ const INITIAL_CATEGORIES = 2;
 function CellValue({ value }: { value: string | boolean }) {
   if (value === true) {
     return (
-      <span className="inline-flex items-center justify-center text-neutral-900">
+      <span className="inline-flex items-center justify-center text-foreground">
         <Check className="size-4" />
       </span>
     );

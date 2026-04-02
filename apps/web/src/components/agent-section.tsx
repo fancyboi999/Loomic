@@ -94,7 +94,7 @@ export function AgentSection({
 
         {feedback && (
           <p
-            className={`text-sm ${feedback.type === "success" ? "text-neutral-600" : "text-destructive"}`}
+            className={`text-sm ${feedback.type === "success" ? "text-success" : "text-destructive"}`}
           >
             {feedback.message}
           </p>

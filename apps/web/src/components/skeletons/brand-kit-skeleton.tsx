@@ -5,7 +5,7 @@ export function BrandKitSkeleton() {
   return (
     <div className="flex h-[100dvh] w-full bg-background">
       {/* Sidebar — matches BrandKitSidebar: w-[260px], border-r, bg-neutral-50 */}
-      <aside className="flex w-[260px] shrink-0 flex-col border-r bg-neutral-50">
+      <aside className="flex w-[260px] shrink-0 flex-col border-r bg-secondary">
         {/* Header: "Brand Kit" + Beta badge */}
         <div className="flex items-center gap-2 px-4 pt-4 pb-3">
           <Skeleton className="h-4 w-16" />
@@ -66,7 +66,7 @@ export function BrandKitSkeleton() {
                 {Array.from({ length: 3 }, (_, i) => (
                   <Skeleton key={i} className="h-24 w-32 rounded-lg" />
                 ))}
-                <div className="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-neutral-200">
+                <div className="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-border">
                   <Skeleton className="h-5 w-5 rounded bg-transparent" />
                 </div>
               </div>
@@ -102,7 +102,7 @@ export function BrandKitSkeleton() {
                 {Array.from({ length: 2 }, (_, i) => (
                   <Skeleton key={i} className="h-24 w-32 rounded-lg" />
                 ))}
-                <div className="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-neutral-200">
+                <div className="flex h-24 w-32 items-center justify-center rounded-lg border-2 border-dashed border-border">
                   <Skeleton className="h-5 w-5 rounded bg-transparent" />
                 </div>
               </div>

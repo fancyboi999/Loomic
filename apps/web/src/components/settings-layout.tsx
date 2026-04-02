@@ -25,7 +25,7 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-52 shrink-0 border-r bg-neutral-50 p-4">
+      <aside className="w-52 shrink-0 border-r bg-secondary p-4">
         <button
           type="button"
           onClick={() => router.push("/projects")}
@@ -46,8 +46,8 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
               onClick={() => setActiveSection(section.id)}
               className={`block w-full text-left text-sm px-2 py-1.5 rounded ${
                 activeSection === section.id
-                  ? "font-medium bg-neutral-100"
-                  : "text-muted-foreground hover:bg-neutral-100"
+                  ? "font-medium bg-muted"
+                  : "text-muted-foreground hover:bg-muted"
               }`}
             >
               {section.label}

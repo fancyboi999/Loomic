@@ -380,7 +380,7 @@ export default function SkillsPage() {
         <div className="hidden sm:flex shrink-0 items-center justify-center">
           <div className="relative h-16 w-20">
             {/* Card 1 */}
-            <div className="absolute left-0 top-1 h-14 w-12 rounded-lg border border-border bg-neutral-50 shadow-sm" />
+            <div className="absolute left-0 top-1 h-14 w-12 rounded-lg border border-border bg-secondary shadow-sm" />
             {/* Card 2 (overlapping) */}
             <div className="absolute left-5 top-0 h-14 w-12 rounded-lg border border-border bg-white shadow-sm flex items-center justify-center">
               <svg
@@ -419,7 +419,7 @@ export default function SkillsPage() {
           animate="visible"
           className="flex flex-col items-center justify-center py-20 text-center"
         >
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Search className="size-5 text-muted-foreground" />
           </div>
           <p className="text-sm font-medium text-foreground">

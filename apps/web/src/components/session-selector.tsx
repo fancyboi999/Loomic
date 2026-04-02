@@ -133,19 +133,19 @@ export function SessionSelector({
         </button>
 
         {open && (
-          <div className="absolute left-0 top-full mt-1.5 z-50 w-[260px] rounded-lg border border-neutral-200 bg-white shadow-lg overflow-hidden">
+          <div className="absolute left-0 top-full mt-1.5 z-50 w-[260px] rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
             {/* Header */}
             <div className="px-3 pt-3 pb-2">
               <p className="text-xs font-medium text-[#2F3640] mb-2">历史对话</p>
               {/* Search */}
               <div className="relative">
-                <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
+                <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="请输入搜索关键词"
-                  className="w-full rounded-md border border-neutral-200 bg-neutral-50 py-1.5 pl-7 pr-2 text-xs text-[#2F3640] placeholder:text-neutral-400 outline-none focus:border-neutral-300 focus:bg-white transition-colors"
+                  className="w-full rounded-md border border-input bg-muted py-1.5 pl-7 pr-2 text-xs text-[#2F3640] placeholder:text-muted-foreground/70 outline-none focus:border-input-border focus:bg-background transition-colors"
                 />
               </div>
             </div>
@@ -153,7 +153,7 @@ export function SessionSelector({
             {/* Session list */}
             <div className="max-h-[240px] overflow-y-auto px-1 pb-1">
               {filtered.length === 0 && (
-                <p className="px-3 py-4 text-center text-xs text-neutral-400">
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground/70">
                   {search ? "无匹配结果" : "暂无对话"}
                 </p>
               )}
@@ -162,8 +162,8 @@ export function SessionSelector({
                   key={s.id}
                   className={`group flex items-center justify-between gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors ${
                     s.id === activeSessionId
-                      ? "bg-neutral-100 text-[#2F3640] font-medium"
-                      : "text-neutral-600 hover:bg-neutral-50"
+                      ? "bg-muted text-[#2F3640] font-medium"
+                      : "text-muted-foreground hover:bg-muted"
                   }`}
                   onClick={() => {
                     if (confirmingId !== s.id) handleSelect(s.id);
@@ -176,7 +176,7 @@ export function SessionSelector({
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          className="px-2 py-0.5 rounded text-xs text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                          className="px-2 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             setConfirmingId(null);
@@ -202,7 +202,7 @@ export function SessionSelector({
                       <span className="truncate flex-1">{s.title}</span>
                       <button
                         type="button"
-                        className="hidden group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-400 hover:text-red-500 transition-colors"
+                        className="hidden group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           setConfirmingId(s.id);

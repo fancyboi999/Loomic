@@ -46,11 +46,11 @@ export function AuthShell({
             {title}
           </motion.p>
 
-          <motion.p variants={fadeUp} custom={2} className="mb-10 max-w-md text-lg text-neutral-400">
+          <motion.p variants={fadeUp} custom={2} className="mb-10 max-w-md text-lg text-muted-foreground">
             {description}
           </motion.p>
 
-          <ul className="space-y-4 text-sm text-neutral-300">
+          <ul className="space-y-4 text-sm text-muted-foreground/70">
             {features.map((text, index) => (
               <motion.li
                 key={text}

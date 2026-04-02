@@ -21,7 +21,7 @@ export function BrandKitSidebar({
   onDeleteKit,
 }: BrandKitSidebarProps) {
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-r bg-neutral-50">
+    <aside className="flex w-[260px] shrink-0 flex-col border-r bg-secondary">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3">
         <h1 className="text-sm font-semibold text-foreground">Brand Kit</h1>
@@ -60,7 +60,7 @@ export function BrandKitSidebar({
               }}
               className={cn(
                 "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer",
-                isSelected ? "bg-neutral-100" : "hover:bg-neutral-100/60",
+                isSelected ? "bg-muted" : "hover:bg-muted/60",
               )}
             >
               {/* Thumbnail placeholder */}
