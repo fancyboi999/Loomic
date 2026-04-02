@@ -182,8 +182,8 @@ export function createChatService(options: {
       return rows.filter(
         (msg, i) =>
           i === 0 ||
-          msg.role !== rows[i - 1].role ||
-          msg.content !== rows[i - 1].content,
+          msg.role !== rows[i - 1]!.role ||
+          msg.content !== rows[i - 1]!.content,
       );
     },
 

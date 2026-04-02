@@ -217,12 +217,12 @@ const RESOLUTION_DIMENSIONS: Record<string, { width: number; height: number }> =
 };
 
 function getVideoDimensions(resolution: string, aspectRatio: string): { width: number; height: number } {
-  const base = RESOLUTION_DIMENSIONS[resolution] ?? RESOLUTION_DIMENSIONS["720p"];
+  const base = RESOLUTION_DIMENSIONS[resolution] ?? RESOLUTION_DIMENSIONS["720p"]!;
   // For portrait ratios, swap width/height
   if (aspectRatio === "9:16" || aspectRatio === "3:4") {
-    return { width: base.height, height: base.width };
+    return { width: base!.height, height: base!.width };
   }
-  return base;
+  return base!;
 }
 
 // ── Provider implementation ────────────────────────────────────────────────
@@ -315,7 +315,7 @@ export class ReplicateVideoProvider implements VideoProvider {
       };
 
       if (pred.status === "succeeded" && pred.output) {
-        return Array.isArray(pred.output) ? pred.output[0] : pred.output;
+        return Array.isArray(pred.output) ? (pred.output[0] ?? null) : pred.output;
       }
       if (pred.status === "failed" || pred.status === "canceled") {
         throw new GenerationError(

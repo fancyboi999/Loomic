@@ -180,11 +180,11 @@ export async function runVideoGenerate(
 
       const result: VideoGenerateResult = {
         summary: `Generated ${jobResult.durationSeconds ?? input.duration}s video (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
-        videoUrl: jobResult.videoUrl,
         mimeType: jobResult.mimeType ?? "video/mp4",
-        width: jobResult.width,
-        height: jobResult.height,
-        durationSeconds: jobResult.durationSeconds,
+        ...(jobResult.videoUrl != null ? { videoUrl: jobResult.videoUrl } : {}),
+        ...(jobResult.width != null ? { width: jobResult.width } : {}),
+        ...(jobResult.height != null ? { height: jobResult.height } : {}),
+        ...(jobResult.durationSeconds != null ? { durationSeconds: jobResult.durationSeconds } : {}),
       };
       if (input.placementX != null && input.placementY != null) {
         result.placement = {
@@ -212,11 +212,11 @@ export async function runVideoGenerate(
       prompt: input.prompt,
       model: input.model,
       duration: input.duration,
-      resolution: input.resolution as "480p" | "720p" | "1080p" | undefined,
       aspectRatio: input.aspectRatio,
+      ...(input.resolution ? { resolution: input.resolution as "480p" | "720p" | "1080p" } : {}),
       ...(input.inputImages ? { inputImages: input.inputImages } : {}),
       ...(input.inputVideo ? { inputVideo: input.inputVideo } : {}),
-      enableAudio: input.enableAudio,
+      ...(input.enableAudio != null ? { enableAudio: input.enableAudio } : {}),
     });
     lap("direct_generate_done");
 

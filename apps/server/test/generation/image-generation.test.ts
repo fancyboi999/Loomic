@@ -12,6 +12,7 @@ describe("generateImage orchestrator", () => {
   it("delegates to the named provider", async () => {
     const mockProvider: ImageProvider = {
       name: "mock",
+      models: [],
       generate: async () => ({
         url: "https://example.com/img.png",
         mimeType: "image/png",

@@ -33,7 +33,9 @@ export async function loadWorkspaceSkills(
   if (!workspaceId) return [];
 
   // Step 2: Query enabled workspace skills with full skill data
-  const { data: rows, error } = await userClient
+  // NOTE: workspace_skills / skills tables may not yet be in the generated
+  // Supabase types — use `as any` to bypass PostgREST type checking.
+  const { data: rows, error } = await (userClient as any)
     .from("workspace_skills")
     .select(
       "skill:skills(id, slug, name, description, skill_content, metadata)",
@@ -44,7 +46,7 @@ export async function loadWorkspaceSkills(
   if (error || !rows?.length) return [];
 
   // Step 3: Map to WorkspaceSkillEntry, filtering out skills without DB content
-  return rows
+  return (rows as Array<{ skill: Record<string, unknown> | null }>)
     .map((row: { skill: Record<string, unknown> | null }) => {
       const skill = row.skill;
       if (!skill?.skill_content) return null;

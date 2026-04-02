@@ -64,7 +64,8 @@ async function main() {
   const jobService = createJobService({ createUserClient, getAdminClient, pgmq });
   const creditService = createCreditService({ getAdminClient });
 
-  const ctx: ExecutorContext = {
+  // Base context — per-message fields (queue, msgId, renewVt) are added in processMessage
+  const baseCtx = {
     jobService,
     pgmq,
     getAdminClient,
@@ -119,7 +120,16 @@ async function main() {
         const messages = await pgmq.read(queue, vt, available);
 
         for (const msg of messages) {
-          const task = processMessage(queue, msg, ctx, creditService, tag)
+          const ctx: ExecutorContext = {
+              ...baseCtx,
+              queue,
+              msgId: msg.msg_id,
+              renewVt: async (vtSeconds: number) => {
+                try { await pgmq.setVt(queue, msg.msg_id, vtSeconds); }
+                catch (e) { console.warn(`[renewVt] failed for msg ${msg.msg_id}:`, e); }
+              },
+            };
+            const task = processMessage(queue, msg, ctx, creditService, tag)
             .finally(() => inFlight.delete(task));
           inFlight.add(task);
         }

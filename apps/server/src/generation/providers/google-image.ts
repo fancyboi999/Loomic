@@ -24,21 +24,30 @@ const MODEL_MAP: Record<string, string> = {
   "google-official/gemini-2.5-flash-image": "gemini-2.5-flash-image",
   "google-official/gemini-3.1-flash-image-preview":
     "gemini-3.1-flash-image-preview",
+  "google-official/gemini-3-pro-image-preview":
+    "gemini-3-pro-image-preview",
 };
 
 const GOOGLE_IMAGE_MODELS: readonly ModelInfo[] = [
   {
-    id: "google-official/gemini-2.5-flash-image",
-    displayName: "Gemini 2.5 Flash Image",
+    id: "google-official/gemini-3-pro-image-preview",
+    displayName: "Nano Banana Pro",
     description:
-      "Google Gemini native image generation & editing via direct API. Image input: up to 14 images. Stable. Best balance of speed and quality.",
+      "Google Gemini 3 Pro image generation & editing preview. Image input: up to 14 images. Up to 4K resolution. Best quality with advanced reasoning.",
     iconUrl: ICON_GOOGLE,
   },
   {
     id: "google-official/gemini-3.1-flash-image-preview",
-    displayName: "Gemini 3.1 Flash Image",
+    displayName: "Nano Banana 2",
     description:
       "Google Gemini 3.1 image generation & editing preview. Image input: up to 14 images. Faster generation, newest capabilities.",
+    iconUrl: ICON_GOOGLE,
+  },
+  {
+    id: "google-official/gemini-2.5-flash-image",
+    displayName: "Nano Banana",
+    description:
+      "Google Gemini native image generation & editing via direct API. Image input: up to 14 images. Stable. Best balance of speed and quality.",
     iconUrl: ICON_GOOGLE,
   },
 ];

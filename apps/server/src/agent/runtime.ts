@@ -690,10 +690,10 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               return {
                 jobId: job.id,
                 videoUrl: result.signed_url ?? "",
-                durationSeconds: result.duration_seconds,
-                width: result.width,
-                height: result.height,
                 mimeType: result.mime_type ?? "video/mp4",
+                ...(result.duration_seconds != null ? { durationSeconds: result.duration_seconds } : {}),
+                ...(result.width != null ? { width: result.width } : {}),
+                ...(result.height != null ? { height: result.height } : {}),
               };
             }
 

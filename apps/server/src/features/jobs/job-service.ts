@@ -291,7 +291,8 @@ export function createJobService(options: {
 
     async incrementAttempt(jobId) {
       const admin = options.getAdminClient();
-      const { data, error } = await admin.rpc("increment_job_attempt", {
+      // NOTE: increment_job_attempt may not be in generated Supabase types yet
+      const { data, error } = await (admin as any).rpc("increment_job_attempt", {
         p_job_id: jobId,
       });
 
@@ -301,10 +302,10 @@ export function createJobService(options: {
       }
 
       const row = Array.isArray(data) ? data[0] : data;
-      if (row) {
+      if (row && typeof row === "object") {
         return {
-          attempt_count: row.attempt_count,
-          max_attempts: row.max_attempts ?? 3,
+          attempt_count: (row as any).attempt_count as number,
+          max_attempts: ((row as any).max_attempts as number) ?? 3,
         };
       }
       // Job not found — return safe defaults

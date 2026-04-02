@@ -21,8 +21,8 @@ export function createAgentBackend(
 ): AgentBackendResult {
   if (env.agentBackendMode === "filesystem") {
     return createDevelopmentBackend(env, {
-      canvasId,
-      hasWorkspaceSkills: options?.hasWorkspaceSkills,
+      ...(canvasId != null ? { canvasId } : {}),
+      ...(options?.hasWorkspaceSkills ? { hasWorkspaceSkills: true } : {}),
     });
   }
 

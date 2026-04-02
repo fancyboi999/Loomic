@@ -2,8 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 
 import type {
   GeneratedVideo,
-  ModelInfo,
   VideoGenerateParams,
+  VideoModelInfo,
   VideoProvider,
 } from "../types.js";
 import { fetchAsBase64, GenerationError } from "../utils.js";
@@ -86,49 +86,74 @@ const MODEL_CAPABILITIES: Record<string, ModelCapabilities> = {
 
 // ── Model catalog ────────────────────────────────────────────────────────
 
-const GOOGLE_VIDEO_MODELS: readonly ModelInfo[] = [
-  {
-    id: "google-official/veo-3.1-generate-preview",
-    displayName: "Veo 3.1",
-    description:
-      "Google flagship. T2V + I2V, native audio, reference images, 4–8s, up to 4K. Best quality.",
+/**
+ * Helper to derive max resolution label from MODEL_CAPABILITIES.
+ */
+function deriveMaxResolution(resolutions: string[]): "480p" | "720p" | "1080p" | "2160p" {
+  if (resolutions.includes("4k")) return "2160p";
+  if (resolutions.includes("1080p")) return "1080p";
+  if (resolutions.includes("720p")) return "720p";
+  return "480p";
+}
+
+function buildVideoModelInfo(
+  id: string,
+  displayName: string,
+  description: string,
+  apiModelName: string,
+): VideoModelInfo {
+  const caps = MODEL_CAPABILITIES[apiModelName]!;
+  return {
+    id,
+    displayName,
+    description,
     iconUrl: ICON_GOOGLE,
-  },
-  {
-    id: "google-official/veo-3.1-fast-generate-preview",
-    displayName: "Veo 3.1 Fast",
-    description:
-      "Speed-optimized Veo 3.1. T2V + I2V, native audio, 4–8s, up to 4K. Faster generation.",
-    iconUrl: ICON_GOOGLE,
-  },
-  {
-    id: "google-official/veo-3.1-lite-generate-preview",
-    displayName: "Veo 3.1 Lite",
-    description:
-      "Lightweight Veo 3.1. T2V + I2V, native audio, 4–8s, up to 1080p. Fastest, lowest cost.",
-    iconUrl: ICON_GOOGLE,
-  },
-  {
-    id: "google-official/veo-3.0-generate-001",
-    displayName: "Veo 3",
-    description:
-      "Stable Veo 3. T2V + I2V, native audio, reference images, up to 4K. Production-ready.",
-    iconUrl: ICON_GOOGLE,
-  },
-  {
-    id: "google-official/veo-3.0-fast-generate-001",
-    displayName: "Veo 3 Fast",
-    description:
-      "Speed-optimized Veo 3. T2V + I2V, native audio, up to 4K. Faster than Veo 3.",
-    iconUrl: ICON_GOOGLE,
-  },
-  {
-    id: "google-official/veo-2.0-generate-001",
-    displayName: "Veo 2",
-    description:
-      "Stable Veo 2. T2V + I2V, 720p only, silent (no audio), 5–8s. Most cost-effective.",
-    iconUrl: ICON_GOOGLE,
-  },
+    capabilities: {
+      textToVideo: true,
+      imageToVideo: true,
+      videoToVideo: false,
+      audio: caps.supportsAudio,
+    },
+    limits: {
+      maxDuration: Math.max(...caps.allowedDurations),
+      allowedDurations: caps.allowedDurations,
+      maxResolution: deriveMaxResolution(caps.allowedResolutions),
+      maxInputImages: 7,
+    },
+  };
+}
+
+const GOOGLE_VIDEO_MODELS: readonly VideoModelInfo[] = [
+  buildVideoModelInfo(
+    "google-official/veo-3.1-generate-preview", "Veo 3.1",
+    "Google flagship. T2V + I2V, native audio, reference images, 4–8s, up to 4K. Best quality.",
+    "veo-3.1-generate-preview",
+  ),
+  buildVideoModelInfo(
+    "google-official/veo-3.1-fast-generate-preview", "Veo 3.1 Fast",
+    "Speed-optimized Veo 3.1. T2V + I2V, native audio, 4–8s, up to 4K. Faster generation.",
+    "veo-3.1-fast-generate-preview",
+  ),
+  buildVideoModelInfo(
+    "google-official/veo-3.1-lite-generate-preview", "Veo 3.1 Lite",
+    "Lightweight Veo 3.1. T2V + I2V, native audio, 4–8s, up to 1080p. Fastest, lowest cost.",
+    "veo-3.1-lite-generate-preview",
+  ),
+  buildVideoModelInfo(
+    "google-official/veo-3.0-generate-001", "Veo 3",
+    "Stable Veo 3. T2V + I2V, native audio, reference images, up to 4K. Production-ready.",
+    "veo-3.0-generate-001",
+  ),
+  buildVideoModelInfo(
+    "google-official/veo-3.0-fast-generate-001", "Veo 3 Fast",
+    "Speed-optimized Veo 3. T2V + I2V, native audio, up to 4K. Faster than Veo 3.",
+    "veo-3.0-fast-generate-001",
+  ),
+  buildVideoModelInfo(
+    "google-official/veo-2.0-generate-001", "Veo 2",
+    "Stable Veo 2. T2V + I2V, 720p only, silent (no audio), 5–8s. Most cost-effective.",
+    "veo-2.0-generate-001",
+  ),
 ];
 
 /** Maximum polling time in milliseconds (5 minutes). */

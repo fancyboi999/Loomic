@@ -412,7 +412,7 @@ export function createBrandKitService(options: {
           text_content: input.text_content ?? null,
           role: input.role ?? null,
           sort_order: nextSortOrder,
-          metadata: input.metadata ?? {},
+          metadata: (input.metadata ?? {}) as import("@loomic/shared").Json,
         })
         .select(
           "id, asset_type, display_name, role, sort_order, text_content, file_url, metadata, created_at, updated_at",

@@ -136,6 +136,7 @@ export type SubmitImageJobFn = (input: {
   model: string;
   aspectRatio: string;
   inputImages?: string[];
+  quality?: string;
 }) => Promise<{
   jobId: string;
   imageUrl?: string;
@@ -182,7 +183,9 @@ export async function runImageGenerate(
         ),
       });
     }
-    input = { ...input, inputImages: validImages.length > 0 ? validImages : undefined };
+    input = validImages.length > 0
+      ? { ...input, inputImages: validImages }
+      : { ...input, inputImages: [] };
   }
 
   // Job mode: submit to PGMQ and wait for worker to complete

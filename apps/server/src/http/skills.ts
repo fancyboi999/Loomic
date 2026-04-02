@@ -17,6 +17,13 @@ import type {
   UserSupabaseClient,
 } from "../supabase/user.js";
 
+/**
+ * Helper to bypass Supabase generated types for tables not yet in the schema
+ * (skills, workspace_skills). Returns untyped client so PostgREST queries compile.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const untypedFrom = (client: UserSupabaseClient, table: string) => (client as any).from(table);
+
 type SkillErrorCode =
   | "skill_not_found"
   | "skill_create_failed"
@@ -46,8 +53,7 @@ export async function registerSkillRoutes(
       if (!user) return sendUnauthenticated(reply);
 
       const client = options.createUserClient(user.accessToken);
-      const { data, error } = await client
-        .from("skills")
+      const { data, error } = await untypedFrom(client, "skills")
         .select("*")
         .order("is_featured", { ascending: false })
         .order("name", { ascending: true });
@@ -73,8 +79,7 @@ export async function registerSkillRoutes(
 
       const { id } = request.params as { id: string };
       const client = options.createUserClient(user.accessToken);
-      const { data, error } = await client
-        .from("skills")
+      const { data, error } = await untypedFrom(client, "skills")
         .select("*")
         .eq("id", id)
         .maybeSingle();
@@ -111,8 +116,7 @@ export async function registerSkillRoutes(
       const slug = generateSlug(payload.name);
       const client = options.createUserClient(user.accessToken);
 
-      const { data, error } = await client
-        .from("skills")
+      const { data, error } = await untypedFrom(client, "skills")
         .insert({
           name: payload.name,
           slug,
@@ -187,8 +191,7 @@ export async function registerSkillRoutes(
         );
       }
 
-      const { data, error } = await client
-        .from("skills")
+      const { data, error } = await untypedFrom(client, "skills")
         .update(updates)
         .eq("id", id)
         .eq("created_by", user.id) // RLS also enforces this; belt-and-suspenders
@@ -241,8 +244,7 @@ export async function registerSkillRoutes(
       const { id } = request.params as { id: string };
       const client = options.createUserClient(user.accessToken);
 
-      const { error, count } = await client
-        .from("skills")
+      const { error, count } = await untypedFrom(client, "skills")
         .delete({ count: "exact" })
         .eq("id", id)
         .eq("created_by", user.id); // RLS also enforces this
@@ -283,8 +285,7 @@ export async function registerSkillRoutes(
       const client = options.createUserClient(user.accessToken);
 
       // Join workspace_skills with skills to return full skill info + install status
-      const { data, error } = await client
-        .from("workspace_skills")
+      const { data, error } = await untypedFrom(client, "workspace_skills")
         .select("skill_id, enabled, installed_at, skills(*)")
         .eq("workspace_id", workspaceId)
         .order("installed_at", { ascending: false });
@@ -298,7 +299,7 @@ export async function registerSkillRoutes(
         );
       }
 
-      const skills = (data ?? [])
+      const skills = ((data ?? []) as any[])
         .filter((row) => row.skills !== null)
         .map((row) => {
           const s = row.skills as SkillRow;
@@ -346,8 +347,7 @@ export async function registerSkillRoutes(
       const client = options.createUserClient(user.accessToken);
 
       // Verify skill exists
-      const { data: skill, error: skillError } = await client
-        .from("skills")
+      const { data: skill, error: skillError } = await untypedFrom(client, "skills")
         .select("id")
         .eq("id", body.skillId)
         .maybeSingle();
@@ -361,7 +361,7 @@ export async function registerSkillRoutes(
         );
       }
 
-      const { error } = await client.from("workspace_skills").upsert(
+      const { error } = await untypedFrom(client, "workspace_skills").upsert(
         {
           workspace_id: workspaceId,
           skill_id: body.skillId,
@@ -402,8 +402,7 @@ export async function registerSkillRoutes(
       const workspaceId = viewer.workspace.id;
       const client = options.createUserClient(user.accessToken);
 
-      const { error, count } = await client
-        .from("workspace_skills")
+      const { error, count } = await untypedFrom(client, "workspace_skills")
         .delete({ count: "exact" })
         .eq("workspace_id", workspaceId)
         .eq("skill_id", skillId);
@@ -449,8 +448,7 @@ export async function registerSkillRoutes(
       const workspaceId = viewer.workspace.id;
       const client = options.createUserClient(user.accessToken);
 
-      const { data, error } = await client
-        .from("workspace_skills")
+      const { data, error } = await untypedFrom(client, "workspace_skills")
         .update({ enabled: payload.enabled })
         .eq("workspace_id", workspaceId)
         .eq("skill_id", skillId)

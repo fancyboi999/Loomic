@@ -160,7 +160,7 @@ export function createProjectService(options: {
           p_workspace_id: workspace.id,
           p_name: normalizedName,
           p_slug: slug,
-          p_description: normalizeDescription(input.description),
+          p_description: (normalizeDescription(input.description) ?? "") as string,
           p_canvas_name: "Main Canvas",
         },
       );

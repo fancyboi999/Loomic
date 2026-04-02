@@ -23,21 +23,30 @@ const MODEL_MAP: Record<string, string> = {
   "google-vertex/gemini-2.5-flash-image": "gemini-2.5-flash-image",
   "google-vertex/gemini-3.1-flash-image-preview":
     "gemini-3.1-flash-image-preview",
+  "google-vertex/gemini-3-pro-image-preview":
+    "gemini-3-pro-image-preview",
 };
 
 const GOOGLE_VERTEX_IMAGE_MODELS: readonly ModelInfo[] = [
   {
-    id: "google-vertex/gemini-2.5-flash-image",
-    displayName: "Gemini 2.5 Flash Image (Vertex)",
+    id: "google-vertex/gemini-3-pro-image-preview",
+    displayName: "Nano Banana Pro (Vertex)",
     description:
-      "Google Gemini native image generation & editing via Vertex AI. Image input: up to 14 images. Best balance of speed and quality.",
+      "Google Gemini 3 Pro image generation & editing preview via Vertex AI. Image input: up to 14 images. Up to 4K resolution. Best quality with advanced reasoning.",
     iconUrl: ICON_GOOGLE,
   },
   {
     id: "google-vertex/gemini-3.1-flash-image-preview",
-    displayName: "Gemini 3.1 Flash Image (Vertex)",
+    displayName: "Nano Banana 2 (Vertex)",
     description:
       "Google Gemini 3.1 image generation & editing preview via Vertex AI. Image input: up to 14 images. Faster generation, newest capabilities.",
+    iconUrl: ICON_GOOGLE,
+  },
+  {
+    id: "google-vertex/gemini-2.5-flash-image",
+    displayName: "Nano Banana (Vertex)",
+    description:
+      "Google Gemini native image generation & editing via Vertex AI. Image input: up to 14 images. Best balance of speed and quality.",
     iconUrl: ICON_GOOGLE,
   },
 ];

@@ -15,6 +15,7 @@ describe("Provider registry", () => {
   it("registers and retrieves an image provider", () => {
     const mockProvider: ImageProvider = {
       name: "test",
+      models: [],
       generate: async () => ({ url: "http://x", mimeType: "image/png", width: 100, height: 100 }),
     };
     registerImageProvider(mockProvider);

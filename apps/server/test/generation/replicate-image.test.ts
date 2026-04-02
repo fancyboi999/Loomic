@@ -55,7 +55,7 @@ describe("ReplicateImageProvider", () => {
       aspectRatio: "16:9",
     });
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
     // GPT Image only supports 1:1, 3:2, 2:3 — 16:9 should map to 3:2
     expect(body.input.aspect_ratio).toBe("3:2");
   });
@@ -76,7 +76,7 @@ describe("ReplicateImageProvider", () => {
       inputImages: ["https://example.com/ref.png"],
     });
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
     expect(body.input.input_images).toEqual(["https://example.com/ref.png"]);
     expect(body.input.image_input).toBeUndefined();
     expect(body.input.input_image).toBeUndefined();
@@ -98,7 +98,7 @@ describe("ReplicateImageProvider", () => {
       quality: "ultra",
     });
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
     expect(body.input.size).toBe("3K"); // ultra caps at 3K for seedream-5-lite
   });
 
