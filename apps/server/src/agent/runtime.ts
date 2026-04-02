@@ -419,6 +419,8 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
         const accessToken = run.accessToken;
         const userId = run.userId;
         const canvasId = run.canvasId;
+        const sessionId = run.sessionId;
+        const runId = run.runId;
 
         submitImageJob = async (input) => {
           const jobT0 = Date.now();
@@ -482,6 +484,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           const job = await jobSvc.createJob(user, {
             workspaceId,
             ...(canvasId ? { canvasId } : {}),
+            ...(sessionId ? { sessionId } : {}),
             jobType: "image_generation",
             payload: {
               prompt: input.prompt,
@@ -505,11 +508,12 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               throw deductError;
             }
           }
-          jobLap("job_created", { jobId: job.id, creditsCost });
+          jobLap("job_created", { jobId: job.id, creditsCost, sessionId, runId });
 
           // Poll until terminal state
+          // Worker image VT=120s, but Replicate calls can take 100s+ plus queue delay.
           const POLL_INTERVAL = 2000;
-          const MAX_WAIT = 120_000; // 2 minutes
+          const MAX_WAIT = 240_000; // 4 minutes
           const start = Date.now();
           let pollCount = 0;
 
@@ -634,6 +638,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           const job = await jobSvc.createJob(user, {
             workspaceId,
             ...(canvasId ? { canvasId } : {}),
+            ...(sessionId ? { sessionId } : {}),
             jobType: "video_generation",
             payload: {
               prompt: input.prompt,
@@ -660,7 +665,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               throw deductError;
             }
           }
-          jobLap("job_created", { jobId: job.id, creditsCost });
+          jobLap("job_created", { jobId: job.id, creditsCost, sessionId, runId });
 
           // Poll until terminal state — video generation is slower
           const POLL_INTERVAL = 3000;

@@ -662,6 +662,9 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
   const isImageTool = block.toolName === "generate_image";
   const isVideoTool = block.toolName === "generate_video";
   const isMediaTool = isImageTool || isVideoTool;
+  const mediaError = isMediaTool && isCompleted && !imageArtifact
+    ? (block.output as Record<string, unknown> | undefined)?.error as string | undefined
+    : undefined;
   const inputData = block.input as Record<string, unknown> | undefined;
   const modelName = inputData?.model as string | undefined;
   // Use agent-specified aspect ratio for shimmer placeholder, fall back to sensible defaults
@@ -730,6 +733,27 @@ function ToolBlockView({ block }: { block: ToolBlock }) {
                 {formatModelDisplayName(modelName)}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Layer 2b-err: Media generation failed — error card */}
+      {isMediaTool && isCompleted && !imageArtifact && mediaError && (
+        <div className="rounded-xl border-[0.5px] border-destructive/30 bg-destructive/5 p-3">
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 shrink-0 rounded-lg bg-destructive/10 p-1.5 text-destructive">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-foreground">
+                {isVideoTool ? "视频生成失败" : "图片生成失败"}
+              </div>
+              <div className="mt-0.5 text-[12px] text-muted-foreground line-clamp-2">
+                {mediaError}
+              </div>
+            </div>
           </div>
         </div>
       )}

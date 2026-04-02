@@ -246,7 +246,8 @@ export class ReplicateVideoProvider implements VideoProvider {
     const resolution = params.resolution ?? "720p";
     const { width, height } = getVideoDimensions(resolution, params.aspectRatio ?? "16:9");
 
-    // Try synchronous wait first (Prefer: wait), fall back to polling
+    // Try synchronous wait first (Prefer: wait=300), fall back to polling.
+    // AbortSignal.timeout guards against Replicate hanging indefinitely.
     const response = await fetch(
       `${REPLICATE_API_BASE}/models/${endpoint}/predictions`,
       {
@@ -257,6 +258,7 @@ export class ReplicateVideoProvider implements VideoProvider {
           Prefer: "wait=300",
         },
         body: JSON.stringify({ input }),
+        signal: AbortSignal.timeout(330_000), // 330s — slightly above Prefer: wait=300
       },
     );
 
@@ -305,6 +307,7 @@ export class ReplicateVideoProvider implements VideoProvider {
 
       const res = await fetch(predictionUrl, {
         headers: { Authorization: `Bearer ${this.apiToken}` },
+        signal: AbortSignal.timeout(15_000), // 15s per poll request
       });
       if (!res.ok) continue;
 
