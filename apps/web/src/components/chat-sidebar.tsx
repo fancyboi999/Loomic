@@ -710,6 +710,26 @@ export function ChatSidebar({
             applyStreamEvent(evt, assistantId, sessionId);
             onStreamEvent?.(evt);
 
+            // Fire canvas insertion callbacks for artifacts arriving after reconnect
+            if (
+              evt.type === "tool.completed" &&
+              evt.artifacts &&
+              evt.toolName !== "screenshot_canvas"
+            ) {
+              for (const artifact of evt.artifacts) {
+                if (artifact.type === "image" && onImageGenerated) {
+                  onImageGenerated(artifact as ImageArtifact);
+                }
+                if (artifact.type === "video" && onVideoGenerated) {
+                  onVideoGenerated(artifact as VideoArtifact);
+                }
+              }
+            }
+
+            if (evt.type === "canvas.sync" && onCanvasSync) {
+              onCanvasSync();
+            }
+
             if (
               evt.type === "run.completed" ||
               evt.type === "run.failed" ||
@@ -729,6 +749,9 @@ export function ChatSidebar({
     sessionsLoading,
     applyStreamEvent,
     onStreamEvent,
+    onImageGenerated,
+    onVideoGenerated,
+    onCanvasSync,
     activeSessionIdRef,
     reloadMessages,
     setMessages,
