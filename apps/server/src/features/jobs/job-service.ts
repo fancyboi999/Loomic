@@ -137,6 +137,8 @@ export function createJobService(options: {
           job_id: job.id,
           job_type: input.jobType,
           workspace_id: input.workspaceId,
+          ...(input.canvasId ? { canvas_id: input.canvasId } : {}),
+          ...(input.sessionId ? { session_id: input.sessionId } : {}),
         });
       } catch (enqueueErr) {
         console.error("[job-service] pgmq.send failed:", enqueueErr);

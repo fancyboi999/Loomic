@@ -4,17 +4,20 @@ import { resolveVideoProviderName } from "../../../generation/providers/registry
 
 registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorContext) => {
   const t0 = Date.now();
-  const tag = `[video-job:${jobId.slice(0, 8)}]`;
-  const lap = (label: string) => console.log(`${tag} ${label} +${Date.now() - t0}ms`);
 
   const admin = ctx.getAdminClient();
   const { data: jobRow } = await admin
     .from("background_jobs")
-    .select("created_by, workspace_id, payload")
+    .select("created_by, workspace_id, canvas_id, session_id, payload")
     .eq("id", jobId)
     .single();
 
   if (!jobRow) throw new Error(`Job ${jobId} not found in database`);
+
+  // Build log tag with traceability context: jobId + sessionId (if available)
+  const sessionShort = (jobRow.session_id as string)?.slice(0, 8) ?? "no-session";
+  const tag = `[video-job:${jobId.slice(0, 8)} session:${sessionShort}]`;
+  const lap = (label: string) => console.log(`${tag} ${label} +${Date.now() - t0}ms`);
   lap("db_fetch");
 
   const payload = (jobRow.payload ?? {}) as {

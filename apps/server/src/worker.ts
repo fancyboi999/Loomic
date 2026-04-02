@@ -158,8 +158,12 @@ async function processMessage(
     return;
   }
 
+  // Extract traceability context from PGMQ message (if present)
+  const sessionShort = typeof msg.message.session_id === "string"
+    ? msg.message.session_id.slice(0, 8)
+    : undefined;
   const startTime = Date.now();
-  console.log(`${tag} Processing job ${jobId} (${jobType})`);
+  console.log(`${tag} Processing job ${jobId} (${jobType})${sessionShort ? ` session:${sessionShort}` : ""}`);
 
   const executor = getExecutor(jobType);
   if (!executor) {
