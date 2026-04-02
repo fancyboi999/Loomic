@@ -456,11 +456,11 @@ export function VideoGeneratorPanel({
                     <span className="flex-1 text-foreground">
                       {m.displayName}
                       {m.accessible === false && (
-                        <Lock className="ml-1 inline h-2.5 w-2.5 text-neutral-500" />
+                        <Lock className="ml-1 inline h-2.5 w-2.5 text-muted-foreground" />
                       )}
                     </span>
                     {typeof m.creditCost === "number" && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-neutral-500">
+                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-muted-foreground">
                         <Zap className="h-2.5 w-2.5" />
                         {m.creditCost}
                       </span>
@@ -489,10 +489,10 @@ export function VideoGeneratorPanel({
             type="button"
             onClick={() => void handleGenerate()}
             disabled={!prompt.trim() || loading}
-            className="flex h-8 items-center justify-center gap-1 rounded-full bg-neutral-800 px-3 text-white transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-[#D1D5DB] dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-neutral-300"
+            className="flex h-8 items-center justify-center gap-1 rounded-full bg-primary px-3 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-[#D1D5DB] dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
           >
             {loading ? (
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-white/30 border-t-white dark:border-neutral-900/30 dark:border-t-neutral-900" />
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-primary-foreground/30 border-t-primary-foreground dark:border-primary-foreground/30 dark:border-t-primary-foreground" />
             ) : (
               <>
                 <svg

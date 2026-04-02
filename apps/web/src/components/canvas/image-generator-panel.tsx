@@ -277,11 +277,11 @@ export function ImageGeneratorPanel({
                     <span className="flex-1 text-foreground">
                       {m.displayName}
                       {m.accessible === false && (
-                        <Lock className="ml-1 inline h-2.5 w-2.5 text-neutral-500" />
+                        <Lock className="ml-1 inline h-2.5 w-2.5 text-muted-foreground" />
                       )}
                     </span>
                     {typeof m.creditCost === "number" && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-neutral-500">
+                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-muted-foreground">
                         <Zap className="h-2.5 w-2.5" />
                         {m.creditCost}
                       </span>

@@ -25,12 +25,12 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 const CATEGORY_STYLES: Record<SkillCategory, string> = {
-  design: "bg-neutral-200 text-neutral-700",
-  generation: "bg-neutral-200 text-neutral-700",
-  code: "bg-neutral-200 text-neutral-700",
-  data: "bg-neutral-200 text-neutral-700",
-  writing: "bg-neutral-200 text-neutral-700",
-  custom: "bg-neutral-100 text-neutral-500",
+  design: "bg-muted text-muted-foreground",
+  generation: "bg-muted text-muted-foreground",
+  code: "bg-muted text-muted-foreground",
+  data: "bg-muted text-muted-foreground",
+  writing: "bg-muted text-muted-foreground",
+  custom: "bg-muted text-muted-foreground",
 };
 
 const CATEGORY_LABELS: Record<SkillCategory, string> = {
@@ -77,7 +77,7 @@ function ToggleSwitch({
       }}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200",
-        checked ? "bg-neutral-900" : "bg-neutral-200",
+        checked ? "bg-primary" : "bg-muted",
       )}
     >
       <motion.span
@@ -151,7 +151,7 @@ export function SkillCard({
             {skill.name}
           </span>
           {skill.isFeatured && (
-            <Sparkles className="size-3.5 shrink-0 text-neutral-500" />
+            <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
           )}
         </div>
 
@@ -171,7 +171,7 @@ export function SkillCard({
 
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
           <SourceIcon className="size-3" />
           {sourceLabel}
         </span>
@@ -186,7 +186,7 @@ export function SkillCard({
               render={
                 <button
                   type="button"
-                  className="rounded-md p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-neutral-100 group-hover:opacity-100"
+                  className="rounded-md p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 />
               }

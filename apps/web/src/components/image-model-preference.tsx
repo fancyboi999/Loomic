@@ -173,7 +173,7 @@ export function ImageModelPreferencePopover({
                   <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
                     {m.displayName}
                     {m.accessible === false && (
-                      <span className="inline-flex items-center gap-0.5 rounded px-1 py-px text-[9px] font-semibold uppercase leading-tight tracking-wider bg-neutral-600/40 text-neutral-400">
+                      <span className="inline-flex items-center gap-0.5 rounded px-1 py-px text-[9px] font-semibold uppercase leading-tight tracking-wider bg-muted text-muted-foreground">
                         <Lock className="h-2.5 w-2.5" />
                         {m.minTier ?? "PRO"}
                       </span>
@@ -182,7 +182,7 @@ export function ImageModelPreferencePopover({
                   <span className="flex items-center gap-1.5 text-[11px] leading-tight text-muted-foreground">
                     {m.description}
                     {typeof m.creditCost === "number" && (
-                      <span className="inline-flex items-center gap-0.5 tabular-nums text-neutral-500">
+                      <span className="inline-flex items-center gap-0.5 tabular-nums text-muted-foreground">
                         <Zap className="h-2.5 w-2.5" />
                         {m.creditCost}
                       </span>
