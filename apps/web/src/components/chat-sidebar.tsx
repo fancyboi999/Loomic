@@ -7,6 +7,7 @@ import type {
   ImageArtifact,
   ImageGenerationPreference,
   MessageMention,
+  StreamEvent,
   VideoArtifact,
   VideoGenerationPreference,
 } from "@loomic/shared";
@@ -50,6 +51,8 @@ type ChatSidebarProps = {
   onImageGenerated?: (artifact: ImageArtifact) => void;
   onVideoGenerated?: (artifact: VideoArtifact) => void;
   onCanvasSync?: () => void;
+  /** Called for every stream event — used by job fallback polling to detect timed-out jobs */
+  onStreamEvent?: (event: StreamEvent) => void;
   initialPrompt?: string | undefined;
   initialSessionId?: string | undefined;
   onSessionChange?: (sessionId: string) => void;
@@ -67,6 +70,7 @@ export function ChatSidebar({
   onImageGenerated,
   onVideoGenerated,
   onCanvasSync,
+  onStreamEvent,
   initialPrompt,
   initialSessionId,
   onSessionChange,
@@ -417,6 +421,9 @@ export function ChatSidebar({
           // Apply event to messages (single source of truth — shared with reconnect)
           applyStreamEvent(event, assistantId, currentSessionId);
 
+          // Forward event to parent for fallback job polling (timed-out generation recovery)
+          onStreamEvent?.(event);
+
           // Fire canvas insertion callbacks for image/video artifacts
           if (
             event.type === "tool.completed" &&
@@ -524,6 +531,7 @@ export function ChatSidebar({
       onImageGenerated,
       onVideoGenerated,
       onCanvasSync,
+      onStreamEvent,
       readyAttachments,
       clearAttachments,
       ws,
@@ -700,6 +708,7 @@ export function ChatSidebar({
             if (evt.runId !== activeRunId) return;
 
             applyStreamEvent(evt, assistantId, sessionId);
+            onStreamEvent?.(evt);
 
             if (
               evt.type === "run.completed" ||
@@ -719,6 +728,7 @@ export function ChatSidebar({
     canvasId,
     sessionsLoading,
     applyStreamEvent,
+    onStreamEvent,
     activeSessionIdRef,
     reloadMessages,
     setMessages,

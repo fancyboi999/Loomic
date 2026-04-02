@@ -22,6 +22,7 @@ import type {
   SkillCreateRequest,
   SkillUpdateRequest,
   WorkspaceSkillListResponse,
+  JobResponse,
 } from "@loomic/shared";
 
 import { getServerBaseUrl } from "./env";
@@ -515,6 +516,20 @@ export async function generateVideoDirect(
   );
   if (!response.ok) return handleErrorResponse(response);
   return (await response.json()) as GenerateVideoResponse;
+}
+
+// --- Jobs API ---
+
+export async function fetchJob(
+  accessToken: string,
+  jobId: string,
+): Promise<JobResponse> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/jobs/${jobId}`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as JobResponse;
 }
 
 // --- Skills API ---

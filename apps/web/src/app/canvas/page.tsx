@@ -9,6 +9,7 @@ import type { CanvasSelectedElement } from "../../components/canvas-editor";
 import { LoadingScreen } from "../../components/loading-screen";
 import { useAuth } from "../../lib/auth-context";
 import { useWebSocket } from "../../hooks/use-websocket";
+import { useJobFallbackPolling } from "../../hooks/use-job-fallback-polling";
 import { CanvasEditor } from "../../components/canvas-editor";
 import { ChatSidebar } from "../../components/chat-sidebar";
 import { CanvasEmptyHint } from "../../components/canvas-empty-hint";
@@ -86,6 +87,44 @@ function CanvasPageContent() {
       console.warn("Failed to insert video on canvas:", err);
     });
   }, []);
+
+  // Fallback polling for timed-out generation jobs.
+  // When the agent's tool times out but the worker eventually succeeds,
+  // this hook polls the job API and inserts the result onto the canvas.
+  const { checkForTimedOutJobs } = useJobFallbackPolling({
+    accessTokenRef,
+    onImageReady: useCallback((payload) => {
+      const api = excalidrawApiRef.current;
+      if (!api) return;
+      const artifact: ImageArtifact = {
+        type: "image",
+        url: payload.url,
+        width: payload.width,
+        height: payload.height,
+        mimeType: payload.mimeType,
+      };
+      insertImageOnCanvas(api, artifact).catch((err) => {
+        console.warn("[job-fallback] Failed to insert recovered image:", err);
+      });
+    }, []),
+    onVideoReady: useCallback((payload) => {
+      const api = excalidrawApiRef.current;
+      if (!api) return;
+      const artifact: VideoArtifact = {
+        type: "video",
+        url: payload.url,
+        width: payload.width,
+        height: payload.height,
+        mimeType: payload.mimeType,
+        ...(payload.durationSeconds != null
+          ? { durationSeconds: payload.durationSeconds }
+          : {}),
+      };
+      insertVideoOnCanvas(api, artifact).catch((err) => {
+        console.warn("[job-fallback] Failed to insert recovered video:", err);
+      });
+    }, []),
+  });
 
   const handleSessionChange = useCallback(
     (sessionId: string) => {
@@ -275,6 +314,7 @@ function CanvasPageContent() {
         onImageGenerated={handleImageGenerated}
         onVideoGenerated={handleVideoGenerated}
         onCanvasSync={handleCanvasSync}
+        onStreamEvent={checkForTimedOutJobs}
         initialPrompt={initialPrompt}
         initialSessionId={initialSessionId}
         onSessionChange={handleSessionChange}

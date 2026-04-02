@@ -113,6 +113,8 @@ type ImageGenerateResult = {
   width?: number;
   height?: number;
   error?: string;
+  jobId?: string;
+  jobType?: "image_generation";
   placement?: { x: number; y: number; width: number; height: number };
 };
 
@@ -205,6 +207,10 @@ export async function runImageGenerate(
         return {
           summary: `Image generation failed with model ${input.model}: ${jobResult.error}. Consider trying a different model or simplifying the prompt.`,
           error: jobResult.error,
+          // Expose jobId so frontend can poll for late-arriving results
+          // (worker may still succeed after agent poll timeout)
+          jobId: jobResult.jobId,
+          jobType: "image_generation" as const,
         };
       }
       lap("job_complete", { jobId: jobResult.jobId });

@@ -667,9 +667,11 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
           }
           jobLap("job_created", { jobId: job.id, creditsCost, sessionId, runId });
 
-          // Poll until terminal state — video generation is slower
+          // Poll until terminal state — video generation is slower.
+          // Google Vertex Veo can take 300-500s; 600s gives enough headroom
+          // to avoid poll timeout while worker is still processing.
           const POLL_INTERVAL = 3000;
-          const MAX_WAIT = 300_000; // 5 minutes
+          const MAX_WAIT = 600_000; // 10 minutes
           const start = Date.now();
           let pollCount = 0;
 
