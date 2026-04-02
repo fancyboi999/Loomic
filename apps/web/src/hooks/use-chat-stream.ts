@@ -116,17 +116,45 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
           update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
-              const hasText = m.contentBlocks.some((b) => b.type === "text");
-              if (hasText) return m;
+              // Mark all running tool blocks as completed so spinners stop
+              const blocks = m.contentBlocks.map((block) =>
+                block.type === "tool" && block.status === "running"
+                  ? { ...block, status: "completed" as const, outputSummary: event.error.message }
+                  : block,
+              );
+              const hasText = blocks.some((b) => b.type === "text");
               return {
                 ...m,
-                contentBlocks: [
-                  ...m.contentBlocks,
-                  {
-                    type: "text" as const,
-                    text: `Error: ${event.error.message}`,
-                  },
-                ],
+                contentBlocks: hasText
+                  ? blocks
+                  : [
+                      ...blocks,
+                      {
+                        type: "text" as const,
+                        text: `Error: ${event.error.message}`,
+                      },
+                    ],
+              };
+            }),
+          );
+          break;
+
+        case "run.canceled":
+          // Clean up running tool blocks when run is aborted (e.g. billing error)
+          update((prev) =>
+            prev.map((m) => {
+              if (m.id !== assistantId) return m;
+              const hasRunning = m.contentBlocks.some(
+                (b) => b.type === "tool" && b.status === "running",
+              );
+              if (!hasRunning) return m;
+              return {
+                ...m,
+                contentBlocks: m.contentBlocks.map((block) =>
+                  block.type === "tool" && block.status === "running"
+                    ? { ...block, status: "completed" as const }
+                    : block,
+                ),
               };
             }),
           );
