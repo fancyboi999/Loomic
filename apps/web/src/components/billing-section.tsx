@@ -92,7 +92,7 @@ export function BillingSection() {
         )}
 
         {isCancelled && (
-          <div className="mt-3 flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+          <div className="mt-3 flex items-center gap-2 rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             Subscription cancelled. Access continues until the end of the
             billing period.

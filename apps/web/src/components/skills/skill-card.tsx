@@ -25,11 +25,11 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 const CATEGORY_STYLES: Record<SkillCategory, string> = {
-  design: "bg-violet-100 text-violet-700",
-  generation: "bg-amber-100 text-amber-700",
-  code: "bg-emerald-100 text-emerald-700",
-  data: "bg-blue-100 text-blue-700",
-  writing: "bg-pink-100 text-pink-700",
+  design: "bg-neutral-200 text-neutral-700",
+  generation: "bg-neutral-200 text-neutral-700",
+  code: "bg-neutral-200 text-neutral-700",
+  data: "bg-neutral-200 text-neutral-700",
+  writing: "bg-neutral-200 text-neutral-700",
   custom: "bg-neutral-100 text-neutral-500",
 };
 
@@ -77,7 +77,7 @@ function ToggleSwitch({
       }}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200",
-        checked ? "bg-blue-500" : "bg-neutral-200",
+        checked ? "bg-neutral-900" : "bg-neutral-200",
       )}
     >
       <motion.span
@@ -151,7 +151,7 @@ export function SkillCard({
             {skill.name}
           </span>
           {skill.isFeatured && (
-            <Sparkles className="size-3.5 shrink-0 text-amber-400" />
+            <Sparkles className="size-3.5 shrink-0 text-neutral-500" />
           )}
         </div>
 

@@ -46,10 +46,10 @@ function AnimatedBalance({ value }: { value: number }) {
 
 const PLAN_COLORS: Record<string, string> = {
   free: "bg-neutral-700 text-neutral-300",
-  starter: "bg-blue-900/60 text-blue-300",
-  pro: "bg-violet-900/60 text-violet-300",
-  ultra: "bg-amber-900/60 text-amber-300",
-  business: "bg-emerald-900/60 text-emerald-300",
+  starter: "bg-neutral-700 text-neutral-300",
+  pro: "bg-neutral-600 text-neutral-200",
+  ultra: "bg-neutral-500 text-neutral-100",
+  business: "bg-neutral-500 text-neutral-100",
 };
 
 // ── Main component ───────────────────────────────────────────
@@ -137,7 +137,7 @@ export function CreditBalance() {
         {/* Pulsing claim indicator */}
         {canClaim && (
           <motion.span
-            className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-emerald-500"
+            className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-neutral-900"
             animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
@@ -162,7 +162,7 @@ export function CreditBalance() {
               {/* Balance section */}
               <div className="mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-amber-400" />
+                  <Sparkles className="h-5 w-5 text-neutral-400" />
                   <span className="text-2xl font-semibold tabular-nums text-white">
                     <AnimatedBalance value={balance} />
                   </span>
@@ -197,7 +197,7 @@ export function CreditBalance() {
                   type="button"
                   onClick={handleClaim}
                   disabled={claiming}
-                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-800 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
                 >
                   {claiming ? (
                     <motion.div
@@ -219,7 +219,7 @@ export function CreditBalance() {
               {/* Already claimed indicator */}
               {isFree && dailyClaimed && (
                 <div className="mb-3 flex items-center gap-2 rounded-lg bg-neutral-800/60 px-3 py-2 text-xs text-neutral-400">
-                  <Zap className="h-3.5 w-3.5 text-amber-500" />
+                  <Zap className="h-3.5 w-3.5 text-neutral-500" />
                   Daily credits claimed
                 </div>
               )}
@@ -232,7 +232,7 @@ export function CreditBalance() {
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-neutral-300 transition-colors hover:bg-neutral-800"
                 >
                   <span className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-violet-400" />
+                    <Zap className="h-4 w-4 text-neutral-400" />
                     Upgrade Plan
                   </span>
                   <ChevronRight className="h-4 w-4 text-neutral-600" />

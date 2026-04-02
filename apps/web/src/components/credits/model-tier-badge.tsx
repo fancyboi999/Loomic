@@ -12,10 +12,10 @@ interface ModelTierBadgeProps {
 
 const TIER_BADGE_STYLES: Record<string, string> = {
   free: "",
-  starter: "bg-blue-900/40 text-blue-400",
-  pro: "bg-violet-900/40 text-violet-400",
-  ultra: "bg-amber-900/40 text-amber-400",
-  business: "bg-emerald-900/40 text-emerald-400",
+  starter: "bg-neutral-700/40 text-neutral-400",
+  pro: "bg-neutral-600/40 text-neutral-300",
+  ultra: "bg-neutral-500/40 text-neutral-200",
+  business: "bg-neutral-500/40 text-neutral-200",
 };
 
 export function ModelTierBadge({

@@ -75,7 +75,7 @@ export function ProfileSection({
 
         {feedback && (
           <p
-            className={`text-sm ${feedback.type === "success" ? "text-green-600" : "text-destructive"}`}
+            className={`text-sm ${feedback.type === "success" ? "text-neutral-600" : "text-destructive"}`}
           >
             {feedback.message}
           </p>

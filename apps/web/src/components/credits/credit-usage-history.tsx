@@ -178,7 +178,7 @@ export function CreditUsageHistory() {
                       <span
                         className={
                           isGrant
-                            ? "font-medium text-emerald-600"
+                            ? "font-medium text-neutral-900"
                             : "font-medium text-red-500"
                         }
                       >

@@ -35,23 +35,23 @@ interface TierToastConfig {
 
 const TOAST_CONFIG: Record<TierLimitCode, TierToastConfig> = {
   concurrency_limit: {
-    icon: <Timer className="h-5 w-5 text-amber-400" />,
-    accentClass: "bg-amber-500/10",
-    progressColor: "bg-amber-500",
+    icon: <Timer className="h-5 w-5 text-neutral-400" />,
+    accentClass: "bg-neutral-500/10",
+    progressColor: "bg-neutral-500",
     title: "\u5E76\u53D1\u4EFB\u52A1\u5DF2\u6EE1",
     cta: "\u5347\u7EA7\u5957\u9910",
   },
   model_not_accessible: {
-    icon: <Lock className="h-5 w-5 text-violet-400" />,
-    accentClass: "bg-violet-500/10",
-    progressColor: "bg-violet-500",
+    icon: <Lock className="h-5 w-5 text-neutral-400" />,
+    accentClass: "bg-neutral-500/10",
+    progressColor: "bg-neutral-500",
     title: "\u6A21\u578B\u9700\u8981\u66F4\u9AD8\u7EA7\u5957\u9910",
     cta: "\u5347\u7EA7\u89E3\u9501",
   },
   resolution_not_allowed: {
-    icon: <Maximize2 className="h-5 w-5 text-blue-400" />,
-    accentClass: "bg-blue-500/10",
-    progressColor: "bg-blue-500",
+    icon: <Maximize2 className="h-5 w-5 text-neutral-400" />,
+    accentClass: "bg-neutral-500/10",
+    progressColor: "bg-neutral-500",
     title: "\u5206\u8FA8\u7387\u8D85\u51FA\u5957\u9910\u9650\u5236",
     cta: "\u5347\u7EA7\u5957\u9910",
   },

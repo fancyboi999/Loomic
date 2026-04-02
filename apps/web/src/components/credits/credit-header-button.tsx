@@ -16,7 +16,7 @@ const PLAN_COLORS: Record<string, string> = {
   free: "bg-neutral-200 text-neutral-600",
   starter: "bg-neutral-800 text-neutral-200",
   pro: "bg-neutral-900 text-white",
-  ultra: "bg-neutral-900 text-amber-400",
+  ultra: "bg-neutral-900 text-neutral-100",
   business: "bg-neutral-900 text-white",
 };
 
@@ -103,7 +103,7 @@ export function CreditHeaderButton() {
             href="/pricing"
             className="flex h-8 items-center gap-1.5 rounded-lg bg-neutral-900 px-3 text-xs font-medium text-white transition-colors hover:bg-neutral-800"
           >
-            <Zap className="h-3 w-3 text-amber-400" />
+            <Zap className="h-3 w-3 text-neutral-500" />
             <span>升级</span>
           </Link>
         )}
@@ -114,7 +114,7 @@ export function CreditHeaderButton() {
           onClick={() => setOpen((v) => !v)}
           className="flex h-8 items-center gap-1.5 rounded-lg bg-neutral-100 px-3 text-xs font-medium tabular-nums text-neutral-700 transition-colors hover:bg-neutral-200"
         >
-          <Zap className="h-3 w-3 text-amber-500 fill-amber-500" />
+          <Zap className="h-3 w-3 text-neutral-500 fill-neutral-500" />
           <span>{balance.toLocaleString()}</span>
         </button>
 
@@ -163,7 +163,7 @@ export function CreditHeaderButton() {
 
                 {/* Balance */}
                 <div className="mb-3 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                  <Zap className="h-5 w-5 text-neutral-500" />
                   <span className="text-2xl font-semibold tabular-nums text-neutral-900">
                     {balance.toLocaleString()}
                   </span>
@@ -178,7 +178,7 @@ export function CreditHeaderButton() {
                     type="button"
                     onClick={handleClaim}
                     disabled={claiming}
-                    className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                    className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50"
                   >
                     {claiming ? (
                       <motion.div
@@ -200,7 +200,7 @@ export function CreditHeaderButton() {
                 {/* Already claimed */}
                 {isFree && dailyClaimed && (
                   <div className="mb-3 flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    <Zap className="h-3.5 w-3.5 text-neutral-500" />
                     Daily credits claimed
                   </div>
                 )}

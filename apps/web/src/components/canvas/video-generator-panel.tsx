@@ -460,7 +460,7 @@ export function VideoGeneratorPanel({
                       )}
                     </span>
                     {typeof m.creditCost === "number" && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-500/80">
+                      <span className="inline-flex items-center gap-0.5 text-[10px] tabular-nums text-neutral-500">
                         <Zap className="h-2.5 w-2.5" />
                         {m.creditCost}
                       </span>
