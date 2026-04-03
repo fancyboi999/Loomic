@@ -38,10 +38,25 @@ export const skillListItemSchema = z.object({
 });
 export type SkillListItem = z.infer<typeof skillListItemSchema>;
 
+// === Skill File Entry ===
+
+export const skillFileEntrySchema = z.object({
+  id: z.string().min(1),
+  filePath: z.string().min(1),
+  content: z.string(),
+  mimeType: z.string(),
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+export type SkillFileEntry = z.infer<typeof skillFileEntrySchema>;
+
 export const skillDetailSchema = skillListItemSchema.extend({
   license: z.string().nullable(),
   skillContent: z.string(),
   createdBy: z.string().nullable(),
+  sourceUrl: z.string().nullable().optional(),
+  packageName: z.string().nullable().optional(),
+  files: z.array(skillFileEntrySchema).optional(),
 });
 export type SkillDetail = z.infer<typeof skillDetailSchema>;
 
@@ -53,6 +68,11 @@ export const skillCreateRequestSchema = z.object({
   category: skillCategorySchema,
   skillContent: z.string().min(1),
   iconName: z.string().max(100).optional(),
+  files: z.array(z.object({
+    filePath: z.string().min(1).max(500),
+    content: z.string(),
+    mimeType: z.string().max(100).optional(),
+  })).optional(),
 });
 export type SkillCreateRequest = z.infer<typeof skillCreateRequestSchema>;
 
@@ -90,3 +110,8 @@ export const workspaceSkillListResponseSchema = z.object({
 export type WorkspaceSkillListResponse = z.infer<
   typeof workspaceSkillListResponseSchema
 >;
+
+export const skillFilesResponseSchema = z.object({
+  files: z.array(skillFileEntrySchema),
+});
+export type SkillFilesResponse = z.infer<typeof skillFilesResponseSchema>;
