@@ -4,12 +4,15 @@ import {
   applicationErrorResponseSchema,
   skillCreateRequestSchema,
   skillDetailResponseSchema,
+  skillImportRequestSchema,
   skillListResponseSchema,
   skillUpdateRequestSchema,
   unauthenticatedErrorResponseSchema,
   workspaceSkillListResponseSchema,
   workspaceSkillToggleRequestSchema,
 } from "@loomic/shared";
+
+import { importSkillFromUrl, SkillImportError } from "../features/skills/skill-import-service.js";
 
 import type { ViewerService } from "../features/bootstrap/ensure-user-foundation.js";
 import type {
@@ -31,6 +34,7 @@ type SkillErrorCode =
   | "skill_delete_failed"
   | "skill_query_failed"
   | "skill_file_query_failed"
+  | "skill_import_failed"
   | "skill_install_failed"
   | "skill_uninstall_failed"
   | "skill_toggle_failed";
@@ -216,6 +220,98 @@ export async function registerSkillRoutes(
 
       request.log.error({ err: error }, "skill create error");
       return sendSkillError(reply, "skill_create_failed", "Unable to create skill.");
+    }
+  });
+
+  // POST /api/skills/import — import skill from external URL (GitHub, npm tarball)
+  app.post("/api/skills/import", async (request, reply) => {
+    try {
+      const user = await options.auth.authenticate(request);
+      if (!user) return sendUnauthenticated(reply);
+
+      const { url } = skillImportRequestSchema.parse(request.body);
+      const viewer = await options.viewerService.ensureViewer(user);
+      const workspaceId = viewer.workspace.id;
+      const client = options.createUserClient(user.accessToken);
+
+      // Import skill from external URL (downloads SKILL.md + associated files)
+      const imported = await importSkillFromUrl(url);
+
+      const slug = generateSlug(imported.manifest.name);
+
+      // Persist skill to DB (source = "community" for externally imported skills)
+      const { data: skillData, error: skillError } = await untypedFrom(client, "skills")
+        .insert({
+          name: imported.manifest.name,
+          slug,
+          description: imported.manifest.description,
+          author: imported.manifest.author ?? "unknown",
+          version: imported.manifest.version ?? "1.0",
+          license: imported.manifest.license ?? null,
+          category: "custom",
+          source: "community",
+          skill_content: imported.skillContent,
+          source_url: imported.sourceUrl,
+          metadata: imported.manifest.metadata ?? {},
+          created_by: user.id,
+        })
+        .select("*")
+        .single();
+
+      if (skillError) {
+        request.log.error({ err: skillError }, "skill import DB insert failed");
+        if (skillError.code === "23505") {
+          return sendSkillError(reply, "skill_import_failed", "A skill with this name already exists.", 409);
+        }
+        return sendSkillError(reply, "skill_import_failed", "Failed to save imported skill.");
+      }
+
+      // Insert associated files (scripts/, references/, assets/)
+      if (imported.files.length > 0 && skillData?.id) {
+        const fileRows = imported.files.map((f: { filePath: string; content: string; mimeType: string }) => ({
+          skill_id: skillData.id,
+          file_path: f.filePath,
+          content: f.content,
+          mime_type: f.mimeType,
+        }));
+        const { error: fileError } = await untypedFrom(client, "skill_files").insert(fileRows);
+        if (fileError) {
+          // Non-fatal: skill record was created but file inserts failed
+          request.log.error({ err: fileError }, "skill import file insert failed (non-fatal)");
+        }
+      }
+
+      // Auto-install imported skill to the user's current workspace
+      if (skillData?.id) {
+        await untypedFrom(client, "workspace_skills").upsert(
+          { workspace_id: workspaceId, skill_id: skillData.id, enabled: true, installed_by: user.id },
+          { onConflict: "workspace_id,skill_id" },
+        );
+      }
+
+      // Fetch files back so the response includes them
+      const { data: fileData } = await untypedFrom(client, "skill_files")
+        .select("*")
+        .eq("skill_id", skillData.id)
+        .order("file_path", { ascending: true });
+
+      const skill = {
+        ...mapSkillDetailRow(skillData),
+        files: (fileData ?? []).map(mapSkillFileRow),
+      };
+
+      request.log.info({ skillId: skillData.id, sourceUrl: url }, "skill imported successfully");
+      return reply.code(201).send(skillDetailResponseSchema.parse({ skill }));
+    } catch (error) {
+      if (isZodError(error)) {
+        return reply.code(400).send({ issues: (error as { issues: unknown[] }).issues, message: "Invalid request body" });
+      }
+      if (error instanceof SkillImportError) {
+        request.log.warn({ code: error.code, message: error.message }, "skill import rejected");
+        return sendSkillError(reply, "skill_import_failed", error.message, 400);
+      }
+      request.log.error({ err: error }, "skill import error");
+      return sendSkillError(reply, "skill_import_failed", "Failed to import skill.");
     }
   });
 
