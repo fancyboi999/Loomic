@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
+  ChevronRight,
   Pen,
   ShieldCheck,
   Trash2,
@@ -11,8 +12,9 @@ import {
   Users,
 } from "lucide-react";
 
-import type { SkillDetail, SkillSource } from "@loomic/shared";
+import type { SkillDetail, SkillFileEntry, SkillSource } from "@loomic/shared";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +37,37 @@ const SOURCE_CONFIG: Record<
   community: { label: "社区", icon: Users },
   user: { label: "自定义", icon: UserPen },
 };
+
+// ---------------------------------------------------------------------------
+// FileTreeItem — expandable file row within the detail dialog
+// ---------------------------------------------------------------------------
+
+function FileTreeItem({ file }: { file: SkillFileEntry }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-foreground hover:bg-muted/50 transition-colors"
+      >
+        <ChevronRight
+          className={cn(
+            "size-3 shrink-0 transition-transform duration-150",
+            expanded && "rotate-90",
+          )}
+        />
+        <span className="truncate">{file.filePath}</span>
+      </button>
+      {expanded && (
+        <pre className="px-3 pb-2 font-mono text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words max-h-48 overflow-auto border-t border-border bg-secondary/50">
+          {file.content}
+        </pre>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // SkillDetailDialog
@@ -147,6 +180,20 @@ export function SkillDetailDialog({
             {skill.skillContent}
           </pre>
         </div>
+
+        {/* Attached files tree */}
+        {skill.files && skill.files.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              附属文件 ({skill.files.length})
+            </span>
+            <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
+              {skill.files.map((file) => (
+                <FileTreeItem key={file.id} file={file} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer actions */}
         <DialogFooter>

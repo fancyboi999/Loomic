@@ -267,6 +267,7 @@ export default function SkillsPage() {
       description: string;
       category: SkillCategory;
       skillContent: string;
+      files?: Array<{ filePath: string; content: string }>;
     }) => {
       const token = getToken();
       if (!token) return;
