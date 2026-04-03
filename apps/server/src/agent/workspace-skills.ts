@@ -16,13 +16,11 @@ export interface WorkspaceSkillEntry {
 }
 
 /**
- * Load enabled workspace skills for a given canvas.
+ * Load enabled skills (both system and user-created) for a given canvas.
  *
  * Resolves the canvas → project → workspace chain, then fetches all
  * skills installed and enabled in that workspace. Only skills with
- * non-empty `skill_content` (user-created skills stored in DB) are
- * returned — system skills use the filesystem and are handled
- * separately by the built-in SkillsMiddleware.
+ * non-empty `skill_content` are returned.
  */
 export async function loadWorkspaceSkills(
   userClient: UserSupabaseClient,
@@ -49,7 +47,14 @@ export async function loadWorkspaceSkills(
   return (rows as Array<{ skill: Record<string, unknown> | null }>)
     .map((row: { skill: Record<string, unknown> | null }) => {
       const skill = row.skill;
-      if (!skill?.skill_content) return null;
+      if (!skill?.skill_content) {
+        if (skill?.slug) {
+          console.warn(
+            `[workspace-skills] Skill "${skill.slug}" is enabled but has empty content — skipping`,
+          );
+        }
+        return null;
+      }
       const slug = skill.slug as string;
       return {
         name: slug,

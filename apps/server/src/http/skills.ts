@@ -448,12 +448,31 @@ export async function registerSkillRoutes(
       const workspaceId = viewer.workspace.id;
       const client = options.createUserClient(user.accessToken);
 
-      const { data, error } = await untypedFrom(client, "workspace_skills")
-        .update({ enabled: payload.enabled })
-        .eq("workspace_id", workspaceId)
-        .eq("skill_id", skillId)
+      // Verify skill exists in the catalog
+      const { data: skill, error: skillError } = await untypedFrom(client, "skills")
         .select("id")
+        .eq("id", skillId)
         .maybeSingle();
+
+      if (skillError || !skill) {
+        return sendSkillError(
+          reply,
+          "skill_not_found",
+          "Skill not found.",
+          404,
+        );
+      }
+
+      // Upsert: create workspace_skills row if not installed, or update enabled state
+      const { error } = await untypedFrom(client, "workspace_skills").upsert(
+        {
+          workspace_id: workspaceId,
+          skill_id: skillId,
+          enabled: payload.enabled,
+          installed_by: user.id,
+        },
+        { onConflict: "workspace_id,skill_id" },
+      );
 
       if (error) {
         request.log.error({ err: error }, "skill toggle failed");
@@ -461,15 +480,6 @@ export async function registerSkillRoutes(
           reply,
           "skill_toggle_failed",
           "Unable to toggle skill.",
-        );
-      }
-
-      if (!data) {
-        return sendSkillError(
-          reply,
-          "skill_not_found",
-          "Skill is not installed in this workspace.",
-          404,
         );
       }
 
