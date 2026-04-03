@@ -593,6 +593,18 @@ export async function deleteSkill(
   if (!response.ok) return handleErrorResponse(response);
 }
 
+export async function fetchSkillFiles(
+  accessToken: string,
+  skillId: string,
+): Promise<{ files: Array<{ id: string; filePath: string; content: string; mimeType: string; createdAt: string; updatedAt: string }> }> {
+  const response = await fetch(
+    `${getServerBaseUrl()}/api/skills/${skillId}/files`,
+    { headers: authHeaders(accessToken) },
+  );
+  if (!response.ok) return handleErrorResponse(response);
+  return (await response.json()) as any;
+}
+
 // --- Workspace Skills API ---
 
 export async function fetchWorkspaceSkills(
