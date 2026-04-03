@@ -13,6 +13,7 @@ import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 import { VideoCanvasElement } from "./canvas/video-canvas-element";
 import { isVideoUrl } from "../lib/canvas-elements";
 import { CanvasToolMenu } from "./canvas-tool-menu";
+import { normalizeCanvasElements } from "../lib/canvas-normalize";
 import { ErrorBoundary } from "./error-boundary";
 
 const Excalidraw = dynamic(
@@ -74,6 +75,8 @@ export function CanvasEditor({
   const prevSelectedIdsRef = useRef<string>("");
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
+  // Tracks whether the one-time normalization pass has already run
+  const normalizedRef = useRef(false);
 
   // Track pending save payload so we can flush on tab close / unmount
   const pendingSaveRef = useRef<{
@@ -142,6 +145,45 @@ export function CanvasEditor({
     },
     [onApiReady],
   );
+
+  // Normalize agent-created elements on initial load.
+  // Uses DOM text measurement to fix server-side approximation errors.
+  useEffect(() => {
+    if (!excalidrawApi || normalizedRef.current) return;
+    normalizedRef.current = true;
+
+    // Run normalization after Excalidraw has loaded fonts
+    requestIdleCallback(() => {
+      try {
+        const sceneElements = excalidrawApi.getSceneElements();
+        // Create mutable copies for normalization
+        const mutableElements = sceneElements.map((el: any) => ({ ...el }));
+        const { changed } = normalizeCanvasElements(mutableElements);
+
+        if (changed) {
+          console.log("[canvas-editor] normalized agent-created elements");
+          excalidrawApi.updateScene({
+            elements: mutableElements,
+            captureUpdate: "NONE",
+          });
+          // Persist normalized elements to DB
+          const files: Record<string, Record<string, unknown>> = {};
+          const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
+          for (const [id, file] of Object.entries(rawFiles)) {
+            files[id] = { id: file.id, dataURL: file.dataURL, mimeType: file.mimeType, created: file.created };
+          }
+          const appState = excalidrawApi.getAppState();
+          saveCanvas(accessTokenRef.current, canvasIdRef.current, {
+            elements: mutableElements.filter((el: any) => !el.isDeleted),
+            appState: { viewBackgroundColor: appState.viewBackgroundColor, gridModeEnabled: appState.gridModeEnabled },
+            files,
+          }).catch((err: Error) => console.warn("[canvas-editor] normalization save failed:", err));
+        }
+      } catch (err) {
+        console.warn("[canvas-editor] normalization failed:", err);
+      }
+    });
+  }, [excalidrawApi]);
 
   const handleChange = useCallback(
     (elements: readonly any[], appState: any) => {

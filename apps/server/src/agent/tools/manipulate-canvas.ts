@@ -1,5 +1,26 @@
 import { tool } from "langchain";
 import { z } from "zod";
+import {
+  CanvasElement,
+  HandlerResult,
+  generateId,
+  measureTextWidth,
+  coerceColor,
+  createElementBase,
+  bumpVersion,
+  findElement,
+  shortLabel,
+  ensureBoundElements,
+  validateBindings,
+  BINDING_GAP,
+  getElementCenter,
+  computeEdgePoint,
+  computeFixedPoint,
+} from "./canvas-element-helpers.js";
+
+// Re-export for consumers that import measureTextWidth from this module
+// (e.g. the test suite). New code should import directly from canvas-element-helpers.
+export { measureTextWidth } from "./canvas-element-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -24,7 +45,7 @@ const operationSchema = z.object({
     .enum([
       "move", "resize", "delete", "update_style",
       "add_text", "add_shape", "add_line",
-      "reorder", "align", "distribute",
+      "reorder", "align", "distribute", "update_text",
     ])
     .describe("The operation to perform"),
 
@@ -45,8 +66,8 @@ const operationSchema = z.object({
   strokeWidth: z.number().optional().describe("Stroke width"),
   fillStyle: z.enum(["solid", "hachure", "cross-hatch"]).optional().describe("Fill style"),
 
-  // add_text
-  text: z.string().optional().describe("Text content (add_text)"),
+  // add_text / update_text
+  text: z.string().optional().describe("Text content (add_text / update_text)"),
 
   // add_shape
   shape: z.enum(["rectangle", "ellipse", "diamond"]).optional().describe("Shape type (add_shape)"),
@@ -80,176 +101,8 @@ const manipulateCanvasSchema = z.object({
     .describe("List of operations to apply"),
 });
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type CanvasElement = Record<string, unknown>;
 // Flat operation type — all fields optional except `action`.
 type Operation = z.infer<typeof operationSchema>;
-
-type HandlerResult = {
-  description: string;
-  createdId?: string;
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function generateId(): string {
-  return (
-    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
-  ).slice(0, 20);
-}
-
-/**
- * Estimate text width accounting for CJK characters.
- * CJK characters ≈ 1.0× fontSize; Latin/ASCII ≈ 0.6× fontSize.
- */
-export function measureTextWidth(text: string, fontSize: number): number {
-  let width = 0;
-  for (const char of text) {
-    const code = char.codePointAt(0) ?? 0;
-    const isCJK =
-      (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
-      (code >= 0x3400 && code <= 0x4dbf) || // CJK Extension A
-      (code >= 0x3000 && code <= 0x303f) || // CJK Symbols & Punctuation
-      (code >= 0x3040 && code <= 0x309f) || // Hiragana
-      (code >= 0x30a0 && code <= 0x30ff) || // Katakana
-      (code >= 0xac00 && code <= 0xd7af) || // Hangul Syllables
-      (code >= 0xff00 && code <= 0xffef) || // Fullwidth Forms
-      (code >= 0xf900 && code <= 0xfaff) || // CJK Compatibility Ideographs
-      (code >= 0x20000 && code <= 0x2a6df); // CJK Extension B
-    width += isCJK ? fontSize : fontSize * 0.6;
-  }
-  return width;
-}
-
-/** Coerce numeric color values to hex strings at runtime (models sometimes emit numbers). */
-function coerceColor(v: unknown, fallback: string): string {
-  if (typeof v === "number") return `#${v.toString(16).padStart(6, "0")}`;
-  if (typeof v === "string" && v.length > 0) return v;
-  return fallback;
-}
-
-function createElementBase(): CanvasElement {
-  return {
-    id: generateId(),
-    angle: 0,
-    strokeColor: "#000000",
-    backgroundColor: "transparent",
-    fillStyle: "solid",
-    strokeWidth: 1,
-    strokeStyle: "solid",
-    roughness: 0,
-    opacity: 100,
-    groupIds: [],
-    roundness: null,
-    boundElements: [],
-    frameId: null,
-    index: null,
-    seed: Math.floor(Math.random() * 2_000_000_000),
-    version: 1,
-    versionNonce: Math.floor(Math.random() * 2_000_000_000),
-    isDeleted: false,
-    updated: Date.now(),
-    link: null,
-    locked: false,
-  };
-}
-
-function bumpVersion(el: CanvasElement): void {
-  el.version = ((el.version as number) ?? 0) + 1;
-  el.versionNonce = Math.floor(Math.random() * 2_000_000_000);
-  el.updated = Date.now();
-}
-
-function findElement(
-  elements: CanvasElement[],
-  id: string,
-): CanvasElement | undefined {
-  return elements.find((el) => el.id === id && !el.isDeleted);
-}
-
-function shortLabel(el: CanvasElement): string {
-  if (el.type === "text" && typeof el.text === "string") {
-    const short =
-      el.text.length > 20 ? el.text.slice(0, 17) + "..." : el.text;
-    return `text '${short}'`;
-  }
-  return `${el.type ?? "element"}(${el.id})`;
-}
-
-function ensureBoundElements(el: CanvasElement): unknown[] {
-  if (!Array.isArray(el.boundElements)) {
-    el.boundElements = [];
-  }
-  return el.boundElements as unknown[];
-}
-
-// ---------------------------------------------------------------------------
-// Arrow binding geometry
-// ---------------------------------------------------------------------------
-
-const BINDING_GAP = 8;
-
-function getElementCenter(el: CanvasElement): { cx: number; cy: number } {
-  const x = Number(el.x) || 0;
-  const y = Number(el.y) || 0;
-  const w = Number(el.width) || 0;
-  const h = Number(el.height) || 0;
-  return { cx: x + w / 2, cy: y + h / 2 };
-}
-
-/**
- * Compute the point on a shape's edge where a ray from its center toward
- * `target` exits, plus a gap offset.
- */
-function computeEdgePoint(
-  shape: CanvasElement,
-  target: { x: number; y: number },
-): { x: number; y: number } {
-  const { cx, cy } = getElementCenter(shape);
-  const hw = (Number(shape.width) || 0) / 2;
-  const hh = (Number(shape.height) || 0) / 2;
-  const dx = target.x - cx;
-  const dy = target.y - cy;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len === 0) return { x: cx, y: cy - hh - BINDING_GAP };
-  const nx = dx / len;
-  const ny = dy / len;
-
-  const shapeType = shape.type as string;
-
-  if (shapeType === "ellipse") {
-    const angle = Math.atan2(ny * hw, nx * hh);
-    return {
-      x: cx + (hw + BINDING_GAP) * Math.cos(angle),
-      y: cy + (hh + BINDING_GAP) * Math.sin(angle),
-    };
-  }
-
-  if (shapeType === "diamond") {
-    const absDx = Math.abs(nx);
-    const absDy = Math.abs(ny);
-    const denom = absDx * hh + absDy * hw;
-    const t = denom > 0 ? (hw * hh) / denom : 1;
-    return {
-      x: cx + nx * (t + BINDING_GAP),
-      y: cy + ny * (t + BINDING_GAP),
-    };
-  }
-
-  // Rectangle: ray-box intersection
-  const tx = nx !== 0 ? hw / Math.abs(nx) : Infinity;
-  const ty = ny !== 0 ? hh / Math.abs(ny) : Infinity;
-  const t = Math.min(tx, ty);
-  return {
-    x: cx + nx * (t + BINDING_GAP),
-    y: cy + ny * (t + BINDING_GAP),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Operation handlers
@@ -281,6 +134,12 @@ function applyResize(
   };
 }
 
+/**
+ * Delete an element with full cascade:
+ * - Marks the target as deleted
+ * - Cascades deletion to bound text elements (label cleanup)
+ * - Clears startBinding / endBinding on arrows pointing to deleted element
+ */
 function applyDelete(
   elements: CanvasElement[],
   op: Operation,
@@ -289,7 +148,40 @@ function applyDelete(
   if (!el) return { description: `[skip] element ${op.element_id} not found` };
   el.isDeleted = true;
   bumpVersion(el);
-  return { description: `deleted ${shortLabel(el)}` };
+
+  const cascaded: string[] = [];
+
+  // Cascade to bound text children (labels)
+  if (Array.isArray(el.boundElements)) {
+    for (const bound of el.boundElements as Array<{ type: string; id: string }>) {
+      if (bound.type === "text") {
+        const textEl = findElement(elements, bound.id);
+        if (textEl) {
+          textEl.isDeleted = true;
+          bumpVersion(textEl);
+          cascaded.push(`text(${bound.id})`);
+        }
+      }
+    }
+  }
+
+  // Clean up arrow bindings pointing at the deleted element
+  for (const other of elements) {
+    if (other.isDeleted) continue;
+    const startBinding = other.startBinding as { elementId: string } | null;
+    const endBinding = other.endBinding as { elementId: string } | null;
+    if (startBinding?.elementId === op.element_id) {
+      other.startBinding = null;
+      bumpVersion(other);
+    }
+    if (endBinding?.elementId === op.element_id) {
+      other.endBinding = null;
+      bumpVersion(other);
+    }
+  }
+
+  const cascadeInfo = cascaded.length > 0 ? ` (cascaded: ${cascaded.join(", ")})` : "";
+  return { description: `deleted ${shortLabel(el)}${cascadeInfo}` };
 }
 
 function applyUpdateStyle(
@@ -352,6 +244,73 @@ function applyAddText(
   };
 }
 
+/**
+ * Update the text content of a standalone text element or a shape's label.
+ * Resizes the text element and expands the container if needed.
+ */
+function applyUpdateText(
+  elements: CanvasElement[],
+  op: Operation,
+): HandlerResult {
+  const el = findElement(elements, op.element_id!);
+  if (!el) return { description: `[skip] element ${op.element_id} not found` };
+
+  let textEl: CanvasElement | undefined;
+  if (el.type === "text") {
+    textEl = el;
+  } else if (Array.isArray(el.boundElements)) {
+    const boundText = (el.boundElements as Array<{ type: string; id: string }>).find(
+      (b) => b.type === "text",
+    );
+    if (boundText) textEl = findElement(elements, boundText.id);
+  }
+
+  if (!textEl) return { description: `[skip] no text found for element ${op.element_id}` };
+
+  const newText = op.text!;
+  const fontSize = (op.fontSize ?? textEl.fontSize ?? 20) as number;
+  textEl.text = newText;
+  textEl.originalText = newText;
+
+  const lines = newText.split("\n");
+  const textWidth = Math.max(...lines.map((l) => measureTextWidth(l, fontSize)));
+  const textHeight = lines.length * fontSize * 1.25;
+  textEl.width = textWidth;
+  textEl.height = textHeight;
+
+  if (op.fontSize !== undefined) textEl.fontSize = fontSize;
+  bumpVersion(textEl);
+
+  // Expand container if text no longer fits
+  const containerId = textEl.containerId as string | null;
+  if (containerId) {
+    const container = findElement(elements, containerId);
+    if (container) {
+      const paddingX = Math.max(fontSize * 1.5, 30);
+      const paddingY = Math.max(fontSize * 1.2, 24);
+      const minWidth = textWidth + paddingX * 2;
+      const minHeight = textHeight + paddingY * 2;
+      let resized = false;
+      if ((Number(container.width) || 0) < minWidth) { container.width = minWidth; resized = true; }
+      if ((Number(container.height) || 0) < minHeight) { container.height = minHeight; resized = true; }
+      if (resized) {
+        // Re-center text within the (possibly expanded) container
+        textEl.x = Number(container.x) + (Number(container.width) - textWidth) / 2;
+        textEl.y = Number(container.y) + (Number(container.height) - textHeight) / 2;
+        bumpVersion(container);
+      }
+    }
+  }
+
+  const short = newText.length > 20 ? newText.slice(0, 17) + "..." : newText;
+  return { description: `updated text to '${short}' on ${op.element_id}` };
+}
+
+/**
+ * Add a shape with optional centered label.
+ * Uses proportional padding based on fontSize to ensure text never overflows.
+ * Enforces absolute minimum sizes per shape type.
+ */
 function applyAddShape(
   elements: CanvasElement[],
   op: Operation,
@@ -365,8 +324,8 @@ function applyAddShape(
     y: op.y,
     width: op.width,
     height: op.height,
-    strokeColor: op.strokeColor ?? "#000000",
-    backgroundColor: op.backgroundColor ?? "transparent",
+    strokeColor: coerceColor(op.strokeColor, "#000000"),
+    backgroundColor: coerceColor(op.backgroundColor, "transparent"),
     fillStyle: op.fillStyle ?? "solid",
   };
 
@@ -379,13 +338,15 @@ function applyAddShape(
     const textWidth = Math.max(...lines.map((l) => measureTextWidth(l, fontSize)));
     const textHeight = lines.length * fontSize * 1.25;
 
-    // Enforce minimum shape size so text never overflows the container
-    const paddingX = 40;
-    const paddingY = 40;
-    const minWidth = textWidth + paddingX;
-    const minHeight = textHeight + paddingY;
-    el.width = Math.max(Number(el.width) || 0, minWidth);
-    el.height = Math.max(Number(el.height) || 0, minHeight);
+    // Proportional padding — scales with font size to avoid overflow at any size
+    const paddingX = Math.max(fontSize * 1.5, 30);
+    const paddingY = Math.max(fontSize * 1.2, 24);
+    const minWidth = textWidth + paddingX * 2;
+    const minHeight = textHeight + paddingY * 2;
+
+    // Enforce minimum shape size so text never overflows, plus absolute floor
+    el.width = Math.max(Number(el.width) || 0, minWidth, 120);
+    el.height = Math.max(Number(el.height) || 0, minHeight, 60);
 
     // Bind text to shape
     ensureBoundElements(el).push({ type: "text", id: textId });
@@ -404,7 +365,7 @@ function applyAddShape(
       fontFamily: 1,
       textAlign: "center",
       verticalAlign: "middle",
-      strokeColor: op.label.strokeColor,
+      strokeColor: coerceColor(op.label.strokeColor, "#000000"),
       containerId: shapeId,
       autoResize: true,
       lineHeight: 1.25,
@@ -418,14 +379,24 @@ function applyAddShape(
         ? op.label.text.slice(0, 17) + "..."
         : op.label.text;
     return {
-      description: `added ${op.shape} ${op.width}x${op.height} with label '${short}' at (${op.x}, ${op.y}) [id=${shapeId}]`,
+      description: `added ${op.shape} ${el.width}x${el.height} with label '${short}' at (${op.x}, ${op.y}) [id=${shapeId}]`,
       createdId: shapeId,
     };
   }
 
+  // No label — enforce minimum sizes per shape type
+  const shapeType = op.shape as string;
+  if (shapeType === "ellipse") {
+    el.width = Math.max(Number(el.width) || 0, 140);
+    el.height = Math.max(Number(el.height) || 0, 70);
+  } else {
+    el.width = Math.max(Number(el.width) || 0, 120);
+    el.height = Math.max(Number(el.height) || 0, 60);
+  }
+
   elements.push(el);
   return {
-    description: `added ${op.shape} ${op.width}x${op.height} at (${op.x}, ${op.y}) [id=${shapeId}]`,
+    description: `added ${op.shape} ${el.width}x${el.height} at (${op.x}, ${op.y}) [id=${shapeId}]`,
     createdId: shapeId,
   };
 }
@@ -469,7 +440,7 @@ function applyAddLine(
     width,
     height,
     points: excalidrawPoints,
-    strokeColor: op.strokeColor ?? "#000000",
+    strokeColor: coerceColor(op.strokeColor, "#000000"),
     strokeWidth: op.strokeWidth ?? 2,
     lastCommittedPoint: excalidrawPoints[excalidrawPoints.length - 1],
     startBinding: null,
@@ -484,6 +455,11 @@ function applyAddLine(
   };
 }
 
+/**
+ * Add an arrow/line with element bindings.
+ * Uses computeFixedPoint to set stable fixedPoint values so Excalidraw does
+ * not recompute endpoints when bound shapes are resized.
+ */
 function applyAddBoundLine(
   elements: CanvasElement[],
   op: Operation,
@@ -531,22 +507,28 @@ function applyAddBoundLine(
   let endBinding: unknown = null;
 
   if (startEl) {
+    const fixedPoint = endEl
+      ? computeFixedPoint(startEl, endEl)
+      : [1, 0.5] as [number, number];
     startBinding = {
       elementId: op.start_element_id,
       focus: 0,
       gap: BINDING_GAP,
-      fixedPoint: null,
+      fixedPoint,
     };
     ensureBoundElements(startEl).push({ type: "arrow", id: arrowId });
     bumpVersion(startEl);
   }
 
   if (endEl) {
+    const fixedPoint = startEl
+      ? computeFixedPoint(endEl, startEl)
+      : [0, 0.5] as [number, number];
     endBinding = {
       elementId: op.end_element_id,
       focus: 0,
       gap: BINDING_GAP,
-      fixedPoint: null,
+      fixedPoint,
     };
     ensureBoundElements(endEl).push({ type: "arrow", id: arrowId });
     bumpVersion(endEl);
@@ -564,7 +546,7 @@ function applyAddBoundLine(
       [0, 0],
       [relEnd.x, relEnd.y],
     ],
-    strokeColor: op.strokeColor ?? "#000000",
+    strokeColor: coerceColor(op.strokeColor, "#000000"),
     strokeWidth: op.strokeWidth ?? 2,
     lastCommittedPoint: [relEnd.x, relEnd.y],
     startBinding,
@@ -620,22 +602,14 @@ function applyAlign(
   switch (op.alignment) {
     case "left": {
       const minX = Math.min(...targets.map((el) => Number(el.x) || 0));
-      for (const el of targets) {
-        el.x = minX;
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.x = minX; bumpVersion(el); }
       break;
     }
     case "right": {
       const maxRight = Math.max(
-        ...targets.map(
-          (el) => (Number(el.x) || 0) + (Number(el.width) || 0),
-        ),
+        ...targets.map((el) => (Number(el.x) || 0) + (Number(el.width) || 0)),
       );
-      for (const el of targets) {
-        el.x = maxRight - (Number(el.width) || 0);
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.x = maxRight - (Number(el.width) || 0); bumpVersion(el); }
       break;
     }
     case "center": {
@@ -643,30 +617,19 @@ function applyAlign(
         (el) => (Number(el.x) || 0) + (Number(el.width) || 0) / 2,
       );
       const avg = centers.reduce((a, b) => a + b, 0) / centers.length;
-      for (const el of targets) {
-        el.x = avg - (Number(el.width) || 0) / 2;
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.x = avg - (Number(el.width) || 0) / 2; bumpVersion(el); }
       break;
     }
     case "top": {
       const minY = Math.min(...targets.map((el) => Number(el.y) || 0));
-      for (const el of targets) {
-        el.y = minY;
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.y = minY; bumpVersion(el); }
       break;
     }
     case "bottom": {
       const maxBottom = Math.max(
-        ...targets.map(
-          (el) => (Number(el.y) || 0) + (Number(el.height) || 0),
-        ),
+        ...targets.map((el) => (Number(el.y) || 0) + (Number(el.height) || 0)),
       );
-      for (const el of targets) {
-        el.y = maxBottom - (Number(el.height) || 0);
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.y = maxBottom - (Number(el.height) || 0); bumpVersion(el); }
       break;
     }
     case "middle": {
@@ -674,10 +637,7 @@ function applyAlign(
         (el) => (Number(el.y) || 0) + (Number(el.height) || 0) / 2,
       );
       const avg = middles.reduce((a, b) => a + b, 0) / middles.length;
-      for (const el of targets) {
-        el.y = avg - (Number(el.height) || 0) / 2;
-        bumpVersion(el);
-      }
+      for (const el of targets) { el.y = avg - (Number(el.height) || 0) / 2; bumpVersion(el); }
       break;
     }
   }
@@ -709,10 +669,7 @@ function applyDistribute(
       (Number(last.x) || 0) +
       (Number(last.width) || 0) -
       (Number(first.x) || 0);
-    const totalWidths = targets.reduce(
-      (sum, el) => sum + (Number(el.width) || 0),
-      0,
-    );
+    const totalWidths = targets.reduce((sum, el) => sum + (Number(el.width) || 0), 0);
     const gap = (totalSpan - totalWidths) / (targets.length - 1);
 
     let currentX = Number(first.x) || 0;
@@ -729,10 +686,7 @@ function applyDistribute(
       (Number(last.y) || 0) +
       (Number(last.height) || 0) -
       (Number(first.y) || 0);
-    const totalHeights = targets.reduce(
-      (sum, el) => sum + (Number(el.height) || 0),
-      0,
-    );
+    const totalHeights = targets.reduce((sum, el) => sum + (Number(el.height) || 0), 0);
     const gap = (totalSpan - totalHeights) / (targets.length - 1);
 
     let currentY = Number(first.y) || 0;
@@ -766,6 +720,7 @@ const handlers: Record<
   reorder: applyReorder,
   align: applyAlign,
   distribute: applyDistribute,
+  update_text: applyUpdateText,
 };
 
 // ---------------------------------------------------------------------------
@@ -832,6 +787,10 @@ export function createManipulateCanvasTool(deps: {
         }
       }
 
+      // --- Post-processing: clean up orphan bindings ---------------------------
+      // Must run after all operations so cascaded deletes are visible.
+      validateBindings(elements);
+
       // --- Write back ----------------------------------------------------------
       const updatedContent = { ...content, elements };
       const { error: writeError } = await client
@@ -863,7 +822,7 @@ export function createManipulateCanvasTool(deps: {
     {
       name: "manipulate_canvas",
       description:
-        "Manipulate elements on the canvas. Supports: move, resize, delete, update_style, add_text, add_shape (with optional label for centered text), add_line (with optional element binding for auto-connected arrows), align, distribute, reorder. Use inspect_canvas first to understand the current layout. Returns created element IDs for subsequent binding.",
+        "Manipulate elements on the canvas. Supports: move, resize, delete (cascades to bound text), update_style, update_text (modify text content of any element or its label), add_text, add_shape (with optional label for centered text), add_line (with optional element binding for auto-connected arrows), align, distribute, reorder. Use inspect_canvas first to understand the current layout. Returns created element IDs for subsequent binding.",
       schema: manipulateCanvasSchema,
     },
   );
