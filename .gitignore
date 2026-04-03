@@ -52,7 +52,8 @@ supabase/supabase/
 tmp/
 temp/.claude/worktrees/
 
-# internal dev docs (keep locally, exclude from repo)
+# internal dev docs & operational secrets (keep locally, exclude from repo)
+.claude/skills/production-debugger/
 docs/superpowers/
 docs/CODE_QUALITY_AUDIT_REPORT.md
 docs/DEPLOY_CHECKLIST.md

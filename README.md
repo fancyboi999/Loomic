@@ -1,26 +1,21 @@
+<p align="center">
+  <a href="https://loomic-one.vercel.app" target="_blank">
+    <img src="apps/web/public/logo.svg" alt="Loomic Logo" width="80" />
+  </a>
+</p>
+
 <h1 align="center">
   <a href="https://loomic-one.vercel.app" target="_blank">Loomic</a>
 </h1>
 
 <p align="center">
-  Automated AI canvas design agent — for ads, e-commerce, social media, and beyond.
+  Open-source alternative to <b>Lovart</b> / <b>CapCut Video Studio</b> / <b>Canva AI</b><br/>
+  Canvas-based AI creative workspace — no timeline, no templates, just talk.
 </p>
 
 <p align="center">
   <a href="https://loomic-one.vercel.app">
     <img width="900" src="docs/images/base-image.png" alt="Loomic" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/fancyboi999/Loomic/stargazers">
-    <img src="https://img.shields.io/github/stars/fancyboi999/Loomic?style=for-the-badge&logo=github" alt="GitHub Stars" />
-  </a>
-  <a href="https://github.com/fancyboi999/Loomic/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/fancyboi999/Loomic?style=for-the-badge" alt="License" />
-  </a>
-  <a href="https://discord.gg/TODO">
-    <img src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" />
   </a>
 </p>
 
@@ -45,11 +40,13 @@
 
 ## 💡 Loomic 是什么
 
-做广告图、电商主图、社交媒体素材、品牌视觉、短视频封面——这些活儿过去要在 Canva 里拖半天，或者等设计师排期。
+CapCut 刚推出了 Video Studio——基于画布的 AI 视频制作空间，Lovart 做的是 AI 设计 Agent，Canva 也在往 AI 方向猛推。这类产品的共同点：闭源、数据不在你手里、定价你说了不算。
 
-Loomic 换了个思路：你在画布上说一句话，AI 直接把东西生成出来，摆好位置，调好样式。不满意就继续聊，改到满意为止。整个过程不用写 prompt 模板，不用手动导入导出，画布就是你的工作台。
+Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对话，它直接生成图片、视频，摆好位置，调好样式。不需要时间轴，不需要模板，不需要学 prompt 工程。说"把左边那张换成暖色调"，AI 就懂了。
 
-底层跑的是 LangGraph 驱动的 Agent，接了 Google Gemini / Vertex AI / OpenAI / Replicate 十几个模型，图片视频都能生。开源，可以自己部署，数据全在你手里。
+从构思、角色设定、故事板、场景生成、细节打磨到导出——整个创作流程在一个画布上完成。底层是 LangGraph 驱动的 Agent，接了 Google Gemini / Vertex AI / OpenAI / Replicate 十几个模型（包括 Veo 3.1、Kling、Seedance、Sora 等），图片视频都能生。
+
+开源，可以自己部署，数据全在你手里。
 
 <p align="center">
   <img width="900" src="docs/images/canvas-image.png" alt="Loomic Canvas" />
