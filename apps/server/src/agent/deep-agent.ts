@@ -82,7 +82,21 @@ export function createLoomicDeepAgent(options: {
   const wsSkills = options.workspaceSkills ?? [];
   if (wsSkills.length > 0) {
     const skillsList = wsSkills
-      .map((s) => `- **${s.name}**: ${s.description}\n  → Read \`${s.path}\` for full instructions`)
+      .map((s) => {
+        let line = `- **${s.name}**: ${s.description}\n  → Read \`${s.path}\` for full instructions`;
+        if (s.files.length > 0) {
+          const counts: Record<string, number> = {};
+          for (const f of s.files) {
+            const dir = f.path.split("/")[0];
+            counts[dir] = (counts[dir] ?? 0) + 1;
+          }
+          const summary = Object.entries(counts)
+            .map(([dir, n]) => `${dir}/ (${n})`)
+            .join(", ");
+          line += `\n  → Has: ${summary}`;
+        }
+        return line;
+      })
       .join("\n");
     systemPrompt += `\n\n## Skills\n\nThe following skills are enabled in this workspace:\n${skillsList}`;
   }

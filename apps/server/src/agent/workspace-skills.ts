@@ -1,6 +1,16 @@
 import type { UserSupabaseClient } from "../supabase/user.js";
 
 /**
+ * A file bundled with a skill (scripts/, references/, assets/).
+ */
+export interface SkillFileEntry {
+  /** Relative path, e.g. "scripts/analyze.py" */
+  path: string;
+  /** Raw file content */
+  content: string;
+}
+
+/**
  * Metadata for a workspace skill loaded from the database.
  * Compatible with the deepagents SkillsMiddleware SkillMetadata shape.
  */
@@ -13,6 +23,8 @@ export interface WorkspaceSkillEntry {
   path: string;
   /** Raw SKILL.md content stored in the database */
   content: string;
+  /** Associated files (scripts, references, assets) */
+  files: SkillFileEntry[];
 }
 
 /**
@@ -43,7 +55,28 @@ export async function loadWorkspaceSkills(
 
   if (error || !rows?.length) return [];
 
-  // Step 3: Map to WorkspaceSkillEntry, filtering out skills without DB content
+  // Step 3: Batch-load associated files for all enabled skills
+  const skillIds = (rows as any[])
+    .map((r: any) => r.skill?.id)
+    .filter((id: unknown): id is string => typeof id === "string");
+
+  const filesBySkillId = new Map<string, SkillFileEntry[]>();
+  if (skillIds.length > 0) {
+    const { data: fileRows } = await (userClient as any)
+      .from("skill_files")
+      .select("skill_id, file_path, content")
+      .in("skill_id", skillIds);
+
+    if (fileRows?.length) {
+      for (const fr of fileRows as Array<{ skill_id: string; file_path: string; content: string }>) {
+        const existing = filesBySkillId.get(fr.skill_id) ?? [];
+        existing.push({ path: fr.file_path, content: fr.content });
+        filesBySkillId.set(fr.skill_id, existing);
+      }
+    }
+  }
+
+  // Step 4: Map to WorkspaceSkillEntry, filtering out skills without DB content
   return (rows as Array<{ skill: Record<string, unknown> | null }>)
     .map((row: { skill: Record<string, unknown> | null }) => {
       const skill = row.skill;
@@ -61,6 +94,7 @@ export async function loadWorkspaceSkills(
         description: skill.description as string,
         path: `/workspace-skills/${slug}/SKILL.md`,
         content: skill.skill_content as string,
+        files: filesBySkillId.get(skill.id as string) ?? [],
       };
     })
     .filter((entry): entry is WorkspaceSkillEntry => entry !== null);

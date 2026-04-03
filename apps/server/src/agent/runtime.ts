@@ -840,26 +840,39 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
         rlog.lap("brand_kit_resolved");
 
-        // Pre-write workspace skill SKILL.md files into the Store so the
-        // agent can read_file them via the /workspace-skills/ route.
+        // Pre-write workspace skill SKILL.md files AND associated files
+        // (scripts/, references/, assets/) into the Store so the agent can
+        // read_file them via the /workspace-skills/ route.
         const store = persistence?.store;
         if (workspaceSkills.length > 0 && store && run.canvasId) {
           const storeNamespace = ["projects", run.canvasId, "workspace-skills"];
           const now_ = new Date().toISOString();
-          await Promise.all(
-            workspaceSkills.map((skill) =>
-              store.put(
-                storeNamespace,
-                `/${skill.name}/SKILL.md`,
-                {
-                  content: skill.content.split("\n"),
+
+          const writeOps: Promise<void>[] = [];
+          for (const skill of workspaceSkills) {
+            // Write SKILL.md
+            writeOps.push(
+              store.put(storeNamespace, `/${skill.name}/SKILL.md`, {
+                content: skill.content.split("\n"),
+                created_at: now_,
+                modified_at: now_,
+              }),
+            );
+            // Write associated files (scripts/, references/, assets/)
+            for (const file of skill.files) {
+              writeOps.push(
+                store.put(storeNamespace, `/${skill.name}/${file.path}`, {
+                  content: file.content.split("\n"),
                   created_at: now_,
                   modified_at: now_,
-                },
-              ),
-            ),
-          );
-          rlog.lap("workspace_skills_stored", { count: workspaceSkills.length });
+                }),
+              );
+            }
+          }
+
+          await Promise.all(writeOps);
+          const totalFiles = workspaceSkills.reduce((sum, s) => sum + s.files.length, 0);
+          rlog.lap("workspace_skills_stored", { count: workspaceSkills.length, files: totalFiles });
         }
 
         agent = resolvedAgentFactory({
