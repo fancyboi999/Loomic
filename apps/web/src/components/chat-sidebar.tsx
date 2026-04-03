@@ -40,6 +40,7 @@ import { ChatMessage } from "./chat-message";
 import { ChatSkills } from "./chat-skills";
 import { CreditInsufficientDialog } from "./credits/credit-insufficient-dialog";
 import { useTierLimitToast } from "./credits/tier-limit-toast";
+import { useToast } from "./toast";
 import { ErrorBoundary } from "./error-boundary";
 import { SessionSelector } from "./session-selector";
 
@@ -163,6 +164,7 @@ export function ChatSidebar({
   agentModelRef.current = agentModel;
 
   const { showTierLimit } = useTierLimitToast();
+  const { toast: showToast } = useToast();
 
   // ── Sidebar resize ──
   const [sidebarWidth, setSidebarWidth] = useState(400);
@@ -442,6 +444,17 @@ export function ChatSidebar({
 
           if (event.type === "canvas.sync" && onCanvasSync) {
             onCanvasSync();
+          }
+
+          // Preview model hint: suggest switching when run fails
+          if (event.type === "run.failed") {
+            const currentModel = agentModelRef.current ?? "";
+            if (currentModel.includes("preview")) {
+              showToast(
+                "当前 Preview 模型请求不稳定，建议切换模型后重试",
+                "error",
+              );
+            }
           }
 
           if (
