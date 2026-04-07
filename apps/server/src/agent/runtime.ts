@@ -42,6 +42,7 @@ import { adaptDeepAgentStream } from "./stream-adapter.js";
 import { sanitizeErrorForClient } from "../utils/error-sanitizer.js";
 import { loadWorkspaceSkills, type WorkspaceSkillEntry } from "./workspace-skills.js";
 import { buildCanvasSummaryForContext } from "./tools/inspect-canvas.js";
+import { insertImageElement, insertVideoElement } from "../features/canvas/canvas-element-writer.js";
 
 /**
  * Build the text portion of a user message, appending <input_images> XML
@@ -549,14 +550,57 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             if (current.status === "succeeded" && current.result) {
               const result = current.result as {
                 signed_url?: string;
+                object_path?: string;
                 width?: number;
                 height?: number;
                 mime_type?: string;
               };
               jobLap("job_poll_done", { pollCount, status: "succeeded" });
+
+              // Write element directly to canvas (backend-driven insertion)
+              let elementId: string | undefined;
+              if (canvasId && result.object_path) {
+                try {
+                  const writerClient = createClient(accessToken);
+                  const explicitPlacement = (input as any).placementX != null && (input as any).placementY != null
+                    ? {
+                        x: (input as any).placementX,
+                        y: (input as any).placementY,
+                        width: (input as any).placementWidth ?? 512,
+                        height: (input as any).placementHeight ?? 512,
+                      }
+                    : undefined;
+
+                  const insertResult = await insertImageElement(
+                    writerClient,
+                    {
+                      canvasId,
+                      objectPath: result.object_path,
+                      width: result.width ?? 1024,
+                      height: result.height ?? 1024,
+                      mimeType: result.mime_type ?? "image/png",
+                      title: input.title,
+                    },
+                    explicitPlacement,
+                  );
+                  elementId = insertResult.elementId;
+
+                  // Notify connected frontends to refresh canvas
+                  options.connectionManager?.pushToCanvas(canvasId, {
+                    type: "canvas.sync" as const,
+                    runId,
+                    timestamp: new Date().toISOString(),
+                  });
+                  jobLap("canvas_element_inserted", { elementId });
+                } catch (insertErr) {
+                  // Graceful degradation: log error but still return result
+                  console.error("[submitImageJob] canvas insert failed:", insertErr);
+                }
+              }
+
               return {
                 jobId: job.id,
-                imageUrl: result.signed_url ?? "",
+                elementId,
                 width: result.width ?? 1024,
                 height: result.height ?? 1024,
                 mimeType: result.mime_type ?? "image/png",
@@ -713,13 +757,57 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
                 mime_type?: string;
               };
               jobLap("job_poll_done", { pollCount, status: "succeeded" });
+
+              // Write element directly to canvas (backend-driven insertion)
+              let elementId: string | undefined;
+              if (canvasId && result.signed_url) {
+                try {
+                  const writerClient = createClient(accessToken);
+                  const explicitPlacement = (input as any).placementX != null && (input as any).placementY != null
+                    ? {
+                        x: (input as any).placementX,
+                        y: (input as any).placementY,
+                        width: (input as any).placementWidth ?? 640,
+                        height: (input as any).placementHeight ?? 360,
+                      }
+                    : undefined;
+
+                  const insertResult = await insertVideoElement(
+                    writerClient,
+                    {
+                      canvasId,
+                      signedUrl: result.signed_url,
+                      width: result.width ?? 1280,
+                      height: result.height ?? 720,
+                      mimeType: result.mime_type ?? "video/mp4",
+                      durationSeconds: result.duration_seconds,
+                      title: (input as any).title,
+                      prompt: input.prompt,
+                    },
+                    explicitPlacement,
+                  );
+                  elementId = insertResult.elementId;
+
+                  // Notify connected frontends to refresh canvas
+                  options.connectionManager?.pushToCanvas(canvasId, {
+                    type: "canvas.sync" as const,
+                    runId,
+                    timestamp: new Date().toISOString(),
+                  });
+                  jobLap("canvas_element_inserted", { elementId });
+                } catch (insertErr) {
+                  // Graceful degradation: log error but still return result
+                  console.error("[submitVideoJob] canvas insert failed:", insertErr);
+                }
+              }
+
               return {
                 jobId: job.id,
-                videoUrl: result.signed_url ?? "",
+                elementId,
+                width: result.width ?? 1280,
+                height: result.height ?? 720,
                 mimeType: result.mime_type ?? "video/mp4",
                 ...(result.duration_seconds != null ? { durationSeconds: result.duration_seconds } : {}),
-                ...(result.width != null ? { width: result.width } : {}),
-                ...(result.height != null ? { height: result.height } : {}),
               };
             }
 
