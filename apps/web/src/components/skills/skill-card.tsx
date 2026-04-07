@@ -76,13 +76,13 @@ function ToggleSwitch({
         onChange(!checked);
       }}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200",
+        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 sm:h-5 sm:w-9",
         checked ? "bg-primary" : "bg-muted",
       )}
     >
       <motion.span
-        className="pointer-events-none block h-3.5 w-3.5 rounded-full bg-white shadow-sm"
-        animate={{ x: checked ? 18 : 3 }}
+        className="pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm sm:h-3.5 sm:w-3.5"
+        animate={{ x: checked ? 22 : 4 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       />
     </button>
@@ -111,8 +111,12 @@ export function SkillCard({
   onClick,
   onUninstall,
 }: SkillCardProps) {
-  const { label: sourceLabel, icon: SourceIcon } =
-    SOURCE_CONFIG[skill.source];
+  // SOURCE_CONFIG exhaustively covers all SkillSource values ("system" | "community" | "user")
+  // Non-null assertion is safe: every possible SkillSource key is present in SOURCE_CONFIG.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const sourceEntry =
+    (SOURCE_CONFIG[skill.source as keyof typeof SOURCE_CONFIG] ?? SOURCE_CONFIG.system)!;
+  const { label: sourceLabel, icon: SourceIcon } = sourceEntry;
 
   const handleToggle = useCallback(
     (next: boolean) => {

@@ -66,12 +66,40 @@ export function ImageGeneratorPanel({
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
   const { handleGenerationError } = useGenerationErrorHandler();
+  // AbortController for in-flight generation requests so we can cancel on unmount
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Fetch available models
+  // Fetch available models with error logging
   useEffect(() => {
+    let cancelled = false;
     fetchImageModels()
-      .then((r) => setModels(r.models))
-      .catch(() => {});
+      .then((r) => {
+        if (!cancelled) setModels(r.models);
+      })
+      .catch((err) => {
+        console.warn("[image-gen] Failed to fetch models:", err);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Close dropdowns when clicking outside the panel
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowModelDropdown(false);
+        setShowRatioDropdown(false);
+        setShowQualityDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Cancel in-flight generation on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   // Auto-resize textarea
@@ -122,6 +150,12 @@ export function ImageGeneratorPanel({
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || loading) return;
+
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     updateImageGeneratorElement(excalidrawApi, elementId, {
@@ -139,8 +173,13 @@ export function ImageGeneratorPanel({
         { model, aspectRatio, quality },
       );
 
+      // Check if this generation was cancelled while awaiting
+      if (controller.signal.aborted) return;
+
       // Download and insert as real image element at same position
       const dataURL = await fetchAsDataURL(result.url);
+      if (controller.signal.aborted) return;
+
       const fileId = generateId();
       excalidrawApi.addFiles([
         {
@@ -174,6 +213,9 @@ export function ImageGeneratorPanel({
 
       onClose();
     } catch (err) {
+      // Ignore aborted requests (user cancelled or component unmounted)
+      if (controller.signal.aborted) return;
+
       console.error("[image-gen] Generation error:", err);
       const handled = handleGenerationError(err);
       if (!handled) {
@@ -353,7 +395,7 @@ export function ImageGeneratorPanel({
                     onClick={() => setRefImages((prev) => prev.filter((r) => r.id !== img.id))}
                     className="absolute -top-1 -right-1 hidden group-hover:flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[8px]"
                   >
-                    ×
+                    x
                   </button>
                 </div>
               ))}

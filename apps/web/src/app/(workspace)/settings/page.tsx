@@ -116,24 +116,29 @@ export default function SettingsPage() {
   if (!profile) return null;
 
   return (
-    <div className="p-8">
-      <h1 className="text-lg font-semibold mb-6">Settings</h1>
+    <div className="px-4 py-6 sm:px-6 md:p-8">
+      <h1 className="mb-4 text-base font-semibold sm:mb-6 sm:text-lg">
+        Settings
+      </h1>
 
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1 mb-8">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              activeTab === tab.id
-                ? "bg-white font-medium text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tab bar -- scrollable on small screens, 44px min touch target */}
+      <div className="mb-6 overflow-x-auto sm:mb-8">
+        <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`min-h-[44px] whitespace-nowrap rounded-md px-4 py-1.5 text-sm transition-colors sm:min-h-0 sm:px-3 ${
+                activeTab === tab.id
+                  ? "bg-white font-medium text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="max-w-xl">

@@ -382,3 +382,107 @@
   animation: shimmer-scan 1.5s ease-in-out infinite;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Landing page keyframes
+   Consolidated from inline <style> tags across landing components.
+   Benefits: single parse, browser-cached, no runtime CSSOM injection,
+   GPU-composited via translate3d where applicable.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Hero -- background glow drift (GPU-composited) */
+@keyframes landing-gradient-drift-1 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-6%, 8%, 0) scale(1.1); }
+}
+@keyframes landing-gradient-drift-2 {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(5%, -6%, 0) scale(1.08); }
+}
+
+/* Hero -- mockup floating effect */
+@keyframes landing-hero-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -10px, 0); }
+}
+
+/* Hero -- CTA shimmer sweep */
+@keyframes landing-shimmer {
+  0%   { transform: translateX(-100%) rotate(15deg); }
+  100% { transform: translateX(100%) rotate(15deg); }
+}
+
+.landing-cta-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.landing-cta-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    oklch(1 0 0 / 0.25) 50%,
+    transparent 60%
+  );
+  animation: landing-shimmer 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Floating nav -- CTA glow pulse (one-shot) */
+@keyframes landing-nav-cta-glow {
+  0%   { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0.5); }
+  50%  { box-shadow: 0 0 16px 4px oklch(0.90 0.17 115 / 0.35); }
+  100% { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0); }
+}
+.landing-nav-cta-glow {
+  animation: landing-nav-cta-glow 1.5s ease-in-out 1;
+}
+
+/* How it works -- icon pulse (one-shot on scroll) */
+@keyframes landing-icon-pulse {
+  0%   { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0.3); }
+  70%  { box-shadow: 0 0 0 10px oklch(0.90 0.17 115 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0); }
+}
+
+/* Pricing -- highlighted card border color shift */
+@keyframes landing-border-shift {
+  0%   { border-color: oklch(0.90 0.17 115 / 0.6); }
+  33%  { border-color: oklch(0.82 0.14 125 / 0.6); }
+  66%  { border-color: oklch(0.85 0.16 110 / 0.6); }
+  100% { border-color: oklch(0.90 0.17 115 / 0.6); }
+}
+
+/* Final CTA -- background orb drift (GPU-composited) */
+@keyframes landing-orb-drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-5%, 8%, 0) scale(1.08); }
+}
+@keyframes landing-orb-drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(6%, -5%, 0) scale(1.06); }
+}
+@keyframes landing-orb-drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-3%, -7%, 0) scale(1.05); }
+}
+
+/* Final CTA -- floating particles */
+@keyframes landing-float-up {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.7; }
+  100% { transform: translateY(-120px) scale(0.6); opacity: 0; }
+}
+
+/* Final CTA -- button pulse ring */
+@keyframes landing-cta-pulse-ring {
+  0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+/* Dark mode overrides for hero glow blobs */
+.dark .landing-hero-glow-1 { opacity: 0.15 !important; }
+.dark .landing-hero-glow-2 { opacity: 0.12 !important; }
+

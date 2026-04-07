@@ -124,9 +124,9 @@ export default function SkillsPage() {
 
       // Merge install status from workspace into catalog
       const installedMap = new Map(
-        workspace.skills.map((ws) => [ws.id, ws]),
+        (workspace.skills as SkillListItem[]).map((ws: SkillListItem) => [ws.id, ws]),
       );
-      const merged = catalog.skills.map((skill) => {
+      const merged = (catalog.skills as SkillListItem[]).map((skill: SkillListItem) => {
         const ws = installedMap.get(skill.id);
         return ws
           ? { ...skill, installed: true, enabled: ws.enabled ?? true, installedAt: ws.installedAt }
@@ -343,22 +343,22 @@ export default function SkillsPage() {
     officialOnly;
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 sm:px-6 md:p-8">
       {/* Header */}
-      <h1 className="text-lg font-semibold">Skills</h1>
-      <p className="mt-1 mb-6 text-sm text-muted-foreground">
+      <h1 className="text-base font-semibold sm:text-lg">Skills</h1>
+      <p className="mt-1 mb-4 text-xs text-muted-foreground sm:mb-6 sm:text-sm">
         为您的智能体提供预封装且可重复的最佳实践与工具
       </p>
 
-      {/* Tab navigation */}
-      <div className="mb-6 flex items-center gap-1 border-b border-border">
+      {/* Tab navigation -- scrollable on narrow screens */}
+      <div className="mb-4 flex items-center gap-1 overflow-x-auto border-b border-border sm:mb-6">
         {TABS.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+              "min-h-[44px] whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px sm:min-h-0",
               activeTab === tab
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -372,13 +372,17 @@ export default function SkillsPage() {
       {/* === Installed Tab === */}
       {activeTab === "installed" && (
         <>
-          {/* Search + Filter Bar */}
-          <div className="mb-6 flex items-center gap-3">
+          {/* Search + Filter Bar -- wraps on small screens */}
+          <div className="mb-4 flex flex-wrap items-center gap-2 sm:mb-6 sm:gap-3">
             {/* Category filter */}
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-[44px] sm:min-h-0"
+                  >
                     <ListFilter className="size-3.5" />
                     筛选
                     {selectedCategories.size > 0 && (
@@ -402,15 +406,16 @@ export default function SkillsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Search */}
-            <div className="relative flex-1 max-w-sm">
+            {/* Search -- full width on mobile, constrained on desktop */}
+            <div className="relative order-last w-full sm:order-none sm:max-w-sm sm:flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="搜索技能..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 w-full rounded-lg border border-input bg-transparent pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-label="搜索技能"
+                className="h-10 w-full rounded-lg border border-input bg-transparent pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-7"
               />
             </div>
 
@@ -418,6 +423,7 @@ export default function SkillsPage() {
             <Button
               variant={officialOnly ? "default" : "outline"}
               size="sm"
+              className="min-h-[44px] sm:min-h-0"
               onClick={() => setOfficialOnly((p) => !p)}
             >
               <ShieldCheck className="size-3.5" />
@@ -430,7 +436,7 @@ export default function SkillsPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="mb-6 flex items-center gap-5 rounded-xl border border-border bg-card p-5"
+            className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-card p-3 sm:mb-6 sm:gap-5 sm:p-5"
           >
             {/* Puzzle illustration */}
             <div className="hidden sm:flex shrink-0 items-center justify-center">
@@ -492,7 +498,7 @@ export default function SkillsPage() {
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2"
             >
               <AnimatePresence mode="popLayout">
                 {filteredSkills.map((skill) => (

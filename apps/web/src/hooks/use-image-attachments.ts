@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadFile } from "../lib/server-api";
 
 export type ImageAttachmentState = {
@@ -40,12 +40,30 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
 
+  // Use a ref mirror of attachments for retryUpload to avoid stale closures.
+  // Without this, retryUpload would capture a snapshot of `attachments` at
+  // the time it was called, potentially missing concurrent state updates.
+  const attachmentsRef = useRef(attachments);
+  attachmentsRef.current = attachments;
+
+  // Clean up all object URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      for (const att of attachmentsRef.current) {
+        if (att.preview && att.source === "upload") {
+          URL.revokeObjectURL(att.preview);
+        }
+      }
+    };
+  }, []);
+
   const addFiles = useCallback(
     (files: File[]) => {
       const newAttachments: ImageAttachmentState[] = [];
 
       for (const file of files) {
         if (!ALLOWED_TYPES.has(file.type)) {
+          console.warn("[image-attachments] Rejected file type:", file.type);
           continue;
         }
         if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -86,6 +104,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
             );
           })
           .catch((err) => {
+            console.warn("[image-attachments] Upload failed:", err);
             setAttachments((prev) =>
               prev.map((a) =>
                 a.id === id
@@ -122,22 +141,20 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
 
   const retryUpload = useCallback(
     (id: string) => {
-      setAttachments((prev) => {
-        const att = prev.find((a) => a.id === id);
-        if (!att?.file) return prev;
-        return prev.map((a) =>
+      // Read from ref to get the latest attachments state, avoiding stale closure
+      const att = attachmentsRef.current.find((a) => a.id === id);
+      if (!att?.file) return;
+
+      setAttachments((prev) =>
+        prev.map((a) =>
           a.id === id
             ? (() => {
                 const { error: _error, ...rest } = a;
                 return { ...rest, uploading: true };
               })()
             : a,
-        );
-      });
-
-      // Find the file from current state and re-upload
-      const att = attachments.find((a) => a.id === id);
-      if (!att?.file) return;
+        ),
+      );
 
       uploadFile(accessTokenRef.current, att.file, projectId)
         .then((res) => {
@@ -150,6 +167,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
           );
         })
         .catch((err) => {
+          console.warn("[image-attachments] Retry upload failed:", err);
           setAttachments((prev) =>
             prev.map((a) =>
               a.id === id
@@ -159,7 +177,7 @@ export function useImageAttachments(accessToken: string, projectId?: string) {
           );
         });
     },
-    [attachments, projectId],
+    [projectId],
   );
 
   const removeAttachment = useCallback((id: string) => {

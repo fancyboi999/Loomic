@@ -3,14 +3,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Skeleton placeholder matching the Settings page layout. */
 export function SettingsSkeleton() {
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 sm:px-6 md:p-8">
       {/* Title */}
-      <Skeleton className="h-7 w-20 mb-6" />
+      <Skeleton className="mb-4 h-6 w-20 sm:mb-6 sm:h-7" />
 
       {/* Tab bar */}
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1 mb-8">
-        <Skeleton className="h-8 w-16 rounded-md bg-white" />
-        <Skeleton className="h-8 w-14 rounded-md" />
+      <div className="mb-6 inline-flex gap-1 rounded-lg bg-muted p-1 sm:mb-8">
+        <Skeleton className="h-10 w-16 rounded-md bg-white sm:h-8" />
+        <Skeleton className="h-10 w-14 rounded-md sm:h-8" />
       </div>
 
       {/* Form fields */}

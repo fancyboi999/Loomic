@@ -284,7 +284,8 @@ export function BrandKitPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] w-full bg-background">
+    <div className="flex h-[100dvh] w-full flex-col bg-background md:flex-row">
+      {/* Sidebar: full width horizontal on mobile, vertical panel on md+ */}
       <BrandKitSidebar
         kits={kits}
         selectedKitId={selectedKit?.id ?? null}

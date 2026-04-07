@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowUpRight,
@@ -88,6 +88,64 @@ type CanvasToolMenuProps = {
   leftPanelOpen?: boolean;
 };
 
+/** Memoized shimmer overlay for a single generating element */
+const GeneratingOverlay = memo(function GeneratingOverlay({
+  id,
+  screenX,
+  screenY,
+  screenW,
+  screenH,
+  model,
+}: {
+  id: string;
+  screenX: number;
+  screenY: number;
+  screenW: number;
+  screenH: number;
+  model?: string;
+}) {
+  return (
+    <div
+      key={id}
+      className="pointer-events-none fixed overflow-hidden rounded-lg"
+      style={{
+        left: screenX,
+        top: screenY,
+        width: screenW,
+        height: screenH,
+        zIndex: 99,
+      }}
+    >
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F3F4F6]">
+        <svg
+          className="h-12 w-12 text-[#D1D5DB]"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+        </svg>
+        {model && (
+          <span className="mt-2 rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-medium text-[#6B7280]">
+            {model.split("/").pop()?.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+          </span>
+        )}
+        <span className="mt-1 text-[11px] text-[#9CA3AF]">
+          Generating...
+        </span>
+      </div>
+      <div className="absolute inset-0 animate-shimmer-scan">
+        <div
+          className="h-full w-1/2"
+          style={{
+            background:
+              "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+          }}
+        />
+      </div>
+    </div>
+  );
+});
+
 export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: CanvasToolMenuProps) {
   const [activeTool, setActiveTool] = useState<string>("selection");
 
@@ -149,21 +207,44 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
   const activeVideoPlayerIdRef = useRef(activeVideoPlayerId);
   activeVideoPlayerIdRef.current = activeVideoPlayerId;
 
-  // Subscribe to Excalidraw changes
+  // Track previous generating element IDs to avoid re-renders when nothing changed
+  const prevGeneratingKeyRef = useRef("");
+
+  // Helper: close all generator / player panels
+  const closeAllPanels = useCallback(() => {
+    setActiveGeneratorId(null);
+    setGeneratorData(null);
+    setGeneratorBounds(null);
+    setActiveVideoGenId(null);
+    setVideoGenData(null);
+    setVideoGenBounds(null);
+    setActiveVideoPlayerId(null);
+    setVideoPlayerData(null);
+    setVideoPlayerBounds(null);
+  }, []);
+
+  // Subscribe to Excalidraw changes.
+  // This fires on every frame during drag / drawing, so we must be very
+  // careful to avoid unnecessary state updates that trigger re-renders.
   useEffect(() => {
     if (!excalidrawApi) return;
 
     const unsubscribe = excalidrawApi.onChange(
       (elements: any[], appState: any) => {
+        // --- Tool sync (cheap string comparison, skip if unchanged) ---
         const tool = appState?.activeTool?.type;
-        if (tool) setActiveTool(tool);
+        if (tool) setActiveTool((prev: string) => prev === tool ? prev : tool);
 
         const scrollX = appState?.scrollX ?? 0;
         const scrollY = appState?.scrollY ?? 0;
         const zoom = appState?.zoom?.value ?? 1;
-        setCanvasScrollZoom({ scrollX, scrollY, zoom });
+        // Only update scroll/zoom state if values actually changed
+        setCanvasScrollZoom((prev) => {
+          if (prev.scrollX === scrollX && prev.scrollY === scrollY && prev.zoom === zoom) return prev;
+          return { scrollX, scrollY, zoom };
+        });
 
-        // Check if an image-generator element is selected
+        // --- Selection-based panel management ---
         const selectedIds = appState?.selectedElementIds ?? {};
         const selectedElements = elements.filter(
           (el: any) => selectedIds[el.id] && !el.isDeleted,
@@ -176,117 +257,85 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
           const sel = selectedElements[0];
 
           if (isImageGeneratorElement(sel)) {
-            const data = getImageGeneratorData(sel);
-            setActiveGeneratorId(sel.id as string);
-            setGeneratorData(data);
+            // Only update if the selected generator changed
+            if (currentId !== sel.id) {
+              const data = getImageGeneratorData(sel);
+              setActiveGeneratorId(sel.id as string);
+              setGeneratorData(data);
+              if (currentVideoId) { setActiveVideoGenId(null); setVideoGenData(null); setVideoGenBounds(null); }
+              if (activeVideoPlayerIdRef.current) { setActiveVideoPlayerId(null); setVideoPlayerData(null); setVideoPlayerBounds(null); }
+            }
+            // Always update bounds (element may have been moved/resized)
             setGeneratorBounds({
-              x: sel.x as number,
-              y: sel.y as number,
-              width: sel.width as number,
-              height: sel.height as number,
+              x: sel.x as number, y: sel.y as number,
+              width: sel.width as number, height: sel.height as number,
             });
-            // Close video panel if open
-            if (currentVideoId) {
-              setActiveVideoGenId(null);
-              setVideoGenData(null);
-              setVideoGenBounds(null);
-            }
           } else if (isVideoGeneratorElement(sel)) {
-            const data = getVideoGeneratorData(sel);
-            setActiveVideoGenId(sel.id as string);
-            setVideoGenData(data);
-            setVideoGenBounds({
-              x: sel.x as number,
-              y: sel.y as number,
-              width: sel.width as number,
-              height: sel.height as number,
-            });
-            // Close image panel if open
-            if (currentId) {
-              setActiveGeneratorId(null);
-              setGeneratorData(null);
-              setGeneratorBounds(null);
+            if (currentVideoId !== sel.id) {
+              const data = getVideoGeneratorData(sel);
+              setActiveVideoGenId(sel.id as string);
+              setVideoGenData(data);
+              if (currentId) { setActiveGeneratorId(null); setGeneratorData(null); setGeneratorBounds(null); }
+              if (activeVideoPlayerIdRef.current) { setActiveVideoPlayerId(null); setVideoPlayerData(null); setVideoPlayerBounds(null); }
             }
+            setVideoGenBounds({
+              x: sel.x as number, y: sel.y as number,
+              width: sel.width as number, height: sel.height as number,
+            });
           } else if (
             sel.type === "embeddable" &&
             (isVideoUrl(sel.link as string) || sel.customData?.isVideo === true)
           ) {
-            // Completed video embeddable element — show player panel for detailed controls
-            const videoLink = sel.link as string;
-            setActiveVideoPlayerId(sel.id as string);
-            setVideoPlayerData({
-              videoUrl: videoLink,
-              mimeType: (sel.customData?.mimeType as string) ?? "video/mp4",
-              ...(sel.customData?.durationSeconds != null
-                ? { durationSeconds: sel.customData.durationSeconds as number }
-                : {}),
-              ...(sel.customData?.title != null
-                ? { title: sel.customData.title as string }
-                : {}),
-            });
+            if (activeVideoPlayerIdRef.current !== sel.id) {
+              const videoLink = sel.link as string;
+              setActiveVideoPlayerId(sel.id as string);
+              setVideoPlayerData({
+                videoUrl: videoLink,
+                mimeType: (sel.customData?.mimeType as string) ?? "video/mp4",
+                ...(sel.customData?.durationSeconds != null
+                  ? { durationSeconds: sel.customData.durationSeconds as number }
+                  : {}),
+                ...(sel.customData?.title != null
+                  ? { title: sel.customData.title as string }
+                  : {}),
+              });
+              if (currentId) { setActiveGeneratorId(null); setGeneratorData(null); setGeneratorBounds(null); }
+              if (currentVideoId) { setActiveVideoGenId(null); setVideoGenData(null); setVideoGenBounds(null); }
+            }
             setVideoPlayerBounds({
-              x: sel.x as number,
-              y: sel.y as number,
-              width: sel.width as number,
-              height: sel.height as number,
+              x: sel.x as number, y: sel.y as number,
+              width: sel.width as number, height: sel.height as number,
             });
-            // Close generator panels
-            if (currentId) {
-              setActiveGeneratorId(null);
-              setGeneratorData(null);
-              setGeneratorBounds(null);
-            }
-            if (currentVideoId) {
-              setActiveVideoGenId(null);
-              setVideoGenData(null);
-              setVideoGenBounds(null);
-            }
           } else {
-            // Neither generator nor video player — close all
-            if (currentId) {
-              setActiveGeneratorId(null);
-              setGeneratorData(null);
-              setGeneratorBounds(null);
-            }
-            if (currentVideoId) {
-              setActiveVideoGenId(null);
-              setVideoGenData(null);
-              setVideoGenBounds(null);
-            }
-            if (activeVideoPlayerIdRef.current) {
-              setActiveVideoPlayerId(null);
-              setVideoPlayerData(null);
-              setVideoPlayerBounds(null);
+            // Neither generator nor video player -- close all if any was open
+            if (currentId || currentVideoId || activeVideoPlayerIdRef.current) {
+              closeAllPanels();
             }
           }
         } else {
-          // Zero or multiple selected — close all panels
-          if (currentId) {
-            setActiveGeneratorId(null);
-            setGeneratorData(null);
-            setGeneratorBounds(null);
-          }
-          if (currentVideoId) {
-            setActiveVideoGenId(null);
-            setVideoGenData(null);
-            setVideoGenBounds(null);
-          }
-          if (activeVideoPlayerIdRef.current) {
-            setActiveVideoPlayerId(null);
-            setVideoPlayerData(null);
-            setVideoPlayerBounds(null);
+          // Zero or multiple selected -- close all panels if any was open
+          if (currentId || currentVideoId || activeVideoPlayerIdRef.current) {
+            closeAllPanels();
           }
         }
 
-        // Find all generating elements for shimmer overlay (image + video generators)
-        const generating = elements
-          .filter(
-            (el: any) =>
-              !el.isDeleted &&
-              (isImageGeneratorElement(el) || isVideoGeneratorElement(el)) &&
-              el.customData?.status === "generating",
-          )
-          .map((el: any) => ({
+        // --- Generating elements shimmer overlay ---
+        // Build a stable key so we skip setState when the generating set is unchanged.
+        const generatingRaw = elements.filter(
+          (el: any) =>
+            !el.isDeleted &&
+            (isImageGeneratorElement(el) || isVideoGeneratorElement(el)) &&
+            el.customData?.status === "generating",
+        );
+
+        // Quick identity check: IDs + positions as a serialized key
+        const genKey = generatingRaw.map((el: any) =>
+          `${el.id}:${el.x}:${el.y}:${el.width}:${el.height}`
+        ).join("|");
+
+        if (genKey !== prevGeneratingKeyRef.current) {
+          prevGeneratingKeyRef.current = genKey;
+          const generating = generatingRaw.map((el: any) => ({
             id: el.id as string,
             screenX: ((el.x as number) + scrollX) * zoom,
             screenY: ((el.y as number) + scrollY) * zoom,
@@ -294,12 +343,13 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
             screenH: (el.height as number) * zoom,
             ...(el.customData?.model ? { model: el.customData.model as string } : {}),
           }));
-        setGeneratingElements(generating);
+          setGeneratingElements(generating);
+        }
       },
     );
 
     return unsubscribe;
-  }, [excalidrawApi]);
+  }, [excalidrawApi, closeAllPanels]);
 
   const handleToolChange = useCallback(
     (tool: ToolType) => {
@@ -365,6 +415,12 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
     setVideoGenBounds(null);
   }, []);
 
+  const handleCloseVideoPlayer = useCallback(() => {
+    setActiveVideoPlayerId(null);
+    setVideoPlayerData(null);
+    setVideoPlayerBounds(null);
+  }, []);
+
   return (
     <>
       <div
@@ -411,7 +467,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         {/* Separator before AI tools */}
         <div className="mx-0.5 h-6 w-px bg-black/[0.06]" />
 
-        {/* AI Image — creates a placeholder on canvas */}
+        {/* AI Image -- creates a placeholder on canvas */}
         <button
           type="button"
           title="AI 生成图片"
@@ -425,7 +481,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
           <Sparkles className="size-[16px]" />
         </button>
 
-        {/* AI Video — creates a placeholder on canvas */}
+        {/* AI Video -- creates a placeholder on canvas */}
         <button
           type="button"
           title="AI 生成视频"
@@ -440,7 +496,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         </button>
       </div>
 
-      {/* Image Generator Panel — floats below the selected placeholder */}
+      {/* Image Generator Panel -- floats below the selected placeholder */}
       {activeGeneratorId && generatorData && generatorBounds && (
         <ImageGeneratorPanel
           elementId={activeGeneratorId}
@@ -453,7 +509,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         />
       )}
 
-      {/* Video Generator Panel — floats below the selected placeholder */}
+      {/* Video Generator Panel -- floats below the selected placeholder */}
       {activeVideoGenId && videoGenData && videoGenBounds && (
         <VideoGeneratorPanel
           elementId={activeVideoGenId}
@@ -466,7 +522,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         />
       )}
 
-      {/* Video Player Panel — floats when a completed video element is selected */}
+      {/* Video Player Panel -- floats when a completed video element is selected */}
       {activeVideoPlayerId && videoPlayerData && videoPlayerBounds && (
         <VideoPlayerPanel
           elementId={activeVideoPlayerId}
@@ -476,11 +532,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
           {...(videoPlayerData.durationSeconds != null ? { durationSeconds: videoPlayerData.durationSeconds } : {})}
           {...(videoPlayerData.title != null ? { title: videoPlayerData.title } : {})}
           canvasScrollZoom={canvasScrollZoom}
-          onClose={() => {
-            setActiveVideoPlayerId(null);
-            setVideoPlayerData(null);
-            setVideoPlayerBounds(null);
-          }}
+          onClose={handleCloseVideoPlayer}
         />
       )}
 
@@ -489,46 +541,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         createPortal(
           <>
             {generatingElements.map((el) => (
-              <div
-                key={el.id}
-                className="pointer-events-none fixed overflow-hidden rounded-lg"
-                style={{
-                  left: el.screenX,
-                  top: el.screenY,
-                  width: el.screenW,
-                  height: el.screenH,
-                  zIndex: 99,
-                }}
-              >
-                {/* Mountain icon placeholder with model name */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F3F4F6]">
-                  <svg
-                    className="h-12 w-12 text-[#D1D5DB]"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                  </svg>
-                  {el.model && (
-                    <span className="mt-2 rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-medium text-[#6B7280]">
-                      {el.model.split("/").pop()?.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
-                    </span>
-                  )}
-                  <span className="mt-1 text-[11px] text-[#9CA3AF]">
-                    Generating...
-                  </span>
-                </div>
-                {/* Shimmer scan effect */}
-                <div className="absolute inset-0 animate-shimmer-scan">
-                  <div
-                    className="h-full w-1/2"
-                    style={{
-                      background:
-                        "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
-                    }}
-                  />
-                </div>
-              </div>
+              <GeneratingOverlay key={el.id} {...el} />
             ))}
           </>,
           document.body,

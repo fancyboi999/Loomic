@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import type { MessageMention } from "@loomic/shared";
 import type { ImageAttachmentState } from "../hooks/use-image-attachments";
@@ -172,10 +172,18 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
 
   const hasContent = value.trim().length > 0 || (attachments && attachments.length > 0);
 
-  // Compute canvas selection summary for the context bar
-  const selectionImageCount = selectedCanvasElements?.filter((el) => el.type === "image").length ?? 0;
-  const selectionShapeCount = (selectedCanvasElements?.length ?? 0) - selectionImageCount;
-  const hasSelection = (selectedCanvasElements?.length ?? 0) > 0;
+  // Memoize canvas selection summary -- selectedCanvasElements changes on every
+  // canvas interaction, but the counts only change when the selection actually differs
+  const selectionSummary = useMemo(() => {
+    const imageCount = selectedCanvasElements?.filter((el) => el.type === "image").length ?? 0;
+    const totalCount = selectedCanvasElements?.length ?? 0;
+    return {
+      selectionImageCount: imageCount,
+      selectionShapeCount: totalCount - imageCount,
+      hasSelection: totalCount > 0,
+    };
+  }, [selectedCanvasElements]);
+  const { selectionImageCount, selectionShapeCount, hasSelection } = selectionSummary;
 
   return (
     <div className="px-2 pb-2">

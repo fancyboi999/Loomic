@@ -91,7 +91,7 @@ interface ScrollRevealProps extends HTMLMotionProps<"div"> {
   variants?: Variants;
   /** Distance from viewport edge that triggers the animation */
   margin?: string;
-  className?: string;
+  className?: string | undefined;
   children: React.ReactNode;
 }
 

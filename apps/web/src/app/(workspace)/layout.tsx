@@ -33,9 +33,10 @@ export default function WorkspaceLayout({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[100dvh] flex-col md:flex-row">
       <AppSidebar />
-      <main className="relative flex-1 overflow-auto">
+      {/* pb-14 on mobile for the fixed bottom navigation bar, reset on md+ */}
+      <main className="relative flex-1 overflow-auto pb-14 md:pb-0">
         {/* Top-right header credits button */}
         <div className="absolute right-4 top-3 z-10">
           <CreditHeaderButton />

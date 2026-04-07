@@ -95,7 +95,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 md:p-8">
       <ProjectList
         projects={projects}
         highlightId={highlightId}

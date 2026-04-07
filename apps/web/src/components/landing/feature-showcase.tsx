@@ -1,7 +1,14 @@
 "use client";
 
 import React from "react";
-import { type LucideIcon, Layout, MessageSquare, Palette, MousePointer } from "lucide-react";
+import Image from "next/image";
+import {
+  type LucideIcon,
+  Layout,
+  MessageSquare,
+  Palette,
+  MousePointer,
+} from "lucide-react";
 import { type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/landing/section-header";
@@ -12,60 +19,74 @@ import {
 } from "@/components/landing/motion";
 
 // ---------------------------------------------------------------------------
-// Feature visuals — local high-res images matched to feature descriptions
+// Feature visuals -- local high-res images matched to feature descriptions
+// Using next/image with unoptimized (static export) for CLS prevention
+// via explicit width/height and native lazy loading.
 // ---------------------------------------------------------------------------
 
 function CanvasVisual() {
-  // showcase-5: 三女复古运动时尚 — 复杂多人场景构图，展示画布能力
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
-      <img
+      <Image
         src="/images/showcase/showcase-5.jpg"
-        alt="AI 画布级多人场景构图"
+        alt="AI canvas multi-person scene composition"
+        width={800}
+        height={600}
+        unoptimized
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
+        sizes="(max-width: 1024px) 100vw, 50vw"
       />
     </div>
   );
 }
 
 function ChatVisual() {
-  // showcase-10: 朋克牛仔皮草造型 — AI 精准理解 "朋克牛仔" 创意意图
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
-      <img
+      <Image
         src="/images/showcase/showcase-10.jpg"
-        alt="AI 理解创意意图生成潮流造型"
+        alt="AI understanding creative intent for fashion styling"
+        width={800}
+        height={600}
+        unoptimized
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
+        sizes="(max-width: 1024px) 100vw, 50vw"
       />
     </div>
   );
 }
 
 function BrandVisual() {
-  // showcase-11: 白房前清新双人 — 统一柔和色调，风格一致的品牌美学
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
-      <img
+      <Image
         src="/images/showcase/showcase-11.jpg"
-        alt="风格一致的品牌视觉美学"
+        alt="Consistent brand visual aesthetic"
+        width={800}
+        height={600}
+        unoptimized
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
+        sizes="(max-width: 1024px) 100vw, 50vw"
       />
     </div>
   );
 }
 
 function EditVisual() {
-  // showcase-3: 混合媒体拼贴 — 精细元素拼合，展示像素级控制能力
   return (
     <div className="aspect-[4/3] relative overflow-hidden rounded-xl">
-      <img
+      <Image
         src="/images/showcase/showcase-3.jpg"
-        alt="精细元素拼合的像素级控制"
+        alt="Pixel-level precision control for design elements"
+        width={800}
+        height={600}
+        unoptimized
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
+        sizes="(max-width: 1024px) 100vw, 50vw"
       />
     </div>
   );
@@ -82,7 +103,8 @@ function GradientBorderCard({ children }: { children: React.ReactNode }) {
       <div
         className="absolute inset-0 -z-10 blur-3xl opacity-0 transition-opacity duration-700 group-[.in-view]:opacity-100"
         style={{
-          background: "radial-gradient(ellipse at center, oklch(0.90 0.17 115 / 0.12), transparent 70%)",
+          background:
+            "radial-gradient(ellipse at center, oklch(0.90 0.17 115 / 0.12), transparent 70%)",
           transform: "scale(1.2)",
         }}
       />
@@ -104,8 +126,7 @@ interface Feature {
   icon: LucideIcon;
   title: string;
   description: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  visual: any;
+  visual: React.ReactNode;
   reversed: boolean;
   textVariants: Variants;
   visualVariants: Variants;
@@ -114,7 +135,7 @@ interface Feature {
 const FEATURES: Feature[] = [
   {
     icon: Layout,
-    title: "AI Canvas — 画布级创作",
+    title: "AI Canvas -- 画布级创作",
     description:
       "在无限画布上与 AI 协作。从一个简单的想法开始，AI 帮你构建完整的设计系统——布局、配色、排版，一切所见即所得。",
     visual: <CanvasVisual />,
@@ -124,7 +145,7 @@ const FEATURES: Feature[] = [
   },
   {
     icon: MessageSquare,
-    title: "智能对话 — 理解创意意图",
+    title: "智能对话 -- 理解创意意图",
     description:
       "不是冰冷的指令执行。Loomic 理解你的设计需求，主动提出建议，在对话中迭代出最佳方案。",
     visual: <ChatVisual />,
@@ -134,7 +155,7 @@ const FEATURES: Feature[] = [
   },
   {
     icon: Palette,
-    title: "风格一致 — 品牌设计系统",
+    title: "风格一致 -- 品牌设计系统",
     description:
       "上传你的品牌素材，AI 自动理解品牌调性。无论生成多少作品，始终保持风格统一。",
     visual: <BrandVisual />,
@@ -144,7 +165,7 @@ const FEATURES: Feature[] = [
   },
   {
     icon: MousePointer,
-    title: "精准编辑 — 像素级控制",
+    title: "精准编辑 -- 像素级控制",
     description:
       "AI 生成只是起点。在画布上直接修改每一个元素，精确调整到你满意为止。",
     visual: <EditVisual />,
@@ -158,11 +179,7 @@ const FEATURES: Feature[] = [
 // FeatureItem
 // ---------------------------------------------------------------------------
 
-interface FeatureItemProps {
-  feature: Feature;
-}
-
-function FeatureItem({ feature }: FeatureItemProps) {
+function FeatureItem({ feature }: { feature: Feature }) {
   const Icon = feature.icon;
 
   const textContent = (
@@ -185,10 +202,7 @@ function FeatureItem({ feature }: FeatureItemProps) {
   );
 
   const visualContent = (
-    <ScrollReveal
-      variants={feature.visualVariants}
-      className="relative"
-    >
+    <ScrollReveal variants={feature.visualVariants} className="relative">
       <GradientBorderCard>
         <div
           className={cn(
@@ -220,7 +234,7 @@ function FeatureItem({ feature }: FeatureItemProps) {
 }
 
 // ---------------------------------------------------------------------------
-// FeatureDivider — horizontal line between feature pairs
+// FeatureDivider -- horizontal line between feature pairs
 // ---------------------------------------------------------------------------
 
 function FeatureDivider() {

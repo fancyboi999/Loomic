@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LoomicLogo } from "@/components/icons/loomic-logo";
 import { CreditBalance } from "@/components/credits/credit-balance";
 import { useAuth } from "@/lib/auth-context";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Nav item definitions
@@ -17,7 +18,7 @@ interface NavItem {
   label: string;
   /** SVG path `d` attribute */
   icon: string;
-  /** viewBox dimensions (square), e.g. 20 → "0 0 20 20" */
+  /** viewBox dimensions (square), e.g. 20 -> "0 0 20 20" */
   viewBox: number;
 }
 
@@ -57,6 +58,7 @@ const SETTINGS_ITEM: NavItem = {
 
 // ---------------------------------------------------------------------------
 // Reusable nav-button with active indicator
+// Touch target: min 44px on mobile, 36px on desktop (md+)
 // ---------------------------------------------------------------------------
 
 function NavButton({
@@ -72,7 +74,8 @@ function NavButton({
     <Link
       href={item.href}
       title={item.label}
-      className="relative flex h-9 w-9 items-center justify-center rounded-full"
+      aria-label={item.label}
+      className="relative flex h-11 w-11 items-center justify-center rounded-full md:h-9 md:w-9"
     >
       {/* Animated active background */}
       {active && (
@@ -86,7 +89,10 @@ function NavButton({
         viewBox={vb}
         fill="currentColor"
         xmlns="http://www.w3.org/2000/svg"
-        className={`relative h-5 w-5 ${active ? "text-foreground" : "text-muted-foreground"}`}
+        className={cn(
+          "relative h-5 w-5",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
         whileHover={{ scale: 1.15 }}
         whileTap={{ scale: 0.9 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
@@ -98,7 +104,79 @@ function NavButton({
 }
 
 // ---------------------------------------------------------------------------
-// AppSidebar
+// Mobile bottom bar (visible below md breakpoint)
+// Each item has min 48px touch target for comfortable tapping.
+// ---------------------------------------------------------------------------
+
+function MobileBottomBar() {
+  const pathname = usePathname();
+
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)] md:hidden"
+      role="navigation"
+      aria-label="Main navigation"
+    >
+      {TOP_NAV_ITEMS.map((item) => {
+        const active = isActive(item.href);
+        const vb = `0 0 ${item.viewBox} ${item.viewBox}`;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-label={item.label}
+            className={cn(
+              "flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-0.5 px-2 py-1.5 transition-colors",
+              active ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
+            <svg
+              viewBox={vb}
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+            >
+              <path d={item.icon} />
+            </svg>
+            <span className="text-[10px] font-medium leading-none">
+              {item.label}
+            </span>
+          </Link>
+        );
+      })}
+
+      {/* Settings in bottom bar */}
+      <Link
+        href={SETTINGS_ITEM.href}
+        aria-label={SETTINGS_ITEM.label}
+        className={cn(
+          "flex min-h-[48px] min-w-[48px] flex-col items-center justify-center gap-0.5 px-2 py-1.5 transition-colors",
+          isActive(SETTINGS_ITEM.href)
+            ? "text-foreground"
+            : "text-muted-foreground",
+        )}
+      >
+        <svg
+          viewBox={`0 0 ${SETTINGS_ITEM.viewBox} ${SETTINGS_ITEM.viewBox}`}
+          fill="currentColor"
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5"
+        >
+          <path d={SETTINGS_ITEM.icon} />
+        </svg>
+        <span className="text-[10px] font-medium leading-none">
+          {SETTINGS_ITEM.label}
+        </span>
+      </Link>
+    </nav>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AppSidebar (desktop: icon rail, mobile: bottom nav bar)
 // ---------------------------------------------------------------------------
 
 export function AppSidebar() {
@@ -115,55 +193,69 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="flex h-screen w-[60px] flex-col items-center border-r border-border bg-card py-3 gap-1">
-      {/* Logo */}
-      <Link
-        href="/home"
-        title="Loomic"
-        className="mb-1 flex h-9 w-9 items-center justify-center"
-      >
-        <motion.div
-          whileHover={{ scale: 1.1, rotate: 8 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+    <>
+      {/* Desktop sidebar rail -- hidden below md */}
+      <aside className="hidden md:flex h-screen w-[60px] flex-col items-center border-r border-border bg-card py-3 gap-1">
+        {/* Logo */}
+        <Link
+          href="/home"
+          title="Loomic"
+          className="mb-1 flex h-9 w-9 items-center justify-center"
         >
-          <LoomicLogo className="size-7 text-black" />
-        </motion.div>
-      </Link>
+          <motion.div
+            whileHover={{ scale: 1.1, rotate: 8 }}
+            whileTap={{ scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          >
+            <LoomicLogo className="size-7 text-black" />
+          </motion.div>
+        </Link>
 
-      {/* Top nav items */}
-      {TOP_NAV_ITEMS.map((item) => (
-        <NavButton key={item.href} item={item} active={isActive(item.href)} />
-      ))}
+        {/* Top nav items */}
+        {TOP_NAV_ITEMS.map((item) => (
+          <NavButton
+            key={item.href}
+            item={item}
+            active={isActive(item.href)}
+          />
+        ))}
 
-      {/* Spacer pushes bottom section down */}
-      <div className="flex-1" />
+        {/* Spacer pushes bottom section down */}
+        <div className="flex-1" />
 
-      {/* Credits balance */}
-      <CreditBalance />
+        {/* Credits balance */}
+        <CreditBalance />
 
-      {/* Settings / Profile */}
-      <NavButton item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM.href)} />
+        {/* Settings / Profile */}
+        <NavButton
+          item={SETTINGS_ITEM}
+          active={isActive(SETTINGS_ITEM.href)}
+        />
 
-      {/* Sign out */}
-      <button
-        type="button"
-        onClick={handleSignOut}
-        title="Sign out"
-        className="flex h-9 w-9 items-center justify-center rounded-full"
-      >
-        <motion.svg
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-muted-foreground"
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        {/* Sign out */}
+        <button
+          type="button"
+          onClick={handleSignOut}
+          title="Sign out"
+          aria-label="Sign out"
+          className="flex h-11 w-11 items-center justify-center rounded-full md:h-9 md:w-9"
         >
-          <path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h5A2.5 2.5 0 0 1 13 4.5v1a.5.5 0 0 1-1 0v-1A1.5 1.5 0 0 0 10.5 3h-5A1.5 1.5 0 0 0 4 4.5v11A1.5 1.5 0 0 0 5.5 17h5a1.5 1.5 0 0 0 1.5-1.5v-1a.5.5 0 0 1 1 0v1A2.5 2.5 0 0 1 10.5 18h-5A2.5 2.5 0 0 1 3 15.5zm12.354-1.354a.5.5 0 0 0-.708.708L16.793 6H7.5a.5.5 0 0 0 0 1h9.293l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708z" transform="translate(0, 4)" />
-        </motion.svg>
-      </button>
-    </aside>
+          <motion.svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 text-muted-foreground"
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          >
+            <path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h5A2.5 2.5 0 0 1 13 4.5v1a.5.5 0 0 1-1 0v-1A1.5 1.5 0 0 0 10.5 3h-5A1.5 1.5 0 0 0 4 4.5v11A1.5 1.5 0 0 0 5.5 17h5a1.5 1.5 0 0 0 1.5-1.5v-1a.5.5 0 0 1 1 0v1A2.5 2.5 0 0 1 10.5 18h-5A2.5 2.5 0 0 1 3 15.5zm12.354-1.354a.5.5 0 0 0-.708.708L16.793 6H7.5a.5.5 0 0 0 0 1h9.293l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708z" transform="translate(0, 4)" />
+          </motion.svg>
+        </button>
+      </aside>
+
+      {/* Mobile bottom navigation bar */}
+      <MobileBottomBar />
+    </>
   );
 }

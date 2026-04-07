@@ -165,7 +165,7 @@ export function useChatSessions({
         if (res.sessions.length > 0) {
           setSessions(res.sessions);
           const target = initialSessionId
-            ? (res.sessions.find((s) => s.id === initialSessionId) ??
+            ? (res.sessions.find((s: ChatSessionSummary) => s.id === initialSessionId) ??
               res.sessions[0]!)
             : res.sessions[0]!;
           setActiveSessionId(target.id);
@@ -243,7 +243,7 @@ export function useChatSessions({
   // ── Delete session ──
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
-      if (streaming) return;
+      if (streaming || !sessionId) return;
       const token = accessTokenRef.current;
       const remaining = sessionsRef.current.filter((s) => s.id !== sessionId);
 
@@ -304,12 +304,20 @@ export function useChatSessions({
 
   // ── Reload messages (for reconnection) ──
   const reloadMessages = useCallback(async (sessionId: string) => {
+    if (!sessionId) {
+      console.warn("[chat] reloadMessages called with empty sessionId, skipping");
+      return;
+    }
     try {
       const msgRes = await fetchMessages(accessTokenRef.current, sessionId);
-      if (msgRes.messages.length > 0) {
+      if (msgRes.messages && msgRes.messages.length > 0) {
         const mapped = mapServerMessages(msgRes.messages);
         msgCacheRef.current.set(sessionId, mapped);
-        setMessages(mapped);
+        // Only update React state if the session is still active
+        // (user may have switched sessions during the async fetch)
+        if (activeSessionIdRef.current === sessionId) {
+          setMessages(mapped);
+        }
       }
     } catch (err) {
       console.warn("[chat] Failed to reload messages on reconnect:", err);

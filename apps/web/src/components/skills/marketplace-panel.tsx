@@ -213,7 +213,7 @@ function MarketplaceDetailDialog({
         {/* Keywords */}
         {skill.keywords.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {skill.keywords.map((kw) => (
+            {skill.keywords.map((kw: string) => (
               <span
                 key={kw}
                 className="rounded-md bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -397,7 +397,7 @@ export function MarketplacePanel({
   return (
     <div>
       {/* Search input */}
-      <div className="relative mb-6 max-w-md">
+      <div className="relative mb-4 sm:mb-6 sm:max-w-md">
         <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
@@ -405,7 +405,7 @@ export function MarketplacePanel({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="搜索市场技能"
-          className="h-8 w-full rounded-lg border border-input bg-transparent pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-10 w-full rounded-lg border border-input bg-transparent pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-8"
         />
         {loading && (
           <Loader2 className="absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -465,7 +465,7 @@ export function MarketplacePanel({
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2"
         >
           <AnimatePresence mode="popLayout">
             {skills.map((skill) => (

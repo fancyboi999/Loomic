@@ -243,8 +243,8 @@ export function ChatSidebar({
       .then((kit) => {
         if (cancelled) return;
         setBrandKitMentionItems(
-          kit.assets.map((asset) => ({
-            kind: "brand-kit-asset",
+          kit.assets.map((asset: { id: string; display_name: string; asset_type: string; text_content?: string; file_url?: string }) => ({
+            kind: "brand-kit-asset" as const,
             id: asset.id,
             label: asset.display_name,
             assetType: asset.asset_type,
@@ -914,7 +914,7 @@ export function ChatSidebar({
             onAtQuery={setAtQuery}
             mentions={messageMentions}
             onRemoveMention={handleRemoveMention}
-            selectedCanvasElements={selectedCanvasElements}
+            {...(selectedCanvasElements ? { selectedCanvasElements } : {})}
           />
         </div>
       </div>
