@@ -92,7 +92,7 @@ export function FontPickerDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
-        className="w-[420px] max-h-[520px] bg-white rounded-xl shadow-lg border flex flex-col"
+        className="w-[420px] max-h-[520px] bg-popover rounded-xl shadow-lg border flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search */}

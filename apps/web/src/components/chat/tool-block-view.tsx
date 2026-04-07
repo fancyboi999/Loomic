@@ -694,8 +694,8 @@ function ToolOutputRenderer({
       <div className="text-xs font-medium text-muted-foreground mb-2">
         输出
       </div>
-      <div className="rounded-xl bg-[#1E1E1E] px-4 py-3 overflow-x-auto max-h-[360px] overflow-y-auto">
-        <pre className="text-[12px] leading-5 text-[#D4D4D4] whitespace-pre-wrap break-all font-mono">
+      <div className="rounded-xl bg-muted px-4 py-3 overflow-x-auto max-h-[360px] overflow-y-auto">
+        <pre className="text-[12px] leading-5 text-muted-foreground whitespace-pre-wrap break-all font-mono">
           {JSON.stringify(output, null, 2)}
         </pre>
       </div>

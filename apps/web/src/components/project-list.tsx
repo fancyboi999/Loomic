@@ -2,10 +2,11 @@
 
 import type { ProjectSummary } from "@loomic/shared";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { useDeleteProject } from "@/hooks/use-delete-project";
+import { formatDate } from "@/lib/utils";
 
 interface ProjectListProps {
   projects: ProjectSummary[];
@@ -20,7 +21,6 @@ export function ProjectList({
   onCreateClick,
   onDeleted,
 }: ProjectListProps) {
-  const router = useRouter();
   const { pendingId, deleting, requestDelete, confirmDelete, cancelDelete } =
     useDeleteProject(onDeleted ? { onDeleted } : undefined);
 
@@ -70,20 +70,10 @@ export function ProjectList({
 
         {/* Project cards */}
         {projects.map((project) => (
-          <div
+          <Link
             key={project.id}
-            role="button"
-            tabIndex={0}
-            onClick={() =>
-              router.push(`/canvas?id=${project.primaryCanvas.id}`)
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                router.push(`/canvas?id=${project.primaryCanvas.id}`);
-              }
-            }}
-            className={`group relative aspect-[286/208] rounded-lg bg-card p-2 cursor-pointer shadow-card transition-all duration-300 hover:shadow-md sm:p-3${
+            href={`/canvas?id=${project.primaryCanvas.id}`}
+            className={`group relative block aspect-[286/208] rounded-lg bg-card p-2 cursor-pointer shadow-card transition-all duration-300 hover:shadow-md sm:p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1${
               highlightId === project.id ? " ring-2 ring-border" : ""
             }`}
           >
@@ -91,11 +81,12 @@ export function ProjectList({
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 requestDelete(project.id);
               }}
               aria-label={`Delete ${project.name}`}
-              className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-[4px] bg-[rgba(51,51,51,0.8)] text-white opacity-0 transition-all duration-300 hover:bg-black/70 group-hover:opacity-100 sm:right-5 sm:top-5"
+              className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-[4px] bg-foreground/70 text-background opacity-0 transition-all duration-300 hover:bg-foreground/80 group-hover:opacity-100 sm:right-5 sm:top-5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:opacity-100"
             >
               <Trash2 size={14} />
             </button>
@@ -105,7 +96,7 @@ export function ProjectList({
               {project.thumbnailUrl && (
                 <img
                   src={project.thumbnailUrl}
-                  alt=""
+                  alt={project.name}
                   className="h-full w-full object-cover"
                   loading="lazy"
                   onError={(e) => {
@@ -123,7 +114,7 @@ export function ProjectList({
             <div className="mt-0.5 text-[10px] text-muted-foreground sm:text-[11px]">
               更新于 {formatDate(project.updatedAt)}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -136,12 +127,4 @@ export function ProjectList({
       />
     </div>
   );
-}
-
-function formatDate(dateString: string): string {
-  const d = new Date(dateString);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }

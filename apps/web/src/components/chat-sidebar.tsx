@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useBreakpoint } from "../hooks/use-breakpoint";
 import type {
   ContentBlock,
   ImageArtifact,
@@ -80,6 +81,9 @@ export function ChatSidebar({
   ws,
   selectedCanvasElements,
 }: ChatSidebarProps) {
+  const breakpoint = useBreakpoint();
+  const isOverlay = breakpoint !== "desktop";
+
   // ── Session & message management (extracted hook with LRU cache) ──
   const {
     sessions,
@@ -167,8 +171,16 @@ export function ChatSidebar({
   const { toast: showToast } = useToast();
 
   // ── Sidebar resize ──
+  const SIDEBAR_MIN = 300;
+  const SIDEBAR_MAX = 600;
+  const SIDEBAR_KEYBOARD_STEP = 20;
   const [sidebarWidth, setSidebarWidth] = useState(400);
   const isResizing = useRef(false);
+
+  const clampWidth = useCallback(
+    (w: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w)),
+    [],
+  );
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -180,8 +192,7 @@ export function ChatSidebar({
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (!isResizing.current) return;
         const delta = startX - moveEvent.clientX;
-        const newWidth = Math.min(600, Math.max(300, startWidth + delta));
-        setSidebarWidth(newWidth);
+        setSidebarWidth(clampWidth(startWidth + delta));
       };
 
       const handleMouseUp = () => {
@@ -193,7 +204,53 @@ export function ChatSidebar({
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [sidebarWidth],
+    [sidebarWidth, clampWidth],
+  );
+
+  // Touch support for resize handle (mobile / tablet)
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      isResizing.current = true;
+      const startX = touch.clientX;
+      const startWidth = sidebarWidth;
+
+      const handleTouchMove = (moveEvent: TouchEvent) => {
+        if (!isResizing.current) return;
+        const t = moveEvent.touches[0];
+        if (!t) return;
+        moveEvent.preventDefault(); // prevent scroll during resize
+        const delta = startX - t.clientX;
+        setSidebarWidth(clampWidth(startWidth + delta));
+      };
+
+      const handleTouchEnd = () => {
+        isResizing.current = false;
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+        document.removeEventListener("touchcancel", handleTouchEnd);
+      };
+
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+      document.addEventListener("touchcancel", handleTouchEnd);
+    },
+    [sidebarWidth, clampWidth],
+  );
+
+  // Keyboard support for resize handle (ArrowLeft/ArrowRight)
+  const handleResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSidebarWidth((prev) => clampWidth(prev + SIDEBAR_KEYBOARD_STEP));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setSidebarWidth((prev) => clampWidth(prev - SIDEBAR_KEYBOARD_STEP));
+      }
+    },
+    [clampWidth],
   );
 
   // ── Auto-scroll to bottom ──
@@ -784,9 +841,9 @@ export function ChatSidebar({
         <button
           onClick={onToggle}
           type="button"
-          className="group inline-flex items-center gap-1 rounded-xl bg-card/80 backdrop-blur-sm border border-border px-2.5 py-1.5 text-xs text-foreground/60 shadow-sm hover:bg-card hover:text-foreground transition-colors cursor-pointer"
+          className="group inline-flex items-center gap-1 rounded-xl bg-card/80 backdrop-blur-sm border border-border px-2.5 py-1.5 text-xs text-foreground/60 shadow-sm hover:bg-card hover:text-foreground transition-colors cursor-pointer md:px-2.5 md:py-1.5 min-h-[36px] md:min-h-0"
         >
-          <svg className="size-3.5" viewBox="0 0 24 24" fill="none">
+          <svg className="size-4 md:size-3.5" viewBox="0 0 24 24" fill="none">
             <path
               fill="currentColor"
               fillOpacity={0.9}
@@ -799,138 +856,191 @@ export function ChatSidebar({
     );
   }
 
+  // Shared event isolation — prevent keyboard/clipboard events from bleeding
+  // into Excalidraw canvas when the sidebar has focus.
+  const eventIsolationProps = {
+    onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation(),
+    onKeyUp: (e: React.KeyboardEvent) => e.stopPropagation(),
+    onCopy: (e: React.ClipboardEvent) => e.stopPropagation(),
+    onCut: (e: React.ClipboardEvent) => e.stopPropagation(),
+    onPaste: (e: React.ClipboardEvent) => e.stopPropagation(),
+    onWheel: (e: React.WheelEvent) => e.stopPropagation(),
+  };
+
+  // The inner panel content is shared across all breakpoints.
+  // Extracted as a variable to avoid duplicating the chat UI tree
+  // between overlay (mobile/tablet) and inline (desktop) render paths.
+  const panelContent = (
+    <>
+      {/* Header */}
+      <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
+        <div className="flex items-center gap-1 min-w-0">
+          <h2 className="text-sm font-semibold text-foreground shrink-0">
+            Loomic Agent
+          </h2>
+          {!sessionsLoading && (
+            <SessionSelector
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              onSelect={handleSelectSession}
+              onNewChat={handleNewChat}
+              onDelete={handleDeleteSession}
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          title="Collapse panel"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 3.25a.75.75 0 0 1 .75.75v16a.75.75 0 0 1-1.5 0V4A.75.75 0 0 1 4 3.25m9.47 2.22a.75.75 0 0 1 1.06 0l6 6a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 1 1-1.06-1.06l4.72-4.72H8a.75.75 0 0 1 0-1.5h10.19l-4.72-4.72a.75.75 0 0 1 0-1.06"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+      </div>
+
+      {/* Disconnected banner */}
+      {!ws.connected && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
+          <div className="h-2 w-2 rounded-full bg-red-500 animate-[pulse_1.2s_ease-in-out_infinite]" />
+          <span className="text-[11px] text-muted-foreground">
+            连接已断开，正在重连...
+          </span>
+        </div>
+      )}
+
+      {/* Messages */}
+      <ErrorBoundary
+        onError={(err) =>
+          console.error("[chat-sidebar] message area render crashed:", err)
+        }
+      >
+        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4" aria-live="polite" aria-relevant="additions">
+          {sessionsLoading || messagesLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
+            </div>
+          ) : messages.length === 0 ? (
+            <ChatSkills onSend={handleSend} />
+          ) : (
+            messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                role={msg.role}
+                contentBlocks={msg.contentBlocks}
+                isStreaming={
+                  streaming &&
+                  msg.role === "assistant" &&
+                  msg === messages[messages.length - 1]
+                }
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </ErrorBoundary>
+
+      {/* Input */}
+      <div className="relative">
+        {atQuery !== null && mentionPickerItems.length > 0 && (
+          <MessageMentionPicker
+            items={mentionPickerItems}
+            query={atQuery}
+            onSelect={(item) => {
+              handleMentionSelect(item);
+              chatInputRef.current?.clearAtQuery();
+              setAtQuery(null);
+            }}
+            onClose={() => setAtQuery(null)}
+          />
+        )}
+        <ChatInput
+          ref={chatInputRef}
+          onSend={handleSend}
+          disabled={streaming || sessionsLoading}
+          attachments={imageAttachments}
+          onAddFiles={addFiles}
+          onRemoveAttachment={removeAttachment}
+          onRetryAttachment={retryUpload}
+          isUploading={isUploading}
+          onAtQuery={setAtQuery}
+          mentions={messageMentions}
+          onRemoveMention={handleRemoveMention}
+          {...(selectedCanvasElements ? { selectedCanvasElements } : {})}
+        />
+      </div>
+    </>
+  );
+
+  const creditDialogEl = creditDialog && (
+    <CreditInsufficientDialog
+      open={creditDialog.open}
+      onClose={() => setCreditDialog(null)}
+      currentBalance={creditDialog.currentBalance}
+      requiredAmount={creditDialog.requiredAmount}
+      plan={creditDialog.plan}
+      dailyClaimed={creditDialog.dailyClaimed}
+      onClaimDaily={async () => {
+        await claimDailyCredits(accessTokenRef.current);
+      }}
+    />
+  );
+
+  // ── Mobile / Tablet: full-screen overlay with backdrop ──
+  if (isOverlay) {
+    return (
+      <>
+        {/* Semi-transparent backdrop — click to close */}
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- backdrop is a non-interactive dismissal layer, keyboard close is handled via Escape */}
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200"
+          onClick={onToggle}
+        />
+        {/* Chat panel — full screen on mobile, fixed-width drawer on tablet */}
+        <div
+          className={
+            breakpoint === "mobile"
+              ? "fixed inset-0 z-50 flex flex-col bg-card animate-in slide-in-from-right duration-250"
+              : "fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-250"
+          }
+          {...eventIsolationProps}
+        >
+          {panelContent}
+        </div>
+        {creditDialogEl}
+      </>
+    );
+  }
+
+  // ── Desktop: inline side-by-side with resize handle ──
   return (
     <div
       className="flex h-full shrink-0"
       style={{ width: sidebarWidth }}
-      onKeyDown={(e) => e.stopPropagation()}
-      onKeyUp={(e) => e.stopPropagation()}
-      onCopy={(e) => e.stopPropagation()}
-      onCut={(e) => e.stopPropagation()}
-      onPaste={(e) => e.stopPropagation()}
-      onWheel={(e) => e.stopPropagation()}
+      {...eventIsolationProps}
     >
-      {/* Resize handle */}
+      {/* Resize handle -- supports mouse, touch, and keyboard (ArrowLeft/ArrowRight) */}
       <div
-        className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-border to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-muted-foreground/40 hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-muted-foreground/60 active:shadow-[1px_0_16px_rgba(15,23,42,0.14)]"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize chat panel"
+        aria-valuenow={sidebarWidth}
+        aria-valuemin={SIDEBAR_MIN}
+        aria-valuemax={SIDEBAR_MAX}
+        tabIndex={0}
+        className="w-2 shrink-0 cursor-col-resize bg-gradient-to-r from-transparent via-border to-transparent shadow-[1px_0_10px_rgba(15,23,42,0.06)] transition-all hover:via-muted-foreground/40 hover:shadow-[1px_0_14px_rgba(15,23,42,0.1)] active:via-muted-foreground/60 active:shadow-[1px_0_16px_rgba(15,23,42,0.14)] outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onKeyDown={handleResizeKeyDown}
       />
       <div className="flex flex-1 flex-col bg-card min-w-0">
-        {/* Header */}
-        <div className="flex min-h-[48px] items-center justify-between pl-4 pr-2">
-          <div className="flex items-center gap-1 min-w-0">
-            <h2 className="text-sm font-semibold text-foreground shrink-0">
-              Loomic Agent
-            </h2>
-            {!sessionsLoading && (
-              <SessionSelector
-                sessions={sessions}
-                activeSessionId={activeSessionId}
-                onSelect={handleSelectSession}
-                onNewChat={handleNewChat}
-                onDelete={handleDeleteSession}
-              />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onToggle}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-            title="Collapse panel"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 3.25a.75.75 0 0 1 .75.75v16a.75.75 0 0 1-1.5 0V4A.75.75 0 0 1 4 3.25m9.47 2.22a.75.75 0 0 1 1.06 0l6 6a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 1 1-1.06-1.06l4.72-4.72H8a.75.75 0 0 1 0-1.5h10.19l-4.72-4.72a.75.75 0 0 1 0-1.06"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Disconnected banner */}
-        {!ws.connected && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
-            <div className="h-2 w-2 rounded-full bg-red-500 animate-[pulse_1.2s_ease-in-out_infinite]" />
-            <span className="text-[11px] text-muted-foreground">
-              连接已断开，正在重连...
-            </span>
-          </div>
-        )}
-
-        {/* Messages */}
-        <ErrorBoundary
-          onError={(err) =>
-            console.error("[chat-sidebar] message area render crashed:", err)
-          }
-        >
-          <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-6 px-4 py-4">
-            {sessionsLoading || messagesLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
-              </div>
-            ) : messages.length === 0 ? (
-              <ChatSkills onSend={handleSend} />
-            ) : (
-              messages.map((msg) => (
-                <ChatMessage
-                  key={msg.id}
-                  role={msg.role}
-                  contentBlocks={msg.contentBlocks}
-                  isStreaming={
-                    streaming &&
-                    msg.role === "assistant" &&
-                    msg === messages[messages.length - 1]
-                  }
-                />
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ErrorBoundary>
-
-        {/* Input */}
-        <div className="relative">
-          {atQuery !== null && mentionPickerItems.length > 0 && (
-            <MessageMentionPicker
-              items={mentionPickerItems}
-              query={atQuery}
-              onSelect={(item) => {
-                handleMentionSelect(item);
-                chatInputRef.current?.clearAtQuery();
-                setAtQuery(null);
-              }}
-              onClose={() => setAtQuery(null)}
-            />
-          )}
-          <ChatInput
-            ref={chatInputRef}
-            onSend={handleSend}
-            disabled={streaming || sessionsLoading}
-            attachments={imageAttachments}
-            onAddFiles={addFiles}
-            onRemoveAttachment={removeAttachment}
-            onRetryAttachment={retryUpload}
-            isUploading={isUploading}
-            onAtQuery={setAtQuery}
-            mentions={messageMentions}
-            onRemoveMention={handleRemoveMention}
-            {...(selectedCanvasElements ? { selectedCanvasElements } : {})}
-          />
-        </div>
+        {panelContent}
       </div>
-      {creditDialog && (
-        <CreditInsufficientDialog
-          open={creditDialog.open}
-          onClose={() => setCreditDialog(null)}
-          currentBalance={creditDialog.currentBalance}
-          requiredAmount={creditDialog.requiredAmount}
-          plan={creditDialog.plan}
-          dailyClaimed={creditDialog.dailyClaimed}
-          onClaimDaily={async () => {
-            await claimDailyCredits(accessTokenRef.current);
-          }}
-        />
-      )}
+      {creditDialogEl}
     </div>
   );
 }

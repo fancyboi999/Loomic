@@ -20,6 +20,17 @@ const Excalidraw = dynamic(
   { ssr: false },
 );
 
+// Safari <16.4 does not support requestIdleCallback — provide a fallback
+// that defers via setTimeout(cb, 1) to approximate idle scheduling.
+const ric: typeof requestIdleCallback =
+  typeof window !== "undefined" && window.requestIdleCallback
+    ? window.requestIdleCallback.bind(window)
+    : ((cb: IdleRequestCallback) => setTimeout(cb, 1) as unknown as number);
+const cic: typeof cancelIdleCallback =
+  typeof window !== "undefined" && window.cancelIdleCallback
+    ? window.cancelIdleCallback.bind(window)
+    : clearTimeout;
+
 // Memoize CanvasToolMenu to prevent re-renders when parent state changes
 // (e.g. selection changes in the editor don't need to re-render the toolbar)
 const MemoizedCanvasToolMenu = memo(CanvasToolMenu);
@@ -166,7 +177,7 @@ export function CanvasEditor({
 
     // Run normalization after Excalidraw has loaded fonts.
     // Store the handle so we can cancel on unmount to prevent memory leaks.
-    const idleHandle = requestIdleCallback(() => {
+    const idleHandle = ric(() => {
       try {
         const sceneElements = excalidrawApi.getSceneElements();
         // Create mutable copies for normalization
@@ -196,7 +207,7 @@ export function CanvasEditor({
         console.warn("[canvas-editor] normalization failed:", err);
       }
     });
-    return () => cancelIdleCallback(idleHandle);
+    return () => cic(idleHandle);
   }, [excalidrawApi]);
 
   const handleChange = useCallback(

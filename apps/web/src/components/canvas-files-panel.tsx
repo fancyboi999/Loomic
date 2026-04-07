@@ -64,7 +64,7 @@ const FileRow = memo(function FileRow({
       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-subtle">
         {file.dataURL ? (
           <img
-            alt=""
+            alt={file.name}
             className="h-full w-full object-cover"
             draggable={false}
             src={file.dataURL}

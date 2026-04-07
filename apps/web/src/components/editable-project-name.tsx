@@ -69,7 +69,7 @@ export function EditableProjectName({
         onChange={(e) => setName(e.target.value)}
         onBlur={() => save(name)}
         onKeyDown={handleKeyDown}
-        className="h-8 rounded-lg bg-white/80 backdrop-blur-sm border border-black/[0.06] px-2.5 text-sm font-medium text-[#0E1014] outline-none focus:ring-1 focus:ring-black/10 max-w-[200px]"
+        className="h-8 rounded-lg bg-card/80 backdrop-blur-sm border border-border px-2.5 text-sm font-medium text-foreground outline-none focus:ring-1 focus:ring-ring/20 max-w-[200px]"
         maxLength={100}
       />
     );
@@ -79,7 +79,7 @@ export function EditableProjectName({
     <button
       type="button"
       onClick={startEditing}
-      className="h-8 rounded-lg bg-transparent hover:bg-white/60 backdrop-blur-sm px-2.5 text-sm font-medium text-[#0E1014] transition-colors truncate max-w-[200px] cursor-text"
+      className="h-8 rounded-lg bg-transparent hover:bg-card/60 backdrop-blur-sm px-2.5 text-sm font-medium text-foreground transition-colors truncate max-w-[200px] cursor-text"
       title={name}
     >
       {name}

@@ -194,6 +194,9 @@ export function useChatSessions({
     return () => {
       cancelled = true;
     };
+    // Intentionally depends only on canvasId — accessTokenRef, onSessionChangeRef,
+    // initialSessionId, and msgCacheRef are stable refs that never trigger re-runs.
+    // This effect is a one-time init per canvas, not a token-refresh handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasId]);
 

@@ -82,7 +82,7 @@ export function CanvasEmptyHint({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-      <p className="text-base text-[rgba(0,0,0,0.3)]">
+      <p className="text-base text-muted-foreground/50">
         {"输入你的想法开始创作"}
       </p>
     </div>

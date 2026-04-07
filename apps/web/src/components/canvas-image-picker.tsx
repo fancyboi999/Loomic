@@ -112,9 +112,9 @@ export function MessageMentionPicker({
     return (
       <div
         ref={containerRef}
-        className="absolute bottom-full left-2 mb-2 w-56 rounded-xl border border-[#E3E3E3] bg-white p-3 shadow-lg"
+        className="absolute bottom-full left-2 mb-2 w-56 rounded-xl border border-border bg-popover p-3 shadow-lg"
       >
-        <p className="text-xs text-[#A4A9B2]">
+        <p className="text-xs text-muted-foreground">
           {items.length === 0 ? "No items available to mention" : `No match for "${query}"`}
         </p>
       </div>
@@ -124,7 +124,7 @@ export function MessageMentionPicker({
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-full left-2 mb-2 max-h-64 w-64 overflow-y-auto rounded-xl border border-[#E3E3E3] bg-white shadow-lg"
+      className="absolute bottom-full left-2 mb-2 max-h-64 w-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
     >
       <div className="p-2">
         {(
@@ -138,7 +138,7 @@ export function MessageMentionPicker({
           if (!sectionItems.length) return null;
           return (
             <div key={kind} className="mb-2 last:mb-0">
-              <div className="mb-1.5 px-1 text-[11px] font-medium text-[#A4A9B2]">
+              <div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">
                 {groupTitle(kind)}
               </div>
               {sectionItems.map((item) => (
@@ -149,21 +149,21 @@ export function MessageMentionPicker({
                     onSelect(item);
                     onClose();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[#F5F5F7]"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
                 >
                   <PickerLeadingVisual item={item} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm text-[#2F3640]">
+                    <div className="truncate text-sm text-foreground">
                       {itemLabel(item)}
                     </div>
                     {item.kind === "brand-kit-asset" && (
-                      <div className="truncate text-[11px] text-[#8A8F98]">
+                      <div className="truncate text-[11px] text-muted-foreground">
                         {item.assetType}
                         {item.textContent ? ` · ${item.textContent}` : ""}
                       </div>
                     )}
                     {item.kind === "image-model" && item.description && (
-                      <div className="truncate text-[11px] text-[#8A8F98]">
+                      <div className="truncate text-[11px] text-muted-foreground">
                         {item.description}
                       </div>
                     )}
@@ -184,7 +184,7 @@ function PickerLeadingVisual({ item }: { item: MessageMentionPickerItem }) {
       <img
         src={item.thumbnailUrl}
         alt={item.name}
-        className="h-8 w-8 shrink-0 rounded border border-[#E3E3E3] object-cover"
+        className="h-8 w-8 shrink-0 rounded border border-border object-cover"
       />
     );
   }
@@ -194,7 +194,7 @@ function PickerLeadingVisual({ item }: { item: MessageMentionPickerItem }) {
       <img
         src={item.thumbnailUrl}
         alt={item.label}
-        className="h-8 w-8 shrink-0 rounded border border-[#E3E3E3] object-cover"
+        className="h-8 w-8 shrink-0 rounded border border-border object-cover"
       />
     );
   }
@@ -204,13 +204,13 @@ function PickerLeadingVisual({ item }: { item: MessageMentionPickerItem }) {
       <img
         src={item.iconUrl}
         alt={item.label}
-        className="h-8 w-8 shrink-0 rounded-full border border-[#E3E3E3] object-cover"
+        className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
       />
     );
   }
 
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-[#E3E3E3] bg-[#F5F5F7] text-[10px] font-medium uppercase text-[#6B7280]">
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-border bg-muted text-[10px] font-medium uppercase text-muted-foreground">
       {item.kind === "brand-kit-asset"
         ? item.assetType.slice(0, 2)
         : "AI"}

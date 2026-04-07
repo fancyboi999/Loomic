@@ -131,7 +131,7 @@ const LayerRow = memo(function LayerRow({
     <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 44px" }}>
       <button
         type="button"
-        className={`group/layer flex h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors ${
+        className={`group/layer flex h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
           selected
             ? "bg-muted"
             : "hover:bg-muted"
@@ -143,22 +143,22 @@ const LayerRow = memo(function LayerRow({
           {elLabel(el)}
         </span>
         <div className="flex items-center gap-0.5">
-          <span
-            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
-            role="button"
-            tabIndex={-1}
+          <button
+            type="button"
+            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer outline-none focus-visible:visible focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             aria-label="Lock layer"
+            onClick={(e) => e.stopPropagation()}
           >
             <LockIcon className="h-4 w-4" />
-          </span>
-          <span
-            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
-            role="button"
-            tabIndex={-1}
+          </button>
+          <button
+            type="button"
+            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer outline-none focus-visible:visible focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             aria-label="Toggle layer visibility"
+            onClick={(e) => e.stopPropagation()}
           >
             <EyeIcon className="h-4 w-4" />
-          </span>
+          </button>
         </div>
       </button>
     </div>
@@ -242,7 +242,7 @@ export function CanvasLayersPanel({
         <span className="text-sm font-medium text-foreground">图层</span>
         <button
           type="button"
-          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           onClick={onClose}
           aria-label="Close layers panel"
         >

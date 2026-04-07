@@ -30,6 +30,7 @@ import {
   type HomeExampleSelection,
 } from "@/lib/home-example-seeds";
 import { ApiAuthError, fetchProjects } from "@/lib/server-api";
+import { formatDate } from "@/lib/utils";
 
 /** Maximum number of recent projects shown on the home page. */
 const RECENT_PROJECTS_LIMIT = 4;
@@ -60,17 +61,6 @@ const cardItem = {
     transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] as const },
   },
 };
-
-// ---------------------------------------------------------------------------
-// Date formatter (reused from project-list.tsx convention)
-// ---------------------------------------------------------------------------
-function formatDate(dateString: string): string {
-  const d = new Date(dateString);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 // ---------------------------------------------------------------------------
 // Home Page
@@ -242,7 +232,7 @@ export default function HomePage() {
           custom={0}
           className="mb-3 flex items-center gap-2 md:mb-4"
         >
-          <LoomicLogo className="size-7 text-black md:size-8" />
+          <LoomicLogo className="size-7 text-foreground md:size-8" />
           <span className="text-lg font-semibold text-foreground md:text-xl">
             Loomic
           </span>
@@ -378,7 +368,7 @@ export default function HomePage() {
                     requestDelete(project.id);
                   }}
                   aria-label={`Delete ${project.name}`}
-                  className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-[4px] bg-[rgba(51,51,51,0.8)] text-white opacity-0 transition-all duration-300 hover:bg-black/70 group-hover:opacity-100 sm:right-5 sm:top-5"
+                  className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-[4px] bg-foreground/70 text-background opacity-0 transition-all duration-300 hover:bg-foreground/80 group-hover:opacity-100 sm:right-5 sm:top-5"
                 >
                   <Trash2 size={14} />
                 </button>

@@ -262,6 +262,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder='Start with an idea, or type "@" to mention'
+          aria-label="输入消息"
           rows={1}
           style={{ scrollbarWidth: "none" }}
           className="min-h-[48px] max-h-60 resize-none bg-transparent px-1 text-sm leading-[1.8] text-foreground placeholder:text-muted-foreground focus:outline-none [&::-webkit-scrollbar]:hidden"
@@ -323,7 +324,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           <button
             onClick={handleSubmit}
             disabled={disabled || !hasContent || isUploading}
-            className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#2F3640] text-white transition-colors hover:bg-[#4A535F] active:bg-[#191E26] disabled:opacity-20 disabled:cursor-not-allowed"
+            className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/80 active:bg-primary/90 disabled:opacity-20 disabled:cursor-not-allowed"
           >
             <svg
               className="h-[14px] w-[14px]"

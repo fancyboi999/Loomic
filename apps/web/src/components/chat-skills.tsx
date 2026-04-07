@@ -81,7 +81,7 @@ type ChatSkillsProps = {
 export function ChatSkills({ onSend }: ChatSkillsProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-5 px-4">
-      <p className="text-sm font-semibold text-[#2F3640]">
+      <p className="text-sm font-semibold text-foreground">
         试试这些 Loomic Skills
       </p>
       <div className="flex max-w-[320px] flex-wrap justify-center gap-2">
@@ -90,9 +90,9 @@ export function ChatSkills({ onSend }: ChatSkillsProps) {
             key={skill.label}
             type="button"
             onClick={() => onSend(skill.prompt)}
-            className="inline-flex h-9 max-w-full items-center justify-center gap-1 rounded-full border border-[rgba(0,0,0,0.07)] bg-white px-[14px] text-sm text-[#2F3640] transition-colors hover:bg-[#F5F5F5] active:bg-[#EBEBEB]"
+            className="inline-flex h-9 max-w-full items-center justify-center gap-1 rounded-full border border-border bg-card px-[14px] text-sm text-foreground transition-colors hover:bg-muted active:bg-muted/80"
           >
-            <span className="shrink-0 text-[#666]">{skill.icon}</span>
+            <span className="shrink-0 text-muted-foreground">{skill.icon}</span>
             <span className="truncate">{skill.label}</span>
           </button>
         ))}

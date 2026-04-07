@@ -39,7 +39,7 @@ function ExampleChip({
       className={cn(
         "inline-flex h-8 items-center gap-1 rounded-full border-[0.5px] px-3 text-xs transition-all",
         accent === "special"
-          ? "border-[#dbeb56] bg-[#dbeb56]/30 text-foreground hover:bg-[#dbeb56]/40"
+          ? "border-accent bg-accent/30 text-foreground hover:bg-accent/40"
           : active
             ? "border-foreground bg-foreground text-background"
             : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -97,10 +97,10 @@ function ExamplePreviewCard({
             <img
               key={image}
               src={image}
-              alt=""
+              alt={`${title} preview ${index + 1}`}
               loading="lazy"
               className={cn(
-                "absolute aspect-[7/8] rounded-[4px] border-[0.5px] border-[#B0B0B0] object-cover transition-all duration-500 ease-out group-hover:shadow-lg",
+                "absolute aspect-[7/8] rounded-[4px] border-[0.5px] border-border object-cover transition-all duration-500 ease-out group-hover:shadow-lg",
                 positionClasses[index] ?? positionClasses[0],
                 selected && "shadow-lg",
               )}

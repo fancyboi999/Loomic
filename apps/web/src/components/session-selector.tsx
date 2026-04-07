@@ -117,7 +117,7 @@ export function SessionSelector({
             setConfirmingId(null);
             setSearch("");
           }}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-none"
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         >
           <HistoryIcon className="h-3.5 w-3.5" />
           <span className="max-w-[140px] truncate">
@@ -136,7 +136,7 @@ export function SessionSelector({
           <div className="absolute left-0 top-full mt-1.5 z-50 w-[260px] rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
             {/* Header */}
             <div className="px-3 pt-3 pb-2">
-              <p className="text-xs font-medium text-[#2F3640] mb-2">历史对话</p>
+              <p className="text-xs font-medium text-foreground mb-2">历史对话</p>
               {/* Search */}
               <div className="relative">
                 <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
@@ -145,7 +145,7 @@ export function SessionSelector({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="请输入搜索关键词"
-                  className="w-full rounded-md border border-input bg-muted py-1.5 pl-7 pr-2 text-xs text-[#2F3640] placeholder:text-muted-foreground/70 outline-none focus:border-input-border focus:bg-background transition-colors"
+                  className="w-full rounded-md border border-input bg-muted py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground/70 outline-none focus:border-input-border focus:bg-background transition-colors"
                 />
               </div>
             </div>
@@ -160,13 +160,21 @@ export function SessionSelector({
               {filtered.map((s) => (
                 <div
                   key={s.id}
-                  className={`group flex items-center justify-between gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors ${
+                  role="button"
+                  tabIndex={0}
+                  className={`group flex items-center justify-between gap-1 rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     s.id === activeSessionId
-                      ? "bg-muted text-[#2F3640] font-medium"
+                      ? "bg-muted text-foreground font-medium"
                       : "text-muted-foreground hover:bg-muted"
                   }`}
                   onClick={() => {
                     if (confirmingId !== s.id) handleSelect(s.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && confirmingId !== s.id) {
+                      e.preventDefault();
+                      handleSelect(s.id);
+                    }
                   }}
                 >
                   {confirmingId === s.id ? (
@@ -176,7 +184,7 @@ export function SessionSelector({
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          className="px-2 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          className="px-2 py-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             setConfirmingId(null);
@@ -186,7 +194,7 @@ export function SessionSelector({
                         </button>
                         <button
                           type="button"
-                          className="px-2 py-0.5 rounded text-xs text-destructive-foreground bg-destructive hover:bg-destructive/90 transition-colors"
+                          className="px-2 py-0.5 rounded text-xs text-destructive-foreground bg-destructive hover:bg-destructive/90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(s.id);
@@ -202,7 +210,8 @@ export function SessionSelector({
                       <span className="truncate flex-1">{s.title}</span>
                       <button
                         type="button"
-                        className="hidden group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label={`Delete ${s.title}`}
+                        className="hidden group-hover:flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           setConfirmingId(s.id);
@@ -223,7 +232,7 @@ export function SessionSelector({
       <button
         type="button"
         onClick={onNewChat}
-        className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         title="New Chat"
       >
         <NewChatIcon className="h-5 w-5" />

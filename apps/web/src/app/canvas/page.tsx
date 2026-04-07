@@ -45,7 +45,11 @@ function CanvasPageContent() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [chatOpen, setChatOpen] = useState(true);
+  // Default chat open on desktop, closed on mobile/tablet to avoid blocking canvas
+  const [chatOpen, setChatOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth >= 1024;
+  });
   const [layersOpen, setLayersOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [brandKitId, setBrandKitId] = useState<string | null>(null);
@@ -229,6 +233,9 @@ function CanvasPageContent() {
         setError("Failed to load canvas.");
         setPageLoading(false);
       });
+    // Intentionally omitting accessTokenRef (stable ref) and signOutRef/routerRef
+    // (ref wrappers) from deps — only re-run when auth resolves, user changes, or
+    // canvasId changes. Token refresh (e.g. tab switch) must NOT trigger a reload.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, userId, canvasId]);
 
@@ -276,6 +283,7 @@ function CanvasPageContent() {
           onBrandKitChange={(kitId) => setBrandKitId(kitId)}
         />
       </div>
+      {/* Canvas always takes full width; on mobile/tablet, ChatSidebar overlays instead of side-by-side */}
       <div className="flex-1 relative min-w-0 overflow-hidden">
         {/* Credits button — canvas area top-right, NOT chatbar */}
         <div className="absolute top-3 right-3 z-20">

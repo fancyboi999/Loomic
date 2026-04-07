@@ -60,10 +60,10 @@ export function CanvasImageGenPanel({
   return (
     <div className="w-80 rounded-xl bg-card shadow-xl border border-border p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[#2F3640]">AI Image</h3>
+        <h3 className="text-sm font-semibold text-foreground">AI Image</h3>
         <button
           onClick={onClose}
-          className="text-[#A4A9B2] hover:text-[#2F3640] transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
             <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
@@ -82,7 +82,7 @@ export function CanvasImageGenPanel({
           }
         }}
         placeholder="Describe the image you want to create..."
-        className="w-full h-20 resize-none rounded-lg border border-border px-3 py-2 text-sm text-[#2F3640] placeholder:text-[#A4A9B2] focus:outline-none focus:ring-1 focus:ring-ring"
+        className="w-full h-20 resize-none rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         disabled={loading}
       />
 

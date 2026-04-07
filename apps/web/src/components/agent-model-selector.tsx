@@ -116,7 +116,7 @@ export function AgentModelSelector({ compact }: { compact?: boolean } = {}) {
           compact ? "h-8 px-2.5" : "h-8 px-3"
         } ${
           isActive
-            ? "border-[#dbeb56] bg-[#dbeb56]/10 text-foreground hover:bg-[#dbeb56]/20 active:bg-[#dbeb56]/30"
+            ? "border-accent bg-accent/10 text-foreground hover:bg-accent/20 active:bg-accent/30"
             : "border-border text-foreground hover:bg-muted"
         } bg-transparent`}
       >

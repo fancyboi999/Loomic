@@ -9,7 +9,7 @@ export function SettingsSkeleton() {
 
       {/* Tab bar */}
       <div className="mb-6 inline-flex gap-1 rounded-lg bg-muted p-1 sm:mb-8">
-        <Skeleton className="h-10 w-16 rounded-md bg-white sm:h-8" />
+        <Skeleton className="h-10 w-16 rounded-md bg-card sm:h-8" />
         <Skeleton className="h-10 w-14 rounded-md sm:h-8" />
       </div>
 

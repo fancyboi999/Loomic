@@ -444,7 +444,7 @@ export default function SkillsPage() {
                 {/* Card 1 */}
                 <div className="absolute left-0 top-1 h-14 w-12 rounded-lg border border-border bg-secondary shadow-sm" />
                 {/* Card 2 (overlapping) */}
-                <div className="absolute left-5 top-0 h-14 w-12 rounded-lg border border-border bg-white shadow-sm flex items-center justify-center">
+                <div className="absolute left-5 top-0 h-14 w-12 rounded-lg border border-border bg-card shadow-sm flex items-center justify-center">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"

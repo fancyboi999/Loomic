@@ -131,7 +131,7 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`min-h-[44px] whitespace-nowrap rounded-md px-4 py-1.5 text-sm transition-colors sm:min-h-0 sm:px-3 ${
                 activeTab === tab.id
-                  ? "bg-white font-medium text-foreground shadow-sm"
+                  ? "bg-card font-medium text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >

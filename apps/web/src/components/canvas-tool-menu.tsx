@@ -116,20 +116,20 @@ const GeneratingOverlay = memo(function GeneratingOverlay({
         zIndex: 99,
       }}
     >
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F3F4F6]">
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted">
         <svg
-          className="h-12 w-12 text-[#D1D5DB]"
+          className="h-12 w-12 text-muted-foreground/40"
           viewBox="0 0 24 24"
           fill="currentColor"
         >
           <path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
         </svg>
         {model && (
-          <span className="mt-2 rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-medium text-[#6B7280]">
+          <span className="mt-2 rounded-full bg-foreground/5 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
             {model.split("/").pop()?.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
           </span>
         )}
-        <span className="mt-1 text-[11px] text-[#9CA3AF]">
+        <span className="mt-1 text-[11px] text-muted-foreground">
           Generating...
         </span>
       </div>
@@ -436,7 +436,7 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
             return (
               <div
                 key={`sep-${i}`}
-                className="mx-0.5 h-6 w-px bg-black/[0.06]"
+                className="mx-0.5 h-6 w-px bg-border"
               />
             );
           }
@@ -449,14 +449,15 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
               key={tool}
               type="button"
               title={TOOL_LABELS[tool]}
+              aria-label={TOOL_LABELS[tool]}
               onMouseDown={(e) => {
                 e.preventDefault();
                 handleToolChange(tool);
               }}
-              className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer ${
+              className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 outline-none ${
                 isActive
-                  ? "bg-black/[0.08] text-[#1b1b1f]"
-                  : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
+                  ? "bg-foreground/[0.08] text-foreground"
+                  : "text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground"
               }`}
             >
               <Icon className="size-[16px]" />
@@ -465,17 +466,18 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         })}
 
         {/* Separator before AI tools */}
-        <div className="mx-0.5 h-6 w-px bg-black/[0.06]" />
+        <div className="mx-0.5 h-6 w-px bg-border" />
 
         {/* AI Image -- creates a placeholder on canvas */}
         <button
           type="button"
           title="AI 生成图片"
+          aria-label="AI 生成图片"
           onClick={handleCreateImageGenerator}
-          className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer ${
+          className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 outline-none ${
             activeGeneratorId
-              ? "bg-black/[0.08] text-[#1b1b1f]"
-              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
+              ? "bg-foreground/[0.08] text-foreground"
+              : "text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground"
           }`}
         >
           <Sparkles className="size-[16px]" />
@@ -485,11 +487,12 @@ export function CanvasToolMenu({ accessToken, excalidrawApi, leftPanelOpen }: Ca
         <button
           type="button"
           title="AI 生成视频"
+          aria-label="AI 生成视频"
           onClick={handleCreateVideoGenerator}
-          className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer ${
+          className={`flex items-center justify-center h-8 w-8 rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 outline-none ${
             activeVideoGenId
-              ? "bg-black/[0.08] text-[#1b1b1f]"
-              : "text-[#1b1b1f]/60 hover:bg-black/[0.04] hover:text-[#1b1b1f]"
+              ? "bg-foreground/[0.08] text-foreground"
+              : "text-foreground/60 hover:bg-foreground/[0.04] hover:text-foreground"
           }`}
         >
           <Video className="size-[16px]" />

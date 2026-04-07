@@ -7,7 +7,7 @@ import type { SVGProps } from "react";
  * light / dark themes.  Inner elements are always the opposite colour.
  *
  * @example
- * <LoomicLogo className="size-7 text-black dark:text-white" />
+ * <LoomicLogo className="size-7 text-foreground" />
  */
 export function LoomicLogo(props: SVGProps<SVGSVGElement>) {
   return (
