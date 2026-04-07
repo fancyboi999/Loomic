@@ -184,7 +184,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
     }, []);
 
     return (
-      <div className="overflow-hidden rounded-2xl border-[0.5px] border-border bg-muted shadow-[0_4px_8px_rgba(0,0,0,0.04)]">
+      <div className="overflow-hidden rounded-xl border-[0.5px] border-border bg-muted shadow-[0_4px_8px_rgba(0,0,0,0.04)] sm:rounded-2xl">
         {attachments && onRemoveAttachment && (
           <ImageAttachmentBar
             attachments={attachments}
@@ -242,10 +242,10 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
           placeholder="让 Loomic 帮你设计..."
           disabled={disabled}
           rows={2}
-          className="w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+          className="w-full resize-none bg-transparent px-3 pt-3 pb-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 sm:px-4 sm:pt-4"
         />
 
-        <div className="flex items-center justify-between px-3 pb-3">
+        <div className="flex items-center justify-between px-2 pb-2 sm:px-3 sm:pb-3">
           <div className="flex items-center gap-0.5">
             {onAddFiles ? (
               <>
@@ -267,7 +267,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] border-border text-foreground transition-colors hover:bg-muted"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-[0.5px] border-border text-foreground transition-colors hover:bg-muted sm:h-8 sm:w-8"
                 >
                   <svg
                     className="h-[14px] w-[14px]"
@@ -285,7 +285,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                 type="button"
                 disabled
                 title="Attach"
-                className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors"
+                className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors sm:h-8 sm:w-8"
               >
                 <svg
                   className="h-[14px] w-[14px]"
@@ -312,7 +312,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                         type="button"
                         onClick={() => setModelPopoverOpen((prev) => !prev)}
                         title={btn.name}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full border-[0.5px] transition-colors ${
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-[0.5px] transition-colors sm:h-8 sm:w-8 ${
                           preference.mode === "manual"
                             ? "border-accent bg-accent/30 text-accent-foreground"
                             : "border-border text-foreground hover:bg-muted"
@@ -342,7 +342,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
                     type="button"
                     disabled
                     title={btn.name}
-                    className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors"
+                    className="flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full border-[0.5px] border-border text-foreground opacity-30 transition-colors sm:h-8 sm:w-8"
                   >
                     <svg
                       className="h-[14px] w-[14px]"
@@ -361,7 +361,7 @@ export const HomePrompt = forwardRef<HomePromptHandle, HomePromptProps>(
               type="button"
               onClick={handleSubmit}
               disabled={disabled || isUploading || !hasContent}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors sm:h-8 sm:w-8 ${
                 hasContent && !disabled && !isUploading
                   ? "bg-primary text-primary-foreground hover:bg-primary/80 hover:accent-glow active:bg-primary/90"
                   : "cursor-not-allowed bg-primary text-primary-foreground opacity-30"

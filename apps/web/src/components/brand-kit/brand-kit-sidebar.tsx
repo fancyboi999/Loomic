@@ -21,11 +21,11 @@ export function BrandKitSidebar({
   onDeleteKit,
 }: BrandKitSidebarProps) {
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-r bg-secondary">
+    <aside className="flex w-full shrink-0 flex-col border-b bg-secondary md:w-[260px] md:border-b-0 md:border-r">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3">
         <h1 className="text-sm font-semibold text-foreground">Brand Kit</h1>
-        <span className="ml-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+        <span className="ml-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           Beta
         </span>
       </div>
@@ -35,15 +35,15 @@ export function BrandKitSidebar({
         <button
           type="button"
           onClick={onCreateKit}
-          className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 px-3 py-2 text-sm text-muted-foreground hover:border-muted-foreground/50 transition-colors cursor-pointer"
+          className="flex w-full items-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 cursor-pointer min-h-[44px] sm:min-h-0"
         >
           <Plus className="h-4 w-4" />
           New Kit
         </button>
       </div>
 
-      {/* Kit list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+      {/* Kit list -- horizontal scroll on mobile, vertical on desktop */}
+      <div className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:flex-1 md:overflow-y-auto md:overflow-x-hidden md:pb-4">
         {kits.map((kit) => {
           const isSelected = kit.id === selectedKitId;
           return (
@@ -59,20 +59,20 @@ export function BrandKitSidebar({
                 }
               }}
               className={cn(
-                "group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer",
+                "group flex min-h-[44px] w-auto shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors cursor-pointer md:w-full md:min-h-0 md:shrink",
                 isSelected ? "bg-muted" : "hover:bg-muted/60",
               )}
             >
               {/* Thumbnail placeholder */}
-              <div className="h-8 w-8 shrink-0 rounded-md bg-muted flex items-center justify-center">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
                 <span className="text-xs font-medium text-muted-foreground">
                   {kit.name.charAt(0).toUpperCase()}
                 </span>
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-foreground truncate">
+                  <span className="truncate text-sm font-medium text-foreground">
                     {kit.name}
                   </span>
                   {kit.is_default && (
@@ -83,14 +83,14 @@ export function BrandKitSidebar({
                 </div>
               </div>
 
-              {/* Hover delete */}
+              {/* Hover delete -- hidden on mobile to save space */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteKit(kit.id);
                 }}
-                className="shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all cursor-pointer"
+                className="hidden shrink-0 rounded p-1 opacity-0 transition-all cursor-pointer hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 md:block"
                 aria-label={`Delete ${kit.name}`}
               >
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />

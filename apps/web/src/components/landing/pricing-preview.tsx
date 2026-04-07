@@ -8,20 +8,8 @@ import { SectionHeader } from "@/components/landing/section-header";
 import { StaggerContainer, scaleUp } from "@/components/landing/motion";
 
 // ---------------------------------------------------------------------------
-// Animated gradient border + dots background styles
-// ---------------------------------------------------------------------------
-
-const pricingStyles = `
-  @keyframes borderShift {
-    0% { border-color: oklch(0.90 0.17 115 / 0.6); }
-    33% { border-color: oklch(0.82 0.14 125 / 0.6); }
-    66% { border-color: oklch(0.85 0.16 110 / 0.6); }
-    100% { border-color: oklch(0.90 0.17 115 / 0.6); }
-  }
-`;
-
-// ---------------------------------------------------------------------------
 // Pricing plan data
+// Keyframe `landing-border-shift` is defined in globals.css
 // ---------------------------------------------------------------------------
 
 interface PricingPlan {
@@ -39,7 +27,12 @@ const PLANS: PricingPlan[] = [
     name: "免费版",
     price: "¥0",
     period: "永久免费",
-    features: ["每月 10 次 AI 生成", "基础设计模板", "单项目空间", "社区支持"],
+    features: [
+      "每月 10 次 AI 生成",
+      "基础设计模板",
+      "单项目空间",
+      "社区支持",
+    ],
     cta: "免费开始",
     highlighted: false,
   },
@@ -89,12 +82,12 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
         "hover:-translate-y-1 transition-transform duration-300",
         plan.highlighted
           ? "border-2 md:-translate-y-2 shadow-xl hover:md:-translate-y-3"
-          : "border-border"
+          : "border-border",
       )}
       style={
         plan.highlighted
           ? {
-              animation: "borderShift 4s ease-in-out infinite",
+              animation: "landing-border-shift 4s ease-in-out infinite",
               boxShadow: "0 0 32px 0 oklch(0.90 0.17 115 / 0.12)",
             }
           : {}
@@ -121,8 +114,12 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
       {/* Price */}
       <div className="mt-4">
-        <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-        <span className="ml-2 text-sm text-muted-foreground">{plan.period}</span>
+        <span className="text-4xl font-bold text-foreground tabular-nums">
+          {plan.price}
+        </span>
+        <span className="ml-2 text-sm text-muted-foreground">
+          {plan.period}
+        </span>
       </div>
 
       {/* Features */}
@@ -151,7 +148,7 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
           <button
             className={cn(
               "w-full rounded-lg py-2.5 text-sm font-medium transition-all duration-200",
-              "hover:scale-[1.02] active:scale-[0.98]"
+              "hover:scale-[1.02] active:scale-[0.98]",
             )}
             style={{
               background: "oklch(0.90 0.17 115)",
@@ -176,12 +173,7 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
 export function PricingPreview() {
   return (
-    <section
-      id="pricing"
-      className="py-24 md:py-32 relative overflow-hidden"
-    >
-      <style>{pricingStyles}</style>
-
+    <section id="pricing" className="py-24 md:py-32 relative overflow-hidden">
       {/* Subtle dots grid background */}
       <div
         className="absolute inset-0 opacity-[0.035] pointer-events-none"

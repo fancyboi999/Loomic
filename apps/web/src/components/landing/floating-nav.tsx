@@ -19,6 +19,7 @@ function LoomicLogo({ className }: { className?: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("text-foreground", className)}
+      aria-hidden="true"
     >
       <path
         d="M50 4 C56 4, 64 8, 68 16 C74 10, 84 10, 90 18 C96 26, 96 36, 90 42 C98 48, 100 58, 96 66 C92 74, 84 78, 76 76 C72 84, 62 92, 50 92 C38 92, 28 84, 24 76 C16 78, 8 74, 4 66 C0 58, 2 48, 10 42 C4 36, 4 26, 10 18 C16 10, 26 10, 32 16 C36 8, 44 4, 50 4 Z"
@@ -49,12 +50,12 @@ const NAV_LINKS = [
   { label: "功能", href: "#features" },
   { label: "案例", href: "#showcase" },
   { label: "定价", href: "#pricing" },
-];
+] as const;
 
 function handleAnchorClick(
   e: React.MouseEvent<HTMLAnchorElement>,
   href: string,
-  onClose?: () => void
+  onClose?: () => void,
 ) {
   if (href.startsWith("#")) {
     e.preventDefault();
@@ -72,7 +73,7 @@ function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="size-9" />;
+  if (!mounted) return <div className="size-9" aria-hidden="true" />;
 
   return (
     <Button
@@ -81,13 +82,18 @@ function ThemeToggle() {
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       aria-label="Toggle theme"
     >
-      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {theme === "dark" ? (
+        <Sun className="size-4" />
+      ) : (
+        <Moon className="size-4" />
+      )}
     </Button>
   );
 }
 
 // ---------------------------------------------------------------------------
-// NavCTA — CTA button with one-time accent glow pulse
+// NavCTA -- CTA button with one-time accent glow pulse
+// Keyframe `landing-nav-cta-glow` is defined in globals.css
 // ---------------------------------------------------------------------------
 
 function NavCTA() {
@@ -103,7 +109,7 @@ function NavCTA() {
       href="/login"
       className={cn(
         "hidden md:inline-flex items-center justify-center h-8 px-4 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors",
-        glowActive && "nav-cta-glow"
+        glowActive && "landing-nav-cta-glow",
       )}
     >
       开始创作
@@ -126,112 +132,105 @@ export function FloatingNav() {
   }, []);
 
   return (
-    <>
-      {/* Nav keyframe styles */}
-      <style>{`
-        @keyframes navCtaGlow {
-          0%   { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0.5); }
-          50%  { box-shadow: 0 0 16px 4px oklch(0.90 0.17 115 / 0.35); }
-          100% { box-shadow: 0 0 0 0 oklch(0.90 0.17 115 / 0); }
-        }
-        .nav-cta-glow {
-          animation: navCtaGlow 1.5s ease-in-out 1;
-        }
-      `}</style>
+    <motion.header
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        scrolled
+          ? "bg-background/80 backdrop-blur-xl backdrop-saturate-150 border-b border-border"
+          : "bg-transparent",
+      )}
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo with hover animation */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 shrink-0 group"
+          >
+            <LoomicLogo className="size-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+            <span className="font-bold text-lg tracking-tight">Loomic</span>
+          </Link>
 
-      <motion.header
-        className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-          scrolled
-            ? "bg-background/80 backdrop-blur-xl backdrop-saturate-150 border-b border-border"
-            : "bg-transparent"
-        )}
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo with hover animation */}
-            <Link
-              href="/"
-              className="flex items-center gap-2 shrink-0 group"
+          {/* Desktop Nav Links with underline animation */}
+          <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
+            {NAV_LINKS.map(({ label, href }) => (
+              <a
+                key={href}
+                href={href}
+                onClick={(e) => handleAnchorClick(e, href)}
+                className={cn(
+                  "relative px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md",
+                  "after:absolute after:bottom-1 after:left-4 after:right-4 after:h-px after:w-0 after:bg-foreground after:transition-all after:duration-300",
+                  "hover:after:w-[calc(100%-2rem)]",
+                )}
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <NavCTA />
+            {/* Hamburger */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileOpen}
             >
-              <LoomicLogo className="size-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
-              <span className="font-bold text-lg tracking-tight">Loomic</span>
-            </Link>
+              {mobileOpen ? (
+                <X className="size-4" />
+              ) : (
+                <Menu className="size-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
 
-            {/* Desktop Nav Links with underline animation */}
-            <nav className="hidden md:flex items-center gap-1">
+      {/* Mobile dropdown */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="md:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-xl"
+          >
+            <nav className="px-4 py-3 flex flex-col gap-1" aria-label="Mobile navigation">
               {NAV_LINKS.map(({ label, href }) => (
                 <a
                   key={href}
                   href={href}
-                  onClick={(e) => handleAnchorClick(e, href)}
-                  className={cn(
-                    "relative px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md",
-                    "after:absolute after:bottom-1 after:left-4 after:right-4 after:h-px after:w-0 after:bg-foreground after:transition-all after:duration-300",
-                    "hover:after:w-[calc(100%-2rem)]"
-                  )}
+                  onClick={(e) =>
+                    handleAnchorClick(e, href, () => setMobileOpen(false))
+                  }
+                  className="px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
                 >
                   {label}
                 </a>
               ))}
-            </nav>
-
-            {/* Right actions */}
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <NavCTA />
-              {/* Hamburger */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                onClick={() => setMobileOpen((v) => !v)}
-                aria-label="Toggle menu"
-              >
-                {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile dropdown */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="md:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-xl"
-            >
-              <div className="px-4 py-3 flex flex-col gap-1">
-                {NAV_LINKS.map(({ label, href }) => (
-                  <a
-                    key={href}
-                    href={href}
-                    onClick={(e) => handleAnchorClick(e, href, () => setMobileOpen(false))}
-                    className="px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
-                  >
-                    {label}
-                  </a>
-                ))}
-                <div className="pt-2 pb-1">
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-center h-9 w-full rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
-                  >
-                    开始创作
-                  </Link>
-                </div>
+              <div className="pt-2 pb-1">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-center h-9 w-full rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/80 transition-colors"
+                >
+                  开始创作
+                </Link>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.header>
-    </>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 }

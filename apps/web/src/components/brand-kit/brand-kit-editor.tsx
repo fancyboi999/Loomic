@@ -135,7 +135,7 @@ export function BrandKitEditor({
   return (
     <div className="flex flex-1 flex-col min-w-0">
       {/* Header */}
-      <header className="flex h-[96px] shrink-0 items-center justify-between border-b px-6">
+      <header className="flex min-h-[64px] shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 md:h-[96px] md:flex-nowrap md:py-0">
         <InlineInput
           value={kit.name}
           onCommit={handleNameCommit}
@@ -178,7 +178,7 @@ export function BrandKitEditor({
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 md:px-[80px] xl:px-[160px]">
+      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 md:px-[80px] xl:px-[160px]">
         <div className="flex flex-col gap-8 max-w-[960px] mx-auto">
           {/* Extract from URL — disabled Phase 1 */}
           <button

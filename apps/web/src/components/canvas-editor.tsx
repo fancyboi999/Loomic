@@ -4,12 +4,11 @@ import "@excalidraw/excalidraw/index.css";
 
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 
 import type { WebSocketHandle } from "../hooks/use-websocket";
 import { getServerBaseUrl } from "../lib/env";
 import { saveCanvas, uploadThumbnail } from "../lib/server-api";
-import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 import { VideoCanvasElement } from "./canvas/video-canvas-element";
 import { isVideoUrl } from "../lib/canvas-elements";
 import { CanvasToolMenu } from "./canvas-tool-menu";
@@ -21,6 +20,10 @@ const Excalidraw = dynamic(
   { ssr: false },
 );
 
+// Memoize CanvasToolMenu to prevent re-renders when parent state changes
+// (e.g. selection changes in the editor don't need to re-render the toolbar)
+const MemoizedCanvasToolMenu = memo(CanvasToolMenu);
+
 export type CanvasSelectedElement = {
   id: string;
   type: string;
@@ -31,7 +34,7 @@ export type CanvasSelectedElement = {
   text?: string;
   fileId?: string;
   dataUrl?: string;
-  /** Supabase storage public URL — prefer over dataUrl for message attachments */
+  /** Supabase storage public URL -- prefer over dataUrl for message attachments */
   storageUrl?: string;
 };
 
@@ -85,6 +88,11 @@ export function CanvasEditor({
     files: Record<string, Record<string, unknown>>;
   } | null>(null);
 
+  // Ref to hold initialContent.files for storageUrl lookup in handleChange
+  // without adding the full initialContent to the dependency array.
+  const initialFilesRef = useRef(initialContent.files);
+  initialFilesRef.current = initialContent.files;
+
   // Separate inline files (ready) from storage URLs (need async fetch)
   const { inlineFiles, pendingUrls } = useMemo(() => {
     const inline: Record<string, Record<string, unknown>> = {};
@@ -110,7 +118,10 @@ export function CanvasEditor({
         pendingUrls.map(async ({ fileId, url, meta }) => {
           try {
             const resp = await fetch(url);
-            if (!resp.ok) return;
+            if (!resp.ok) {
+              console.warn(`[canvas-editor] Failed to fetch file ${fileId}: ${resp.status}`);
+              return;
+            }
             const blob = await resp.blob();
             const reader = new FileReader();
             const dataURL = await new Promise<string>((resolve, reject) => {
@@ -124,13 +135,14 @@ export function CanvasEditor({
               created: meta.created ?? Date.now(),
               dataURL,
             };
-          } catch {
-            // Skip failed files silently
+          } catch (err) {
+            console.warn(`[canvas-editor] Failed to resolve file ${fileId}:`, err);
           }
         }),
       );
       if (!cancelled && Object.keys(resolved).length > 0) {
         excalidrawApi.addFiles(Object.values(resolved));
+        console.log(`[canvas-editor] Resolved ${Object.keys(resolved).length} storage files`);
       }
     }
 
@@ -152,8 +164,9 @@ export function CanvasEditor({
     if (!excalidrawApi || normalizedRef.current) return;
     normalizedRef.current = true;
 
-    // Run normalization after Excalidraw has loaded fonts
-    requestIdleCallback(() => {
+    // Run normalization after Excalidraw has loaded fonts.
+    // Store the handle so we can cancel on unmount to prevent memory leaks.
+    const idleHandle = requestIdleCallback(() => {
       try {
         const sceneElements = excalidrawApi.getSceneElements();
         // Create mutable copies for normalization
@@ -183,49 +196,54 @@ export function CanvasEditor({
         console.warn("[canvas-editor] normalization failed:", err);
       }
     });
+    return () => cancelIdleCallback(idleHandle);
   }, [excalidrawApi]);
 
   const handleChange = useCallback(
     (elements: readonly any[], appState: any) => {
+      // --- 1. Debounced save ---
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      // Build save payload eagerly so it's available for flush on tab close
-      const files: Record<string, Record<string, unknown>> = {};
-      if (excalidrawApi) {
-        const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
-        for (const [id, file] of Object.entries(rawFiles)) {
-          files[id] = {
-            id: file.id,
-            dataURL: file.dataURL,
-            mimeType: file.mimeType,
-            created: file.created,
-          };
-        }
-      }
-      const content = {
-        elements: elements.filter(
-          (el: any) => !el.isDeleted,
-        ) as Record<string, unknown>[],
-        appState: {
-          viewBackgroundColor: appState.viewBackgroundColor,
-          gridModeEnabled: appState.gridModeEnabled,
-        },
-        files,
-      };
-      pendingSaveRef.current = content;
+
+      // Mark that a save is pending. The full payload is built lazily inside
+      // the timeout to avoid constructing the files map on every drag frame.
+      pendingSaveRef.current = { elements: [] as any, appState: {}, files: {} };
 
       saveTimerRef.current = setTimeout(() => {
+        // Build the full payload only when the debounce fires
+        const files: Record<string, Record<string, unknown>> = {};
+        if (excalidrawApi) {
+          const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
+          for (const [id, file] of Object.entries(rawFiles)) {
+            files[id] = {
+              id: file.id,
+              dataURL: file.dataURL,
+              mimeType: file.mimeType,
+              created: file.created,
+            };
+          }
+        }
+        const content = {
+          elements: elements.filter(
+            (el: any) => !el.isDeleted,
+          ) as Record<string, unknown>[],
+          appState: {
+            viewBackgroundColor: appState.viewBackgroundColor,
+            gridModeEnabled: appState.gridModeEnabled,
+          },
+          files,
+        };
+        pendingSaveRef.current = content;
+
         saveCanvas(accessTokenRef.current, canvasId, content)
           .then(() => {
-            // Clear pending ref only if it still points to the same payload
-            // (a newer edit may have replaced it while we were saving)
             if (pendingSaveRef.current === content) {
               pendingSaveRef.current = null;
             }
           })
-          .catch(console.error);
+          .catch((err) => console.error("[canvas-editor] save failed:", err));
       }, SAVE_DEBOUNCE_MS);
 
-      // Debounced thumbnail generation — runs less frequently than save
+      // --- 2. Debounced thumbnail (runs much less frequently than save) ---
       if (thumbnailTimerRef.current) clearTimeout(thumbnailTimerRef.current);
       thumbnailTimerRef.current = setTimeout(async () => {
         if (!excalidrawApi) return;
@@ -252,7 +270,8 @@ export function CanvasEditor({
         }
       }, THUMBNAIL_DEBOUNCE_MS);
 
-      // Detect selection changes — only fire callback when selected IDs actually change
+      // --- 3. Selection change detection ---
+      // Cheap string comparison avoids unnecessary downstream re-renders.
       const selectedIds = appState.selectedElementIds
         ? Object.keys(appState.selectedElementIds as Record<string, boolean>).filter(
             (id) => (appState.selectedElementIds as Record<string, boolean>)[id],
@@ -266,7 +285,7 @@ export function CanvasEditor({
             onSelectionChangeRef.current([]);
           } else {
             const idSet = new Set(selectedIds.split(","));
-            const files: Record<string, any> = excalidrawApi?.getFiles() ?? {};
+            const selFiles: Record<string, any> = excalidrawApi?.getFiles() ?? {};
             const selected: CanvasSelectedElement[] = elements
               .filter((el: any) => idSet.has(el.id) && !el.isDeleted)
               .map((el: any) => {
@@ -283,7 +302,7 @@ export function CanvasEditor({
                 }
                 if (el.type === "image" && el.fileId) {
                   base.fileId = el.fileId;
-                  const file = files[el.fileId];
+                  const file = selFiles[el.fileId];
                   if (file?.dataURL) {
                     base.dataUrl = file.dataURL;
                   }
@@ -292,7 +311,7 @@ export function CanvasEditor({
                   //          2) initial canvas content files (server-resolved URLs)
                   const sUrl =
                     el.customData?.storageUrl ??
-                    initialContent.files[el.fileId]?.storageUrl;
+                    initialFilesRef.current[el.fileId]?.storageUrl;
                   if (typeof sUrl === "string" && sUrl) {
                     base.storageUrl = sUrl;
                   }
@@ -367,7 +386,7 @@ export function CanvasEditor({
           mimeType: "image/png",
         });
 
-        // Convert blob to base64 data URL directly (no upload needed —
+        // Convert blob to base64 data URL directly (no upload needed --
         // the image is passed inline to the model for visual understanding)
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -388,16 +407,54 @@ export function CanvasEditor({
     return cleanup;
   }, [ws, excalidrawApi, canvasId]);
 
+  // Build a full save payload from current Excalidraw state.
+  // Used by both beforeunload and unmount to flush pending changes.
+  const buildSavePayload = useCallback(() => {
+    if (!excalidrawApi) return null;
+    try {
+      const sceneElements = excalidrawApi.getSceneElements();
+      const rawFiles = excalidrawApi.getFiles() as Record<string, any>;
+      const appState = excalidrawApi.getAppState();
+      const files: Record<string, Record<string, unknown>> = {};
+      for (const [id, file] of Object.entries(rawFiles)) {
+        files[id] = {
+          id: file.id,
+          dataURL: file.dataURL,
+          mimeType: file.mimeType,
+          created: file.created,
+        };
+      }
+      return {
+        elements: sceneElements.filter((el: any) => !el.isDeleted),
+        appState: {
+          viewBackgroundColor: appState.viewBackgroundColor,
+          gridModeEnabled: appState.gridModeEnabled,
+        },
+        files,
+      };
+    } catch (err) {
+      console.warn("[canvas-editor] failed to build save payload on flush:", err);
+      return null;
+    }
+  }, [excalidrawApi]);
+
+  // Keep buildSavePayload accessible without stale closures
+  const buildSavePayloadRef = useRef(buildSavePayload);
+  buildSavePayloadRef.current = buildSavePayload;
+
   // Flush pending save on page close (beforeunload) and component unmount
   useEffect(() => {
     const flushBeforeUnload = () => {
-      const pending = pendingSaveRef.current;
-      if (!pending) return;
+      if (!pendingSaveRef.current) return;
+
+      // Build the real payload since pendingSaveRef may hold a placeholder
+      const payload = buildSavePayloadRef.current();
+      if (!payload) return;
 
       // Use fetch with keepalive to ensure the request survives page teardown.
       // keepalive requests are limited to 64 KiB total in-flight per page; for
       // canvases with very large embedded files this may exceed the limit, but
-      // it's the best-effort approach — sendBeacon has the same constraint.
+      // it's the best-effort approach -- sendBeacon has the same constraint.
       const url = `${getServerBaseUrl()}/api/canvases/${canvasIdRef.current}`;
       try {
         fetch(url, {
@@ -406,11 +463,11 @@ export function CanvasEditor({
             Authorization: `Bearer ${accessTokenRef.current}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ content: pending }),
+          body: JSON.stringify({ content: payload }),
           keepalive: true,
         });
       } catch {
-        // Best-effort — nothing we can do if it fails during page teardown
+        // Best-effort -- nothing we can do if it fails during page teardown
       }
       pendingSaveRef.current = null;
     };
@@ -425,11 +482,13 @@ export function CanvasEditor({
       if (thumbnailTimerRef.current) clearTimeout(thumbnailTimerRef.current);
 
       // Flush pending save on component unmount (e.g. SPA navigation)
-      const pending = pendingSaveRef.current;
-      if (pending) {
-        saveCanvas(accessTokenRef.current, canvasIdRef.current, pending).catch(
-          console.error,
-        );
+      if (pendingSaveRef.current) {
+        const payload = buildSavePayloadRef.current();
+        if (payload) {
+          saveCanvas(accessTokenRef.current, canvasIdRef.current, payload).catch(
+            console.error,
+          );
+        }
         pendingSaveRef.current = null;
       }
     };
@@ -477,10 +536,10 @@ export function CanvasEditor({
           validateEmbeddable={validateEmbeddable}
         />
         {excalidrawApi && (
-          <CanvasToolMenu
+          <MemoizedCanvasToolMenu
             accessToken={accessToken}
             excalidrawApi={excalidrawApi}
-            leftPanelOpen={leftPanelOpen}
+            leftPanelOpen={leftPanelOpen ?? false}
           />
         )}
       </div>

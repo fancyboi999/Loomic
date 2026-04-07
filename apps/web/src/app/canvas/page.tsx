@@ -60,6 +60,14 @@ function CanvasPageContent() {
   const routerRef = useRef(router);
   routerRef.current = router;
 
+  // Stable callbacks for panel toggles to prevent re-renders of child components
+  const handleOpenChat = useCallback(() => setChatOpen(true), []);
+  const handleToggleChat = useCallback(() => setChatOpen((v) => !v), []);
+  const handleToggleLayers = useCallback(() => { setLayersOpen((v) => !v); setFilesOpen(false); }, []);
+  const handleToggleFiles = useCallback(() => { setFilesOpen((v) => !v); setLayersOpen(false); }, []);
+  const handleCloseLayers = useCallback(() => setLayersOpen(false), []);
+  const handleCloseFiles = useCallback(() => setFilesOpen(false), []);
+
   const accessToken = session?.access_token;
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
@@ -285,32 +293,32 @@ function CanvasPageContent() {
         />
         <CanvasEmptyHint
           excalidrawApi={excalidrawApi}
-          onOpenChat={() => setChatOpen(true)}
+          onOpenChat={handleOpenChat}
         />
         <CanvasBottomBar
           excalidrawApi={excalidrawApi}
           layersOpen={layersOpen}
-          onToggleLayers={() => { setLayersOpen((v) => !v); setFilesOpen(false); }}
+          onToggleLayers={handleToggleLayers}
           filesOpen={filesOpen}
-          onToggleFiles={() => { setFilesOpen((v) => !v); setLayersOpen(false); }}
+          onToggleFiles={handleToggleFiles}
           leftPanelOpen={layersOpen || filesOpen}
         />
         <CanvasLayersPanel
           excalidrawApi={excalidrawApi}
           open={layersOpen}
-          onClose={() => setLayersOpen(false)}
+          onClose={handleCloseLayers}
         />
         <CanvasFilesPanel
           excalidrawApi={excalidrawApi}
           open={filesOpen}
-          onClose={() => setFilesOpen(false)}
+          onClose={handleCloseFiles}
         />
       </div>
       <ChatSidebar
         accessToken={accessToken}
         canvasId={canvasData.id}
         open={chatOpen}
-        onToggle={() => setChatOpen(!chatOpen)}
+        onToggle={handleToggleChat}
         onImageGenerated={handleImageGenerated}
         onVideoGenerated={handleVideoGenerated}
         onCanvasSync={handleCanvasSync}

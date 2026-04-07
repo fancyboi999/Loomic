@@ -115,8 +115,12 @@ export function SkillDetailDialog({
 
   if (!skill) return null;
 
-  const { label: sourceLabel, icon: SourceIcon } =
-    SOURCE_CONFIG[skill.source];
+  // SOURCE_CONFIG exhaustively covers all SkillSource values ("system" | "community" | "user")
+  // Non-null assertion is safe: every possible SkillSource key is present in SOURCE_CONFIG.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const sourceEntry =
+    (SOURCE_CONFIG[skill.source as keyof typeof SOURCE_CONFIG] ?? SOURCE_CONFIG.system)!;
+  const { label: sourceLabel, icon: SourceIcon } = sourceEntry;
   const isUserSkill = skill.source === "user";
   const isInstalled = skill.installed ?? false;
 
@@ -188,7 +192,7 @@ export function SkillDetailDialog({
               附属文件 ({skill.files.length})
             </span>
             <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
-              {skill.files.map((file) => (
+              {skill.files.map((file: SkillFileEntry) => (
                 <FileTreeItem key={file.id} file={file} />
               ))}
             </div>

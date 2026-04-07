@@ -22,27 +22,49 @@ export function ProjectList({
 }: ProjectListProps) {
   const router = useRouter();
   const { pendingId, deleting, requestDelete, confirmDelete, cancelDelete } =
-    useDeleteProject({ onDeleted });
+    useDeleteProject(onDeleted ? { onDeleted } : undefined);
 
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-lg font-medium text-foreground">项目</h1>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-base font-medium text-foreground sm:text-lg">
+          项目
+        </h1>
       </div>
 
-      {/* Card grid */}
+      {/* Card grid -- consistent responsive breakpoints */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {/* "+ 新建项目" card */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={onCreateClick}
-          className="aspect-[286/208] cursor-pointer rounded-xl bg-card p-3 shadow-card transition-all duration-300 hover:shadow-md sm:rounded-2xl"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onCreateClick();
+            }
+          }}
+          className="aspect-[286/208] cursor-pointer rounded-xl bg-card p-2 shadow-card transition-all duration-300 hover:shadow-md sm:rounded-2xl sm:p-3"
         >
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-xl bg-muted">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="h-6 w-6 text-foreground">
-              <path fill="currentColor" fillRule="evenodd" d="M6.417 2.917a.583.583 0 0 1 1.166 0v3.5h3.5a.583.583 0 0 1 0 1.166h-3.5v3.5a.583.583 0 1 1-1.166 0v-3.5h-3.5a.583.583 0 1 1 0-1.166h3.5z" clipRule="evenodd" />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl bg-muted sm:gap-3">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 14 14"
+              className="h-5 w-5 text-foreground sm:h-6 sm:w-6"
+            >
+              <path
+                fill="currentColor"
+                fillRule="evenodd"
+                d="M6.417 2.917a.583.583 0 0 1 1.166 0v3.5h3.5a.583.583 0 0 1 0 1.166h-3.5v3.5a.583.583 0 1 1-1.166 0v-3.5h-3.5a.583.583 0 1 1 0-1.166h3.5z"
+                clipRule="evenodd"
+              />
             </svg>
-            <span className="text-sm font-semibold text-foreground">新建项目</span>
+            <span className="text-xs font-semibold text-foreground sm:text-sm">
+              新建项目
+            </span>
           </div>
         </div>
 
@@ -50,21 +72,30 @@ export function ProjectList({
         {projects.map((project) => (
           <div
             key={project.id}
+            role="button"
+            tabIndex={0}
             onClick={() =>
               router.push(`/canvas?id=${project.primaryCanvas.id}`)
             }
-            className={`group relative aspect-[286/208] rounded-lg bg-card p-3 cursor-pointer shadow-card transition-all duration-300 hover:shadow-md${
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push(`/canvas?id=${project.primaryCanvas.id}`);
+              }
+            }}
+            className={`group relative aspect-[286/208] rounded-lg bg-card p-2 cursor-pointer shadow-card transition-all duration-300 hover:shadow-md sm:p-3${
               highlightId === project.id ? " ring-2 ring-border" : ""
             }`}
           >
-            {/* Trash icon — hover reveal */}
+            {/* Trash icon -- hover reveal on desktop */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 requestDelete(project.id);
               }}
-              className="absolute top-5 right-5 z-10 size-8 flex items-center justify-center rounded-[4px] bg-[rgba(51,51,51,0.8)] text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/70"
+              aria-label={`Delete ${project.name}`}
+              className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-[4px] bg-[rgba(51,51,51,0.8)] text-white opacity-0 transition-all duration-300 hover:bg-black/70 group-hover:opacity-100 sm:right-5 sm:top-5"
             >
               <Trash2 size={14} />
             </button>
@@ -84,12 +115,12 @@ export function ProjectList({
               )}
             </div>
             {/* Info */}
-            <div className="mt-3 flex items-center justify-between">
-              <div className="text-sm truncate text-foreground">
+            <div className="mt-2 flex items-center justify-between sm:mt-3">
+              <div className="truncate text-xs text-foreground sm:text-sm">
                 {project.name}
               </div>
             </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className="mt-0.5 text-[10px] text-muted-foreground sm:text-[11px]">
               更新于 {formatDate(project.updatedAt)}
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 
 // biome-ignore lint/suspicious/noExplicitAny: Excalidraw API/element has no public type
 type ExcalidrawEl = any;
@@ -11,6 +11,26 @@ export type CanvasFilesPanelProps = {
   open: boolean;
   onClose: () => void;
 };
+
+/* -- Throttle utility -- */
+function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T & { cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastArgs: Parameters<T> | null = null;
+  const throttled = ((...args: Parameters<T>) => {
+    lastArgs = args;
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      if (lastArgs) fn(...lastArgs);
+      lastArgs = null;
+    }, ms);
+  }) as T & { cancel: () => void };
+  throttled.cancel = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    lastArgs = null;
+  };
+  return throttled;
+}
 
 const CloseIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" className={className}>
@@ -25,6 +45,50 @@ const DownloadIcon = ({ className }: { className?: string }) => (
 );
 
 type ImageFile = { id: string; name: string; dataURL: string };
+
+/** Memoized file row to prevent re-renders when other files change */
+const FileRow = memo(function FileRow({
+  file,
+  onDownload,
+}: {
+  file: ImageFile;
+  onDownload: (file: ImageFile) => void;
+}) {
+  const handleDownload = useCallback(() => onDownload(file), [onDownload, file]);
+
+  return (
+    <div
+      className="group flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-muted transition-colors"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 56px" }}
+    >
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-subtle">
+        {file.dataURL ? (
+          <img
+            alt=""
+            className="h-full w-full object-cover"
+            draggable={false}
+            src={file.dataURL}
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground text-xs">N/A</div>
+        )}
+      </div>
+      <div className="flex-1 overflow-hidden text-sm leading-[22px] text-foreground min-w-0">
+        <div className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</div>
+      </div>
+      <button
+        type="button"
+        onClick={handleDownload}
+        className="flex h-4 w-4 shrink-0 items-center justify-center text-foreground hover:text-muted-foreground transition-colors"
+        title="下载"
+        aria-label={`Download ${file.name}`}
+      >
+        <DownloadIcon className="h-4 w-4" />
+      </button>
+    </div>
+  );
+});
 
 export function CanvasFilesPanel({ excalidrawApi, open, onClose }: CanvasFilesPanelProps) {
   const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
@@ -47,11 +111,16 @@ export function CanvasFilesPanel({ excalidrawApi, open, onClose }: CanvasFilesPa
     setImageFiles(images.reverse());
   }, [excalidrawApi]);
 
+  // Throttle refresh to avoid excessive re-renders during canvas operations
   useEffect(() => {
     if (!open || !excalidrawApi) return;
     refreshFiles();
-    const unsubscribe = excalidrawApi.onChange(() => refreshFiles());
-    return () => { if (typeof unsubscribe === "function") unsubscribe(); };
+    const throttledRefresh = throttle(refreshFiles, 200);
+    const unsubscribe = excalidrawApi.onChange(() => throttledRefresh());
+    return () => {
+      throttledRefresh.cancel();
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
   }, [open, excalidrawApi, refreshFiles]);
 
   useEffect(() => {
@@ -86,41 +155,20 @@ export function CanvasFilesPanel({ excalidrawApi, open, onClose }: CanvasFilesPa
           type="button"
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           onClick={onClose}
+          aria-label="Close files panel"
         >
           <CloseIcon className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* File list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+      {/* File list -- uses content-visibility and memoized rows for performance */}
+      <div className="flex-1 overflow-y-auto px-2 pb-4" style={{ contain: "layout style" }}>
         {imageFiles.length === 0 ? (
           <p className="px-2 py-8 text-center text-sm text-muted-foreground">暂无生成文件</p>
         ) : (
           <div className="flex flex-col gap-1">
             {imageFiles.map((file) => (
-              <div
-                key={file.id}
-                className="group flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-muted transition-colors"
-              >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-subtle">
-                  {file.dataURL ? (
-                    <img alt="" className="h-full w-full object-cover" draggable={false} src={file.dataURL} />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground text-xs">N/A</div>
-                  )}
-                </div>
-                <div className="flex-1 overflow-hidden text-sm leading-[22px] text-foreground">
-                  <div className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDownload(file)}
-                  className="flex h-4 w-4 shrink-0 items-center justify-center text-foreground hover:text-muted-foreground transition-colors"
-                  title="下载"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                </button>
-              </div>
+              <FileRow key={file.id} file={file} onDownload={handleDownload} />
             ))}
             <p className="py-2 text-center text-sm text-muted-foreground">到底了</p>
           </div>

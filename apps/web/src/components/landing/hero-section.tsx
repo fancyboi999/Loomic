@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Sparkles, ChevronDown, ArrowRight } from "lucide-react";
@@ -33,7 +34,7 @@ function HeroBadge() {
 function MockupCursor() {
   return (
     <motion.div
-      className="absolute z-10 pointer-events-none"
+      className="absolute z-10 pointer-events-none will-change-transform"
       animate={{
         x: [40, 120, 180, 60, 40],
         y: [30, 80, 40, 120, 30],
@@ -51,6 +52,7 @@ function MockupCursor() {
         viewBox="0 0 16 16"
         fill="none"
         className="drop-shadow-md"
+        aria-hidden="true"
       >
         <path
           d="M1 1L6.5 14L8.5 8.5L14 6.5L1 1Z"
@@ -74,7 +76,8 @@ function MockupCursor() {
 }
 
 // ---------------------------------------------------------------------------
-// HeroMockup — canvas interface preview
+// HeroMockup -- canvas interface preview
+// Uses next/image with unoptimized for CLS prevention via explicit dimensions
 // ---------------------------------------------------------------------------
 
 function HeroMockup() {
@@ -84,8 +87,8 @@ function HeroMockup() {
       initial="hidden"
       animate="visible"
       transition={{ delay: 1.2 }}
-      className="relative w-full max-w-5xl mx-auto mt-16 md:mt-24"
-      style={{ animation: "heroFloat 6s ease-in-out infinite" }}
+      className="relative w-full max-w-5xl mx-auto mt-16 md:mt-24 will-change-transform"
+      style={{ animation: "landing-hero-float 6s ease-in-out infinite" }}
     >
       {/* Glow behind mockup */}
       <div
@@ -104,18 +107,24 @@ function HeroMockup() {
             <span className="size-3 rounded-full bg-yellow-400/80" />
             <span className="size-3 rounded-full bg-green-400/80" />
           </div>
-          <span className="text-xs text-muted-foreground font-medium">Loomic Canvas</span>
+          <span className="text-xs text-muted-foreground font-medium">
+            Loomic Canvas
+          </span>
           <div className="w-14" />
         </div>
 
-        {/* Canvas area — dramatic AI scene as canvas preview */}
+        {/* Canvas area -- hero image is LCP candidate, loaded eagerly */}
         <div className="relative w-full h-full">
           <MockupCursor />
-          <img
+          <Image
             src="/images/showcase/showcase-12.jpg"
-            alt="Loomic Canvas AI 创作"
+            alt="Loomic Canvas AI creative workspace"
+            width={1200}
+            height={675}
+            priority
+            unoptimized
             className="w-full h-full object-cover"
-            loading="eager"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1024px"
           />
         </div>
       </div>
@@ -124,7 +133,7 @@ function HeroMockup() {
 }
 
 // ---------------------------------------------------------------------------
-// ScrollIndicator — smooth sine wave
+// ScrollIndicator -- smooth sine wave
 // ---------------------------------------------------------------------------
 
 function ScrollIndicator() {
@@ -141,12 +150,29 @@ function ScrollIndicator() {
         transition={{
           repeat: Infinity,
           duration: 2.4,
-          ease: [0.37, 0, 0.63, 1], // sine-like cubic-bezier
+          ease: [0.37, 0, 0.63, 1],
         }}
       >
         <ChevronDown className="size-5 text-muted-foreground/50" />
       </motion.div>
     </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AnimatedSubtitle -- separate to isolate motion state
+// ---------------------------------------------------------------------------
+
+function AnimatedSubtitle({ show }: { show: boolean }) {
+  return (
+    <motion.p
+      variants={blurIn}
+      initial="hidden"
+      animate={show ? "visible" : "hidden"}
+      className="mt-4 text-sm md:text-base text-muted-foreground font-light tracking-[0.2em] uppercase"
+    >
+      Where Ideas Become Reality
+    </motion.p>
   );
 }
 
@@ -163,11 +189,11 @@ export function HeroSection() {
   const [showSub, setShowSub] = useState(false);
 
   // Compute typewriter total duration: delay + text.length * speed
-  // 200 + 7 * 60 = 620ms → subtitle at ~1020ms
-  const typewriterEnd = 200 + 7 * 60; // ~620ms
-  const subtitleDelay = typewriterEnd + 400; // ~1020ms
-  const descDelay = (subtitleDelay + 200) / 1000; // ~1.22s
-  const ctaDelay = (subtitleDelay + 400) / 1000; // ~1.42s
+  // 200 + 7 * 60 = 620ms -> subtitle at ~1020ms
+  const typewriterEnd = 200 + 7 * 60;
+  const subtitleDelay = typewriterEnd + 400;
+  const descDelay = (subtitleDelay + 200) / 1000;
+  const ctaDelay = (subtitleDelay + 400) / 1000;
 
   useEffect(() => {
     if (isComplete) {
@@ -178,22 +204,22 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 md:pt-32 pb-24 overflow-hidden">
-      {/* Animated gradient background */}
+      {/* Animated gradient background -- GPU-composited via translate3d */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="hero-glow-1 absolute -top-1/4 right-0 w-[80vw] h-[80vw] rounded-full opacity-60"
+          className="landing-hero-glow-1 absolute -top-1/4 right-0 w-[80vw] h-[80vw] rounded-full opacity-60 will-change-transform"
           style={{
             background:
               "radial-gradient(ellipse at center, oklch(0.90 0.17 115 / 0.08) 0%, transparent 70%)",
-            animation: "gradientDrift1 18s ease-in-out infinite alternate",
+            animation: "landing-gradient-drift-1 18s ease-in-out infinite alternate",
           }}
         />
         <div
-          className="hero-glow-2 absolute bottom-0 -left-1/4 w-[60vw] h-[60vw] rounded-full opacity-50"
+          className="landing-hero-glow-2 absolute bottom-0 -left-1/4 w-[60vw] h-[60vw] rounded-full opacity-50 will-change-transform"
           style={{
             background:
               "radial-gradient(ellipse at center, oklch(0.556 0 0 / 0.05) 0%, transparent 70%)",
-            animation: "gradientDrift2 22s ease-in-out infinite alternate",
+            animation: "landing-gradient-drift-2 22s ease-in-out infinite alternate",
           }}
         />
         {/* Noise/grain texture overlay */}
@@ -215,57 +241,12 @@ export function HeroSection() {
         />
       </div>
 
-      {/* Keyframe styles */}
-      <style>{`
-        @keyframes gradientDrift1 {
-          from { transform: translate(0, 0) scale(1); }
-          to   { transform: translate(-6%, 8%) scale(1.1); }
-        }
-        @keyframes gradientDrift2 {
-          from { transform: translate(0, 0) scale(1); }
-          to   { transform: translate(5%, -6%) scale(1.08); }
-        }
-        @keyframes heroFloat {
-          0%, 100% { transform: translateY(0px); }
-          50%      { transform: translateY(-10px); }
-        }
-        @keyframes accentPulse {
-          0%, 100% { opacity: 1; }
-          50%      { opacity: 0.85; }
-        }
-        .dark .hero-glow-1 { opacity: 0.15 !important; }
-        .dark .hero-glow-2 { opacity: 0.12 !important; }
-
-        /* Shimmer animation for primary CTA */
-        @keyframes shimmer {
-          0%   { transform: translateX(-100%) rotate(15deg); }
-          100% { transform: translateX(100%) rotate(15deg); }
-        }
-        .cta-shimmer {
-          position: relative;
-          overflow: hidden;
-        }
-        .cta-shimmer::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            105deg,
-            transparent 40%,
-            oklch(1 0 0 / 0.25) 50%,
-            transparent 60%
-          );
-          animation: shimmer 3.5s ease-in-out infinite;
-          pointer-events: none;
-        }
-      `}</style>
-
       {/* Content */}
       <div className="flex flex-col items-center text-center px-4 max-w-4xl mx-auto w-full">
         {/* Badge */}
         <HeroBadge />
 
-        {/* Headline — gradient text + tighter tracking */}
+        {/* Headline -- gradient text + tighter tracking */}
         <motion.h1
           variants={fadeUp}
           initial="hidden"
@@ -276,7 +257,7 @@ export function HeroSection() {
           <TypewriterText text="让创意，自由生长" speed={60} delay={200} />
         </motion.h1>
 
-        {/* English subtitle — editorial style */}
+        {/* English subtitle -- editorial style */}
         <AnimatedSubtitle show={showSub} />
 
         {/* Description */}
@@ -301,23 +282,14 @@ export function HeroSection() {
           <Link
             href="/login"
             className={cn(
-              "cta-shimmer inline-flex items-center px-8 py-3 rounded-full text-base font-medium transition-all duration-200",
+              "landing-cta-shimmer inline-flex items-center px-8 py-3 rounded-full text-base font-medium",
               "text-foreground",
-              "hover:scale-105 active:scale-95",
+              "transition-all duration-200 hover:scale-105 active:scale-95",
+              "hover:shadow-[0_0_24px_4px_oklch(0.90_0.17_115_/_0.35)]",
             )}
             style={{
               background:
                 "linear-gradient(135deg, oklch(0.90 0.17 115) 0%, oklch(0.82 0.17 115) 100%)",
-              boxShadow: "0 0 0 0 oklch(0.90 0.17 115 / 0)",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.boxShadow =
-                "0 0 24px 4px oklch(0.90 0.17 115 / 0.35)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.boxShadow =
-                "0 0 0 0 oklch(0.90 0.17 115 / 0)";
             }}
           >
             开始创作
@@ -326,7 +298,9 @@ export function HeroSection() {
             href="#showcase"
             onClick={(e) => {
               e.preventDefault();
-              document.querySelector("#showcase")?.scrollIntoView({ behavior: "smooth" });
+              document
+                .querySelector("#showcase")
+                ?.scrollIntoView({ behavior: "smooth" });
             }}
             className="group inline-flex items-center gap-2 px-8 py-3 rounded-full text-base font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
           >
@@ -342,22 +316,5 @@ export function HeroSection() {
       {/* Scroll indicator */}
       <ScrollIndicator />
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// AnimatedSubtitle — separate to isolate motion state
-// ---------------------------------------------------------------------------
-
-function AnimatedSubtitle({ show }: { show: boolean }) {
-  return (
-    <motion.p
-      variants={blurIn}
-      initial="hidden"
-      animate={show ? "visible" : "hidden"}
-      className="mt-4 text-sm md:text-base text-muted-foreground font-light tracking-[0.2em] uppercase"
-    >
-      Where Ideas Become Reality
-    </motion.p>
   );
 }

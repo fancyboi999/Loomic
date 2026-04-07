@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/landing/section-header";
 import { StaggerContainer, scaleUp } from "@/components/landing/motion";
 
 // ---------------------------------------------------------------------------
-// Gallery — local high-res images (1200px, optimized jpg)
+// Gallery -- local high-res images (1200px, optimized jpg)
 // ---------------------------------------------------------------------------
 
 interface GalleryItem {
@@ -20,52 +21,52 @@ interface GalleryItem {
 const GALLERY_ITEMS: GalleryItem[] = [
   {
     category: "数字艺术",
-    title: "梦幻水母 — AI 数字雕塑",
+    title: "梦幻水母 -- AI 数字雕塑",
     image: "/images/showcase/showcase-1.jpg",
     rowSpan: "row-span-2",
   },
   {
     category: "潮流时尚",
-    title: "朋克牛仔 — AI 时尚造型",
+    title: "朋克牛仔 -- AI 时尚造型",
     image: "/images/showcase/showcase-10.jpg",
     colSpan: "col-span-2",
   },
   {
     category: "艺术摄影",
-    title: "暗调飘逸 — AI 风格化写真",
+    title: "暗调飘逸 -- AI 风格化写真",
     image: "/images/showcase/showcase-2.jpg",
   },
   {
     category: "创意拼贴",
-    title: "东方美学 — AI 混合媒体创作",
+    title: "东方美学 -- AI 混合媒体创作",
     image: "/images/showcase/showcase-3.jpg",
   },
   {
     category: "静物写真",
-    title: "复古珠宝盒 — AI 精致静物",
+    title: "复古珠宝盒 -- AI 精致静物",
     image: "/images/showcase/showcase-4.jpg",
   },
   {
     category: "时尚大片",
-    title: "复古运动风 — AI 编辑摄影",
+    title: "复古运动风 -- AI 编辑摄影",
     image: "/images/showcase/showcase-5.jpg",
     colSpan: "col-span-2",
   },
   {
     category: "人像摄影",
-    title: "清新双人 — AI 自然光写真",
+    title: "清新双人 -- AI 自然光写真",
     image: "/images/showcase/showcase-11.jpg",
   },
   {
     category: "光影摄影",
-    title: "闪光灯下 — AI 戏剧性光影",
+    title: "闪光灯下 -- AI 戏剧性光影",
     image: "/images/showcase/showcase-12.jpg",
     rowSpan: "row-span-2",
   },
 ];
 
 // ---------------------------------------------------------------------------
-// GalleryCard
+// GalleryCard -- uses next/image for CLS prevention and native lazy loading
 // ---------------------------------------------------------------------------
 
 function GalleryCard({ item }: { item: GalleryItem }) {
@@ -76,14 +77,17 @@ function GalleryCard({ item }: { item: GalleryItem }) {
         "relative rounded-xl overflow-hidden group cursor-pointer",
         "border border-border/50",
         item.colSpan,
-        item.rowSpan
+        item.rowSpan,
       )}
     >
-      <img
+      <Image
         src={item.image}
         alt={item.title}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        fill
+        unoptimized
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
         loading="lazy"
+        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
       />
 
       {/* Hover overlay */}
@@ -101,8 +105,6 @@ function GalleryCard({ item }: { item: GalleryItem }) {
           {item.title}
         </p>
       </div>
-
-      <div className="relative w-full h-full min-h-0" />
     </motion.div>
   );
 }

@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 interface UseTypewriterOptions {
   text: string;
   /** Milliseconds per character (default: 50) */
-  speed?: number;
+  speed?: number | undefined;
   /** Delay in ms before animation starts (default: 0) */
-  delay?: number;
+  delay?: number | undefined;
 }
 
 interface UseTypewriterReturn {
@@ -28,16 +28,17 @@ export function useTypewriter({
   delay = 0,
 }: UseTypewriterOptions): UseTypewriterReturn {
   const shouldReduce = useReducedMotion();
+  const reduceMotion = shouldReduce === true;
   const [displayText, setDisplayText] = useState(
-    shouldReduce ? text : ""
+    reduceMotion ? text : "",
   );
-  const [isComplete, setIsComplete] = useState(shouldReduce);
+  const [isComplete, setIsComplete] = useState(reduceMotion);
   const [cursor, setCursor] = useState(true);
   const indexRef = useRef(0);
 
   // Typing effect
   useEffect(() => {
-    if (shouldReduce) {
+    if (reduceMotion) {
       setDisplayText(text);
       setIsComplete(true);
       return;
@@ -68,7 +69,7 @@ export function useTypewriter({
       clearTimeout(startTimeout);
       clearInterval(typingInterval);
     };
-  }, [text, speed, delay, shouldReduce]);
+  }, [text, speed, delay, reduceMotion]);
 
   // Cursor blink — starts immediately, keeps blinking after completion
   useEffect(() => {

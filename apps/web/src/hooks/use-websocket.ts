@@ -61,7 +61,7 @@ export function useWebSocket(
   const connect = useCallback(() => {
     const token = getToken();
     if (disposed.current) return;
-    // Skip if already connected — prevents React Strict Mode double-mount
+    // Skip if already connected -- prevents React Strict Mode double-mount
     // from replacing an active connection mid-stream
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return;
@@ -73,7 +73,7 @@ export function useWebSocket(
       wsRef.current = null;
     }
     if (!token) {
-      // Token not yet available (auth loading) — retry shortly
+      // Token not yet available (auth loading) -- retry shortly
       reconnectTimer.current = setTimeout(connect, 500);
       return;
     }
@@ -87,6 +87,7 @@ export function useWebSocket(
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.log("[ws] connected, connectionId:", connectionIdRef.current);
       setConnected(true);
       reconnectAttempt.current = 0;
     };
@@ -95,23 +96,40 @@ export function useWebSocket(
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(event.data as string) as Record<string, unknown>;
-      } catch {
+      } catch (err) {
+        console.warn("[ws] failed to parse incoming message:", err);
         return;
       }
 
       if (msg.type === "event") {
+        const streamEvent = msg.event as StreamEvent;
+        // Defensive: skip malformed events without proper structure
+        if (!streamEvent || typeof streamEvent !== "object") {
+          console.warn("[ws] received malformed stream event:", msg);
+          return;
+        }
         for (const cb of eventListeners.current) {
-          cb(msg.event as StreamEvent);
+          try {
+            cb(streamEvent);
+          } catch (listenerErr) {
+            // Prevent one listener's error from breaking others
+            console.error("[ws] event listener threw:", listenerErr);
+          }
         }
       } else if (msg.type === "command.ack") {
         const cb = ackListeners.current.get(msg.action as string);
         if (cb) {
           ackListeners.current.delete(msg.action as string);
-          cb(msg as unknown as WsCommandAck);
+          try {
+            cb(msg as unknown as WsCommandAck);
+          } catch (ackErr) {
+            console.error("[ws] ack listener threw:", ackErr);
+          }
         }
       } else if (msg.type === "rpc.request") {
         void handleRpcRequest(ws, msg as unknown as WsRpcRequest);
       }
+      // Unknown message types are silently ignored -- server may add new types
     };
 
     ws.onclose = (event) => {
@@ -133,7 +151,11 @@ export function useWebSocket(
           30_000,
           1000 * Math.pow(2, reconnectAttempt.current),
         );
-        reconnectAttempt.current++;
+        const attempt = reconnectAttempt.current + 1;
+        console.log(
+          `[ws] scheduling reconnect attempt ${attempt} in ${delay}ms (code: ${event.code})`,
+        );
+        reconnectAttempt.current = attempt;
         reconnectTimer.current = setTimeout(connect, delay);
       }
     };
@@ -194,11 +216,17 @@ export function useWebSocket(
     (action: string, payload: Record<string, unknown>): boolean => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.warn("[ws] command dropped — not connected, readyState:", ws?.readyState);
+        console.warn("[ws] command dropped -- not connected, readyState:", ws?.readyState);
         return false;
       }
-      ws.send(JSON.stringify({ type: "command", action, payload }));
-      return true;
+      try {
+        ws.send(JSON.stringify({ type: "command", action, payload }));
+        return true;
+      } catch (err) {
+        // Guard against serialization errors (e.g. circular refs in payload)
+        console.error("[ws] failed to send command:", action, err);
+        return false;
+      }
     },
     [],
   );

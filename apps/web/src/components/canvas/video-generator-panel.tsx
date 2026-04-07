@@ -12,7 +12,7 @@ import {
   resizeVideoGeneratorElement,
   type VideoGeneratorData,
 } from "../../lib/canvas-video-generator";
-// No longer needs poster frame extraction — videos use embeddable elements
+// No longer needs poster frame extraction -- videos use embeddable elements
 
 type VideoGeneratorPanelProps = {
   elementId: string;
@@ -64,12 +64,39 @@ export function VideoGeneratorPanel({
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
   const { handleGenerationError } = useGenerationErrorHandler();
+  // AbortController for in-flight generation requests so we can cancel on unmount
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Fetch available models
+  // Fetch available models with error logging
   useEffect(() => {
+    let cancelled = false;
     fetchVideoModels()
-      .then((r) => setModels(r.models))
-      .catch(() => {});
+      .then((r) => {
+        if (!cancelled) setModels(r.models);
+      })
+      .catch((err) => {
+        console.warn("[video-gen] Failed to fetch models:", err);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Close dropdowns when clicking outside the panel
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowModelDropdown(false);
+        setShowParamsPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Cancel in-flight generation on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   // Auto-resize textarea
@@ -118,7 +145,7 @@ export function VideoGeneratorPanel({
 
   const handleFrameUpload = useCallback(
     (
-      type: "first" | "last",
+      _type: "first" | "last",
       setter: React.Dispatch<
         React.SetStateAction<{ dataUrl: string; file: File } | null>
       >,
@@ -139,6 +166,12 @@ export function VideoGeneratorPanel({
 
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || loading) return;
+
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     updateVideoGeneratorElement(excalidrawApi, elementId, {
@@ -167,9 +200,13 @@ export function VideoGeneratorPanel({
         },
       );
 
+      // Check if this generation was cancelled while awaiting
+      if (controller.signal.aborted) return;
+
       // Create embeddable element for inline video playback on canvas.
-      // Dynamic import — excalidraw is client-only.
+      // Dynamic import -- excalidraw is client-only.
       const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
+      if (controller.signal.aborted) return;
 
       const newElements = convertToExcalidrawElements([
         {
@@ -201,6 +238,9 @@ export function VideoGeneratorPanel({
 
       onClose();
     } catch (err) {
+      // Ignore aborted requests (user cancelled or component unmounted)
+      if (controller.signal.aborted) return;
+
       console.error("[video-gen] Generation error:", err);
       const handled = handleGenerationError(err);
       if (!handled) {
@@ -228,7 +268,7 @@ export function VideoGeneratorPanel({
     handleGenerationError,
   ]);
 
-  const paramsLabel = `${aspectRatio} · ${duration}s`;
+  const paramsLabel = `${aspectRatio} \u00B7 ${duration}s`;
 
   return createPortal(
     <div

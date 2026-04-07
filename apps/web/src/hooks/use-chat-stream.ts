@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 
-import type { ContentBlock, StreamEvent, ToolBlock } from "@loomic/shared";
+import type { StreamEvent, ToolBlock } from "@loomic/shared";
 import type { Message } from "./use-chat-sessions";
 
 type MessageUpdater = (
@@ -20,14 +20,33 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
    * Apply a single StreamEvent to the assistant message identified by assistantId
    * in the given session. This is the single source of truth for how events
    * mutate the message list.
+   *
+   * Edge case handling:
+   * - Empty deltas are ignored to prevent unnecessary re-renders
+   * - Missing assistantId in message list is tolerated (logged, not thrown)
+   * - Duplicate tool.started events for the same toolCallId are safely deduplicated
+   * - Unknown event types from newer server versions are silently ignored
    */
   const applyStreamEvent = useCallback(
     (event: StreamEvent, assistantId: string, sessionId: string) => {
+      if (!assistantId || !sessionId) {
+        console.warn("[chat-stream] applyStreamEvent called with missing ids:", {
+          assistantId,
+          sessionId,
+          eventType: event.type,
+        });
+        return;
+      }
+
       const update = (updater: (prev: Message[]) => Message[]) =>
         updateSessionMessages(sessionId, updater);
 
       switch (event.type) {
-        case "message.delta":
+        case "message.delta": {
+          // Skip truly empty deltas -- they cause unnecessary re-renders
+          const delta = event.delta;
+          if (delta === undefined || delta === null) break;
+
           update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
@@ -36,17 +55,21 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
               if (last && last.type === "text") {
                 blocks[blocks.length - 1] = {
                   ...last,
-                  text: last.text + event.delta,
+                  text: last.text + delta,
                 };
               } else {
-                blocks.push({ type: "text", text: event.delta });
+                blocks.push({ type: "text", text: delta });
               }
               return { ...m, contentBlocks: blocks };
             }),
           );
           break;
+        }
 
-        case "thinking.delta":
+        case "thinking.delta": {
+          const delta = event.delta;
+          if (delta === undefined || delta === null) break;
+
           update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
@@ -55,20 +78,29 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
               if (last && last.type === "thinking") {
                 blocks[blocks.length - 1] = {
                   ...last,
-                  thinking: last.thinking + event.delta,
+                  thinking: last.thinking + delta,
                 };
               } else {
-                blocks.push({ type: "thinking", thinking: event.delta });
+                blocks.push({ type: "thinking", thinking: delta });
               }
               return { ...m, contentBlocks: blocks };
             }),
           );
           break;
+        }
 
         case "tool.started":
           update((prev) =>
             prev.map((m) => {
               if (m.id !== assistantId) return m;
+              // Guard against duplicate tool.started events for the same toolCallId
+              const alreadyExists = m.contentBlocks.some(
+                (b) => b.type === "tool" && b.toolCallId === event.toolCallId,
+              );
+              if (alreadyExists) {
+                console.warn("[chat-stream] duplicate tool.started for:", event.toolCallId);
+                return m;
+              }
               const newBlock: ToolBlock = {
                 type: "tool",
                 toolCallId: event.toolCallId,
@@ -120,7 +152,7 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
               // Mark all running tool blocks as completed so spinners stop
               const blocks = m.contentBlocks.map((block) =>
                 block.type === "tool" && block.status === "running"
-                  ? { ...block, status: "completed" as const, outputSummary: "处理失败" }
+                  ? { ...block, status: "completed" as const, outputSummary: "\u5904\u7406\u5931\u8d25" }
                   : block,
               );
               const hasText = blocks.some((b) => b.type === "text");
@@ -132,7 +164,7 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
                       ...blocks,
                       {
                         type: "text" as const,
-                        text: "抱歉，处理过程中遇到问题，请重试。",
+                        text: "\u62b1\u6b49\uff0c\u5904\u7406\u8fc7\u7a0b\u4e2d\u9047\u5230\u95ee\u9898\uff0c\u8bf7\u91cd\u8bd5\u3002",
                       },
                     ],
               };
@@ -159,6 +191,11 @@ export function useChatStream(updateSessionMessages: MessageUpdater) {
               };
             }),
           );
+          break;
+
+        default:
+          // Unknown event types are silently ignored -- new event types may be
+          // added server-side before the frontend is updated
           break;
       }
     },

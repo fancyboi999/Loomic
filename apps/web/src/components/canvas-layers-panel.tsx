@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 
-/* ── Types ── */
+/* -- Types -- */
 // biome-ignore lint/suspicious/noExplicitAny: Excalidraw element has no public type
 type ExcalidrawEl = any;
 
@@ -13,7 +13,28 @@ export type CanvasLayersPanelProps = {
   onClose: () => void;
 };
 
-/* ── Icon helpers ── */
+/* -- Throttle utility -- */
+/** Simple trailing-edge throttle. Ensures fn fires at most once per `ms`. */
+function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T & { cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastArgs: Parameters<T> | null = null;
+  const throttled = ((...args: Parameters<T>) => {
+    lastArgs = args;
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      if (lastArgs) fn(...lastArgs);
+      lastArgs = null;
+    }, ms);
+  }) as T & { cancel: () => void };
+  throttled.cancel = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    lastArgs = null;
+  };
+  return throttled;
+}
+
+/* -- Icon helpers -- */
 const LockIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" className={className}>
     <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
@@ -34,7 +55,7 @@ const CloseIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-/* ── Element helpers ── */
+/* -- Element helpers -- */
 function elLabel(el: ExcalidrawEl): string {
   if (el.customData?.type === "image-generator") {
     return el.customData?.title?.slice(0, 20) || "Image Generator";
@@ -58,7 +79,7 @@ function elThumbnailIcon(el: ExcalidrawEl): string {
   return "\u25C6";
 }
 
-/* ── Thumbnail component ── */
+/* -- Thumbnail component -- */
 function LayerThumbnail({
   el,
   files,
@@ -78,6 +99,7 @@ function LayerThumbnail({
             src={file.dataURL}
             alt=""
             className="h-full w-full object-cover"
+            loading="lazy"
           />
         </div>
       );
@@ -91,8 +113,8 @@ function LayerThumbnail({
   );
 }
 
-/* ── Layer row ── */
-function LayerRow({
+/* -- Layer row (memoized to prevent re-render when other rows' selection changes) -- */
+const LayerRow = memo(function LayerRow({
   el,
   files,
   selected,
@@ -103,39 +125,45 @@ function LayerRow({
   selected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const handleClick = useCallback(() => onSelect(el.id), [onSelect, el.id]);
+
   return (
-    <button
-      type="button"
-      className={`group/layer flex h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors ${
-        selected
-          ? "bg-muted"
-          : "hover:bg-muted"
-      }`}
-      onClick={() => onSelect(el.id)}
-    >
-      <LayerThumbnail el={el} files={files} />
-      <span className="flex-1 truncate text-[11px] text-foreground">
-        {elLabel(el)}
-      </span>
-      <div className="flex items-center gap-0.5">
-        <span
-          className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
-          role="button"
-          tabIndex={-1}
-        >
-          <LockIcon className="h-4 w-4" />
+    <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 44px" }}>
+      <button
+        type="button"
+        className={`group/layer flex h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors ${
+          selected
+            ? "bg-muted"
+            : "hover:bg-muted"
+        }`}
+        onClick={handleClick}
+      >
+        <LayerThumbnail el={el} files={files} />
+        <span className="flex-1 truncate text-[11px] text-foreground min-w-0">
+          {elLabel(el)}
         </span>
-        <span
-          className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
-          role="button"
-          tabIndex={-1}
-        >
-          <EyeIcon className="h-4 w-4" />
-        </span>
-      </div>
-    </button>
+        <div className="flex items-center gap-0.5">
+          <span
+            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
+            role="button"
+            tabIndex={-1}
+            aria-label="Lock layer"
+          >
+            <LockIcon className="h-4 w-4" />
+          </span>
+          <span
+            className="invisible flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover/layer:visible cursor-pointer"
+            role="button"
+            tabIndex={-1}
+            aria-label="Toggle layer visibility"
+          >
+            <EyeIcon className="h-4 w-4" />
+          </span>
+        </div>
+      </button>
+    </div>
   );
-}
+});
 
 /* ================================================================
    Main component
@@ -150,7 +178,7 @@ export function CanvasLayersPanel({
   const [files, setFiles] = useState<Record<string, any>>({});
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
-  /* ── Refresh elements on open + subscribe to changes ── */
+  /* -- Refresh elements on open + subscribe to changes -- */
   const refreshElements = useCallback(() => {
     if (!excalidrawApi) return;
     const all = excalidrawApi.getSceneElements() as ExcalidrawEl[];
@@ -160,18 +188,24 @@ export function CanvasLayersPanel({
     setSelectedIds(state.selectedElementIds ?? {});
   }, [excalidrawApi]);
 
+  // Throttle refresh to avoid hammering React state on every drag frame.
+  // 100ms gives smooth UI without excessive re-renders during drawing.
   useEffect(() => {
     if (!open || !excalidrawApi) return;
+    // Initial refresh is immediate
     refreshElements();
+
+    const throttledRefresh = throttle(refreshElements, 100);
     const unsubscribe = excalidrawApi.onChange(() => {
-      refreshElements();
+      throttledRefresh();
     });
     return () => {
+      throttledRefresh.cancel();
       if (typeof unsubscribe === "function") unsubscribe();
     };
   }, [open, excalidrawApi, refreshElements]);
 
-  /* ── Escape to close ── */
+  /* -- Escape to close -- */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -184,7 +218,7 @@ export function CanvasLayersPanel({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open, onClose]);
 
-  /* ── Select element on canvas ── */
+  /* -- Select element on canvas -- */
   const selectElement = useCallback(
     (id: string) => {
       excalidrawApi?.updateScene({
@@ -219,8 +253,8 @@ export function CanvasLayersPanel({
       {/* Separator */}
       <div className="h-px bg-border" />
 
-      {/* Layer list */}
-      <div className="flex-1 overflow-y-auto px-1 py-1">
+      {/* Layer list -- uses content-visibility for large canvas performance */}
+      <div className="flex-1 overflow-y-auto px-1 py-1" style={{ contain: "layout style" }}>
         {elements.length === 0 ? (
           <p className="px-2 py-8 text-center text-xs text-muted-foreground">
             画布为空
