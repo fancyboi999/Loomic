@@ -108,6 +108,7 @@ type ImageGenerateInput = {
 type ImageGenerateResult = {
   summary: string;
   title?: string;
+  elementId?: string;
   imageUrl?: string;
   mimeType?: string;
   width?: number;
@@ -141,6 +142,7 @@ export type SubmitImageJobFn = (input: {
   quality?: string;
 }) => Promise<{
   jobId: string;
+  elementId?: string;
   imageUrl?: string;
   width?: number;
   height?: number;
@@ -221,6 +223,7 @@ export async function runImageGenerate(
       const result: ImageGenerateResult = {
         summary: `Generated image (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
         title: input.title,
+        elementId: jobResult.elementId,
         imageUrl: jobResult.imageUrl ?? "",
         mimeType: jobResult.mimeType ?? "image/png",
         ...(jobResult.width != null ? { width: jobResult.width } : {}),

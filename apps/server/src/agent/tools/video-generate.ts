@@ -23,6 +23,7 @@ export type SubmitVideoJobFn = (input: {
   enableAudio?: boolean;
 }) => Promise<{
   jobId: string;
+  elementId?: string;
   videoUrl?: string;
   width?: number;
   height?: number;
@@ -135,6 +136,7 @@ type VideoGenerateResult = {
   summary: string;
   title?: string;
   prompt?: string;
+  elementId?: string;
   videoUrl?: string;
   mimeType?: string;
   width?: number;
@@ -200,6 +202,7 @@ export async function runVideoGenerate(
         summary: `Generated ${jobResult.durationSeconds ?? input.duration}s video (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
         title: input.title,
         prompt: input.prompt,
+        elementId: jobResult.elementId,
         mimeType: jobResult.mimeType ?? "video/mp4",
         ...(jobResult.videoUrl != null ? { videoUrl: jobResult.videoUrl } : {}),
         ...(jobResult.width != null ? { width: jobResult.width } : {}),
