@@ -144,6 +144,7 @@ export function MessageMentionPicker({
             "canvas-image",
             "brand-kit-asset",
             "image-model",
+            "skill",
           ] as const
         ).map((kind) => {
           const sectionItems = groupedItems[kind];
@@ -175,6 +176,11 @@ export function MessageMentionPicker({
                       </div>
                     )}
                     {item.kind === "image-model" && item.description && (
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {item.description}
+                      </div>
+                    )}
+                    {item.kind === "skill" && item.description && (
                       <div className="truncate text-[11px] text-muted-foreground">
                         {item.description}
                       </div>
@@ -225,7 +231,9 @@ function PickerLeadingVisual({ item }: { item: MessageMentionPickerItem }) {
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-border bg-muted text-[10px] font-medium uppercase text-muted-foreground">
       {item.kind === "brand-kit-asset"
         ? item.assetType.slice(0, 2)
-        : "AI"}
+        : item.kind === "skill"
+          ? "SK"
+          : "AI"}
     </div>
   );
 }
