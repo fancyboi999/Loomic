@@ -96,6 +96,7 @@ export function MessageMentionPicker({
       "canvas-image": [],
       "brand-kit-asset": [],
       "image-model": [],
+      "skill": [],
     },
   );
 
