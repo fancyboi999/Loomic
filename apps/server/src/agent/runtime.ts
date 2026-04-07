@@ -183,6 +183,25 @@ function buildMentionXmlBlocks(mentions: MessageMention[]): string[] {
     );
   }
 
+  // Skill mentions — tell the agent to read and follow the mentioned skill
+  const mentionedSkills = mentions.filter(
+    (
+      mention,
+    ): mention is Extract<MessageMention, { mentionType: "skill" }> =>
+      mention.mentionType === "skill",
+  );
+  if (mentionedSkills.length > 0) {
+    const skillXml = mentionedSkills
+      .map(
+        (mention, i) =>
+          `<skill index="${i + 1}" id="${escapeXmlAttribute(mention.id)}" name="${escapeXmlAttribute(mention.label)}" slug="${escapeXmlAttribute(mention.slug)}">\nThe user explicitly requested this skill. Read \`/workspace-skills/${mention.slug}/SKILL.md\` for full instructions and follow them.\n</skill>`,
+      )
+      .join("\n  ");
+    xmlBlocks.push(
+      `<human_skill_mentions count="${mentionedSkills.length}">\n  ${skillXml}\n</human_skill_mentions>`,
+    );
+  }
+
   return xmlBlocks;
 }
 

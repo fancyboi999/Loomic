@@ -27,12 +27,13 @@ import { useVideoModelPreference } from "../hooks/use-video-model-preference";
 import type { WebSocketHandle } from "../hooks/use-websocket";
 import { fetchBrandKit } from "../lib/brand-kit-api";
 import { claimDailyCredits } from "../lib/credits-api";
-import { fetchImageModels, saveMessage } from "../lib/server-api";
+import { fetchImageModels, fetchWorkspaceSkills, saveMessage } from "../lib/server-api";
 import type { CanvasSelectedElement } from "./canvas-editor";
 import {
   type BrandKitMentionItem,
   type CanvasImageItem,
   type ImageModelMentionItem,
+  type SkillMentionItem,
   MessageMentionPicker,
   type MessageMentionPickerItem,
 } from "./canvas-image-picker";
@@ -121,6 +122,9 @@ export function ChatSidebar({
   >([]);
   const [imageModelMentionItems, setImageModelMentionItems] = useState<
     ImageModelMentionItem[]
+  >([]);
+  const [skillMentionItems, setSkillMentionItems] = useState<
+    SkillMentionItem[]
   >([]);
   const [creditDialog, setCreditDialog] = useState<{
     open: boolean;
@@ -281,6 +285,36 @@ export function ChatSidebar({
       })
       .catch(() => {
         if (!cancelled) setImageModelMentionItems([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch enabled workspace skills for @ mention
+  useEffect(() => {
+    const token = accessTokenRef.current;
+    if (!token) return;
+    let cancelled = false;
+
+    fetchWorkspaceSkills(token)
+      .then((data) => {
+        if (cancelled) return;
+        setSkillMentionItems(
+          (data.skills ?? [])
+            .filter((s) => s.enabled)
+            .map((s) => ({
+              kind: "skill" as const,
+              id: s.id,
+              label: s.name,
+              slug: s.slug,
+              description: s.description,
+            })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSkillMentionItems([]);
       });
 
     return () => {
@@ -616,6 +650,7 @@ export function ChatSidebar({
     ...(onRequestCanvasImages ? onRequestCanvasImages() : []),
     ...brandKitMentionItems,
     ...imageModelMentionItems,
+    ...skillMentionItems,
   ];
 
   const handleMentionSelect = useCallback(
@@ -631,21 +666,25 @@ export function ChatSidebar({
       }
 
       setMessageMentions((prev) => {
-        const nextMention: MessageMention =
-          item.kind === "image-model"
-            ? { mentionType: "image-model", id: item.id, label: item.label }
-            : {
-                mentionType: "brand-kit-asset",
-                id: item.id,
-                label: item.label,
-                assetType: item.assetType,
-                ...(item.textContent !== undefined
-                  ? { textContent: item.textContent }
-                  : {}),
-                ...(item.fileUrl !== undefined
-                  ? { fileUrl: item.fileUrl }
-                  : {}),
-              };
+        let nextMention: MessageMention;
+        if (item.kind === "image-model") {
+          nextMention = { mentionType: "image-model", id: item.id, label: item.label };
+        } else if (item.kind === "skill") {
+          nextMention = { mentionType: "skill", id: item.id, label: item.label, slug: item.slug };
+        } else {
+          nextMention = {
+            mentionType: "brand-kit-asset",
+            id: item.id,
+            label: item.label,
+            assetType: item.assetType,
+            ...(item.textContent !== undefined
+              ? { textContent: item.textContent }
+              : {}),
+            ...(item.fileUrl !== undefined
+              ? { fileUrl: item.fileUrl }
+              : {}),
+          };
+        }
 
         if (
           prev.some(

@@ -30,10 +30,19 @@ export type ImageModelMentionItem = {
   iconUrl?: string;
 };
 
+export type SkillMentionItem = {
+  kind: "skill";
+  id: string;
+  label: string;
+  slug: string;
+  description?: string;
+};
+
 export type MessageMentionPickerItem =
   | CanvasImageItem
   | BrandKitMentionItem
-  | ImageModelMentionItem;
+  | ImageModelMentionItem
+  | SkillMentionItem;
 
 type MessageMentionPickerProps = {
   items: MessageMentionPickerItem[];
@@ -49,12 +58,14 @@ function itemLabel(item: MessageMentionPickerItem): string {
 function itemKeywords(item: MessageMentionPickerItem): string[] {
   if (item.kind === "canvas-image") return [item.name];
   if (item.kind === "image-model") return [item.label, item.description ?? ""];
+  if (item.kind === "skill") return [item.label, item.slug, item.description ?? ""];
   return [item.label, item.assetType, item.textContent ?? ""];
 }
 
 function groupTitle(kind: MessageMentionPickerItem["kind"]): string {
   if (kind === "canvas-image") return "This Project";
   if (kind === "brand-kit-asset") return "Brand Kit";
+  if (kind === "skill") return "Skills";
   return "Model";
 }
 
