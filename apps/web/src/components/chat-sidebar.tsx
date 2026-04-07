@@ -294,11 +294,10 @@ export function ChatSidebar({
 
   // Fetch enabled workspace skills for @ mention
   useEffect(() => {
-    const token = accessTokenRef.current;
-    if (!token) return;
+    if (!accessToken) return;
     let cancelled = false;
 
-    fetchWorkspaceSkills(token)
+    fetchWorkspaceSkills(accessToken)
       .then((data) => {
         if (cancelled) return;
         setSkillMentionItems(
@@ -320,7 +319,7 @@ export function ChatSidebar({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [accessToken]);
 
   // ── Fetch brand kit items for @mention picker ──
   useEffect(() => {
