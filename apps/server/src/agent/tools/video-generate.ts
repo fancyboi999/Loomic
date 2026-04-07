@@ -202,7 +202,7 @@ export async function runVideoGenerate(
         summary: `Generated ${jobResult.durationSeconds ?? input.duration}s video (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
         title: input.title,
         prompt: input.prompt,
-        elementId: jobResult.elementId,
+        ...(jobResult.elementId != null ? { elementId: jobResult.elementId } : {}),
         mimeType: jobResult.mimeType ?? "video/mp4",
         ...(jobResult.videoUrl != null ? { videoUrl: jobResult.videoUrl } : {}),
         ...(jobResult.width != null ? { width: jobResult.width } : {}),

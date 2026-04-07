@@ -561,7 +561,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               let elementId: string | undefined;
               if (canvasId && result.object_path) {
                 try {
-                  const writerClient = createClient(accessToken);
+                  const writerClient = createClient(accessToken) as UserSupabaseClient;
                   const explicitPlacement = (input as any).placementX != null && (input as any).placementY != null
                     ? {
                         x: (input as any).placementX,
@@ -600,7 +600,8 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
               return {
                 jobId: job.id,
-                elementId,
+                ...(elementId != null ? { elementId } : {}),
+                imageUrl: result.signed_url ?? "",
                 width: result.width ?? 1024,
                 height: result.height ?? 1024,
                 mimeType: result.mime_type ?? "image/png",
@@ -762,7 +763,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               let elementId: string | undefined;
               if (canvasId && result.signed_url) {
                 try {
-                  const writerClient = createClient(accessToken);
+                  const writerClient = createClient(accessToken) as UserSupabaseClient;
                   const explicitPlacement = (input as any).placementX != null && (input as any).placementY != null
                     ? {
                         x: (input as any).placementX,
@@ -780,7 +781,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
                       width: result.width ?? 1280,
                       height: result.height ?? 720,
                       mimeType: result.mime_type ?? "video/mp4",
-                      durationSeconds: result.duration_seconds,
+                      ...(result.duration_seconds != null ? { durationSeconds: result.duration_seconds } : {}),
                       title: (input as any).title,
                       prompt: input.prompt,
                     },
@@ -803,7 +804,8 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
 
               return {
                 jobId: job.id,
-                elementId,
+                ...(elementId != null ? { elementId } : {}),
+                videoUrl: result.signed_url ?? "",
                 width: result.width ?? 1280,
                 height: result.height ?? 720,
                 mimeType: result.mime_type ?? "video/mp4",

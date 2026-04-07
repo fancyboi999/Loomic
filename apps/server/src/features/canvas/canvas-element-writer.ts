@@ -183,7 +183,6 @@ function buildVideoElement(
 // Public API — Read-Modify-Write canvas content
 // ---------------------------------------------------------------------------
 
-const OSS_MARKER_PREFIX = "oss://";
 const CANVAS_FILES_BUCKET = "project-assets";
 const IMAGE_MAX_SIZE = 600;
 const VIDEO_MAX_SIZE = 800;
@@ -193,15 +192,28 @@ const VIDEO_MAX_SIZE = 800;
  * with auto-placement (or explicit placement), writes it back.
  *
  * The image file is already in Supabase Storage (uploaded by worker executor).
- * We write an `oss://` marker in the files map so the existing load pipeline
- * resolves it to a public URL for the frontend.
+ * We download it and embed as base64 dataURL in the canvas files map so
+ * Excalidraw can render it natively (consistent with frontend-inserted images).
  */
 export async function insertImageElement(
-  client: { from: (table: string) => any },
+  client: { from: (table: string) => any; storage: { from: (bucket: string) => any } },
   opts: ImageInsertOpts,
   explicitPlacement?: Placement,
 ): Promise<InsertResult> {
-  // 1. Read
+  // 1. Download image from storage and convert to base64 dataURL
+  const { data: blob, error: dlError } = await client
+    .storage.from(CANVAS_FILES_BUCKET)
+    .download(opts.objectPath);
+
+  if (dlError || !blob) {
+    throw new Error(`Failed to download image from storage: ${dlError?.message ?? "no data"}`);
+  }
+
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  const dataURL = `data:${opts.mimeType};base64,${base64}`;
+
+  // 2. Read canvas
   const { data, error } = await client
     .from("canvases")
     .select("content")
@@ -216,12 +228,12 @@ export async function insertImageElement(
   const elements: CanvasElement[] = (content.elements as CanvasElement[]) ?? [];
   const files = ((content as any).files as Record<string, Record<string, unknown>>) ?? {};
 
-  // 2. Placement
+  // 3. Placement
   const placement = explicitPlacement ?? calculateAutoPlacement(
     elements, opts.width, opts.height, IMAGE_MAX_SIZE,
   );
 
-  // 3. Build element + files entry
+  // 4. Build element + files entry with base64 dataURL
   const fileId = generateId();
   const element = buildImageElement(fileId, placement, opts);
 
@@ -229,13 +241,13 @@ export async function insertImageElement(
     ...files,
     [fileId]: {
       id: fileId,
-      dataURL: `${OSS_MARKER_PREFIX}${CANVAS_FILES_BUCKET}/${opts.objectPath}`,
+      dataURL,
       mimeType: opts.mimeType,
       created: Date.now(),
     },
   };
 
-  // 4. Write
+  // 5. Write
   const updatedContent = {
     ...content,
     elements: [...elements, element],
@@ -260,7 +272,7 @@ export async function insertImageElement(
  * type with a link URL — no files map entry needed.
  */
 export async function insertVideoElement(
-  client: { from: (table: string) => any },
+  client: { from: (table: string) => any; storage: { from: (bucket: string) => any } },
   opts: VideoInsertOpts,
   explicitPlacement?: Placement,
 ): Promise<InsertResult> {

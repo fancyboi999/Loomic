@@ -449,12 +449,6 @@ function extractArtifacts(output: unknown): ToolArtifact[] | undefined {
     }
   }
 
-  // Backend-inserted element: skip artifact extraction — element is already on canvas.
-  // The frontend will receive a canvas.sync event to refresh.
-  if (typeof record.elementId === "string" && record.elementId.length > 0) {
-    return artifacts.length > 0 ? artifacts : undefined;
-  }
-
   // Video format: tool response with videoUrl from generate_video
   if (typeof record.videoUrl === "string" && record.videoUrl.length > 0) {
     const candidate: Record<string, unknown> = {

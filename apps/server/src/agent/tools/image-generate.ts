@@ -223,7 +223,7 @@ export async function runImageGenerate(
       const result: ImageGenerateResult = {
         summary: `Generated image (${jobResult.width ?? 0}x${jobResult.height ?? 0}) via ${input.model}`,
         title: input.title,
-        elementId: jobResult.elementId,
+        ...(jobResult.elementId != null ? { elementId: jobResult.elementId } : {}),
         imageUrl: jobResult.imageUrl ?? "",
         mimeType: jobResult.mimeType ?? "image/png",
         ...(jobResult.width != null ? { width: jobResult.width } : {}),

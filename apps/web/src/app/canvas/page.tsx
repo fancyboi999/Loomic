@@ -108,6 +108,14 @@ function CanvasPageContent() {
     try {
       const { canvas } = await fetchCanvas(token, canvasData.id);
       const elements = canvas.content.elements ?? [];
+      const files = (canvas.content as Record<string, unknown>).files as
+        Record<string, { id: string; dataURL: string; mimeType: string; created: number }> | undefined;
+
+      // Sync files (base64 dataURLs from backend-inserted images) into Excalidraw
+      if (files && Object.keys(files).length > 0) {
+        api.addFiles(Object.values(files));
+      }
+
       api.updateScene({ elements, captureUpdate: "IMMEDIATELY" });
     } catch (err) {
       console.warn("Failed to sync canvas:", err);

@@ -518,11 +518,16 @@ export function ChatSidebar({
           // Forward event to parent for fallback job polling (timed-out generation recovery)
           onStreamEvent?.(event);
 
-          // Fire canvas insertion callbacks for image/video artifacts
+          // Fire canvas insertion callbacks for image/video artifacts.
+          // Skip if the backend already inserted the element (elementId in output).
+          const backendInserted = event.type === "tool.completed"
+            && event.output
+            && typeof (event.output as Record<string, unknown>).elementId === "string";
           if (
             event.type === "tool.completed" &&
             event.artifacts &&
-            event.toolName !== "screenshot_canvas"
+            event.toolName !== "screenshot_canvas" &&
+            !backendInserted
           ) {
             for (const artifact of event.artifacts) {
               if (artifact.type === "image" && onImageGenerated) {
@@ -825,11 +830,16 @@ export function ChatSidebar({
             applyStreamEvent(evt, assistantId, sessionId);
             onStreamEvent?.(evt);
 
-            // Fire canvas insertion callbacks for artifacts arriving after reconnect
+            // Fire canvas insertion callbacks for artifacts arriving after reconnect.
+            // Skip if the backend already inserted the element (elementId in output).
+            const wsBackendInserted = evt.type === "tool.completed"
+              && evt.output
+              && typeof (evt.output as Record<string, unknown>).elementId === "string";
             if (
               evt.type === "tool.completed" &&
               evt.artifacts &&
-              evt.toolName !== "screenshot_canvas"
+              evt.toolName !== "screenshot_canvas" &&
+              !wsBackendInserted
             ) {
               for (const artifact of evt.artifacts) {
                 if (artifact.type === "image" && onImageGenerated) {
