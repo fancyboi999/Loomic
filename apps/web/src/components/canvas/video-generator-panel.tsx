@@ -1,17 +1,18 @@
 "use client";
 
+import { type VideoResolution, getVideoCreditCost } from "@loomic/shared";
 import { Lock, Plus, Zap } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { VideoModelInfo } from "../../lib/server-api";
-import { fetchVideoModels, generateVideoDirect } from "../../lib/server-api";
 import { useGenerationErrorHandler } from "../../hooks/use-generation-error-handler";
 import {
-  updateVideoGeneratorElement,
-  resizeVideoGeneratorElement,
   type VideoGeneratorData,
+  resizeVideoGeneratorElement,
+  updateVideoGeneratorElement,
 } from "../../lib/canvas-video-generator";
+import type { VideoModelInfo } from "../../lib/server-api";
+import { fetchVideoModels, generateVideoDirect } from "../../lib/server-api";
 // No longer needs poster frame extraction -- videos use embeddable elements
 
 type VideoGeneratorPanelProps = {
@@ -26,6 +27,16 @@ type VideoGeneratorPanelProps = {
 
 const ASPECT_RATIOS = ["16:9", "9:16"] as const;
 const DURATIONS = [4, 5, 6, 8] as const;
+const VIDEO_RESOLUTIONS = ["720p", "1080p", "4k"] as const;
+
+function supportedResolutions(
+  model?: VideoModelInfo,
+): readonly VideoResolution[] {
+  const max = model?.limits?.maxResolution;
+  if (max === "2160p") return VIDEO_RESOLUTIONS;
+  if (max === "1080p") return VIDEO_RESOLUTIONS.slice(0, 2);
+  return VIDEO_RESOLUTIONS.slice(0, 1);
+}
 
 export function VideoGeneratorPanel({
   elementId,
@@ -42,9 +53,7 @@ export function VideoGeneratorPanel({
   const [duration, setDuration] = useState(data.duration);
   const [resolution, setResolution] = useState(data.resolution);
   const [loading, setLoading] = useState(data.status === "generating");
-  const [error, setError] = useState<string | null>(
-    data.errorMessage ?? null,
-  );
+  const [error, setError] = useState<string | null>(data.errorMessage ?? null);
   const [models, setModels] = useState<VideoModelInfo[]>([]);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showParamsPopover, setShowParamsPopover] = useState(false);
@@ -72,13 +81,28 @@ export function VideoGeneratorPanel({
     let cancelled = false;
     fetchVideoModels()
       .then((r) => {
-        if (!cancelled) setModels(r.models);
+        if (cancelled) return;
+        setModels(r.models);
+        setModel((current) => {
+          if (r.models.length === 0 || r.models.some((m) => m.id === current)) {
+            return current;
+          }
+          const fallback = r.models[0];
+          if (!fallback) return current;
+          const fallbackId = fallback.id;
+          updateVideoGeneratorElement(excalidrawApi, elementId, {
+            model: fallbackId,
+          });
+          return fallbackId;
+        });
       })
       .catch((err) => {
         console.warn("[video-gen] Failed to fetch models:", err);
       });
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [excalidrawApi, elementId]);
 
   // Close dropdowns when clicking outside the panel
   useEffect(() => {
@@ -110,10 +134,21 @@ export function VideoGeneratorPanel({
   // Calculate panel screen position from canvas coordinates
   const { scrollX, scrollY, zoom } = canvasScrollZoom;
   const screenX = (elementBounds.x + scrollX) * zoom;
-  const screenY =
-    (elementBounds.y + elementBounds.height + scrollY) * zoom + 8;
+  const screenY = (elementBounds.y + elementBounds.height + scrollY) * zoom + 8;
 
   const currentModel = models.find((m) => m.id === model);
+  const durationOptions = currentModel?.limits?.allowedDurations ?? DURATIONS;
+  const resolutionOptions = supportedResolutions(currentModel);
+  const currentPriceRate = currentModel?.pricing?.rates.find(
+    (rate) => rate.resolution === resolution,
+  );
+  const currentCreditCost = useMemo(() => {
+    try {
+      return getVideoCreditCost(model, duration, resolution as VideoResolution);
+    } catch {
+      return undefined;
+    }
+  }, [duration, model, resolution]);
 
   const handleAspectRatioChange = useCallback(
     (ratio: string) => {
@@ -134,13 +169,41 @@ export function VideoGeneratorPanel({
     [excalidrawApi, elementId],
   );
 
-  const handleModelChange = useCallback(
-    (m: string) => {
-      setModel(m);
-      setShowModelDropdown(false);
-      updateVideoGeneratorElement(excalidrawApi, elementId, { model: m });
+  const handleResolutionChange = useCallback(
+    (value: VideoResolution) => {
+      setResolution(value);
+      updateVideoGeneratorElement(excalidrawApi, elementId, {
+        resolution: value,
+      });
     },
     [excalidrawApi, elementId],
+  );
+
+  const handleModelChange = useCallback(
+    (m: string) => {
+      const selected = models.find((candidate) => candidate.id === m);
+      const nextDurations: readonly number[] =
+        selected?.limits?.allowedDurations ?? DURATIONS;
+      const nextDuration = nextDurations.includes(duration)
+        ? duration
+        : (nextDurations[0] ?? duration);
+      const nextResolutions = supportedResolutions(selected);
+      const nextResolution = nextResolutions.includes(
+        resolution as VideoResolution,
+      )
+        ? (resolution as VideoResolution)
+        : (nextResolutions[0] ?? "720p");
+      setModel(m);
+      setDuration(nextDuration);
+      setResolution(nextResolution);
+      setShowModelDropdown(false);
+      updateVideoGeneratorElement(excalidrawApi, elementId, {
+        model: m,
+        duration: nextDuration,
+        resolution: nextResolution,
+      });
+    },
+    [duration, excalidrawApi, elementId, models, resolution],
   );
 
   const handleFrameUpload = useCallback(
@@ -205,7 +268,9 @@ export function VideoGeneratorPanel({
 
       // Create embeddable element for inline video playback on canvas.
       // Dynamic import -- excalidraw is client-only.
-      const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
+      const { convertToExcalidrawElements } = await import(
+        "@excalidraw/excalidraw"
+      );
       if (controller.signal.aborted) return;
 
       const newElements = convertToExcalidrawElements([
@@ -269,7 +334,8 @@ export function VideoGeneratorPanel({
     handleGenerationError,
   ]);
 
-  const paramsLabel = `${aspectRatio} \u00B7 ${duration}s`;
+  const resolutionLabel = currentPriceRate?.displayResolution ?? resolution;
+  const paramsLabel = `${aspectRatio} \u00B7 ${duration}s \u00B7 ${resolutionLabel}`;
 
   return createPortal(
     <div
@@ -303,9 +369,7 @@ export function VideoGeneratorPanel({
           ) : (
             <>
               <Plus className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">
-                首帧
-              </span>
+              <span className="text-[10px] text-muted-foreground">首帧</span>
             </>
           )}
         </button>
@@ -332,9 +396,7 @@ export function VideoGeneratorPanel({
           ) : (
             <>
               <Plus className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">
-                尾帧
-              </span>
+              <span className="text-[10px] text-muted-foreground">尾帧</span>
             </>
           )}
         </button>
@@ -362,6 +424,16 @@ export function VideoGeneratorPanel({
       {error && (
         <div className="mx-4 mb-2 rounded-lg bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
           {error}
+        </div>
+      )}
+
+      {currentPriceRate && (
+        <div className="mx-4 mb-2 text-[10px] tabular-nums text-muted-foreground">
+          {currentPriceRate.displayResolution} ·{" "}
+          {currentPriceRate.providerPointsPerSecond}
+          {" H3积分/秒 · 约 ¥"}
+          {currentPriceRate.cnyPerSecond.min.toFixed(4)}–¥
+          {currentPriceRate.cnyPerSecond.max.toFixed(4)}/秒
         </div>
       )}
 
@@ -412,8 +484,8 @@ export function VideoGeneratorPanel({
                 <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Duration
                 </div>
-                <div className="flex gap-1">
-                  {DURATIONS.map((d) => (
+                <div className="flex flex-wrap gap-1">
+                  {durationOptions.map((d) => (
                     <button
                       key={d}
                       type="button"
@@ -427,6 +499,33 @@ export function VideoGeneratorPanel({
                       {d}s
                     </button>
                   ))}
+                </div>
+              </div>
+              {/* Resolution row */}
+              <div className="mt-3">
+                <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Resolution
+                </div>
+                <div className="flex gap-1">
+                  {resolutionOptions.map((value) => {
+                    const providerLabel = currentModel?.pricing?.rates.find(
+                      (rate) => rate.resolution === value,
+                    )?.displayResolution;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => handleResolutionChange(value)}
+                        className={`rounded-lg px-3 py-1 text-xs transition-colors ${
+                          value === resolution
+                            ? "bg-muted text-foreground"
+                            : "text-muted-foreground hover:bg-muted/60"
+                        }`}
+                      >
+                        {providerLabel ?? value}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -525,9 +624,9 @@ export function VideoGeneratorPanel({
                 >
                   <path d="M6.9 4.36H5.385V.76c0-.84-.447-1.01-.991-.38L4 .835.677 4.685c-.457.525-.265.955.422.955h1.517v3.6c0 .84.446 1.01.991.38L4 9.165l3.323-3.85c.456-.525.265-.955-.422-.955" />
                 </svg>
-                {typeof currentModel?.creditCost === "number" && (
+                {typeof currentCreditCost === "number" && (
                   <span className="text-xs tabular-nums">
-                    {currentModel.creditCost}
+                    {currentCreditCost}
                   </span>
                 )}
               </>

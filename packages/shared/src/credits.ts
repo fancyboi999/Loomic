@@ -155,6 +155,7 @@ export const MODEL_MIN_TIER: Record<string, SubscriptionPlan> = {
   // Starter tier (basic 2: Kling 2.6 + Wan 2.6)
   "kwaivgi/kling-v2.6": "starter",
   "wan-video/wan-2.6": "starter",
+  "metaso/minimax-h3": "starter",
   // Pro tier
   "google-official/veo-3.1-generate-preview": "pro",
   // Google Vertex AI video models
@@ -206,16 +207,20 @@ export interface ImageModelCost {
   ultra: number;
 }
 
-export interface VideoModelCost {
-  /** Base cost at 720p */
-  base: number;
-  /** Additional cost per second beyond 5s base duration */
-  perSecond?: number;
-  /** Multiplier for 1080p (default: 1.5x) */
-  multiplier1080p?: number;
-  /** Multiplier for 4K (default: 3x) */
-  multiplier4k?: number;
-}
+export type VideoModelCost =
+  | {
+      calculation: "base_plus_duration";
+      /** Credits covering the included duration at 720p. */
+      base: number;
+      includedSeconds: number;
+      perAdditionalSecond: number;
+      resolutionMultipliers: Partial<Record<VideoResolution, number>>;
+    }
+  | {
+      calculation: "per_second";
+      /** Credits charged for every generated second at each resolution. */
+      rates: Partial<Record<VideoResolution, number>>;
+    };
 
 /**
  * Credit costs per image generation, by model and quality.
@@ -265,40 +270,50 @@ const DEFAULT_IMAGE_COST: ImageModelCost = {
  */
 export const VIDEO_MODEL_COSTS: Record<string, VideoModelCost> = {
   // Google Official (direct API — supports higher resolutions than Replicate)
-  "google-official/veo-3.1-generate-preview": { base: 80, perSecond: 15, multiplier1080p: 2, multiplier4k: 4 },
-  "google-official/veo-3.1-fast-generate-preview": { base: 60, perSecond: 10, multiplier1080p: 2, multiplier4k: 4 },
-  "google-official/veo-3.1-lite-generate-preview": { base: 30, perSecond: 5, multiplier1080p: 2 },
-  "google-official/veo-3.0-generate-001": { base: 70, perSecond: 12, multiplier1080p: 2, multiplier4k: 4 },
-  "google-official/veo-3.0-fast-generate-001": { base: 50, perSecond: 8, multiplier1080p: 2, multiplier4k: 4 },
-  "google-official/veo-2.0-generate-001": { base: 20, perSecond: 3 },
+  "google-official/veo-3.1-generate-preview": basePlusDuration(80, 15, 2, 4),
+  "google-official/veo-3.1-fast-generate-preview": basePlusDuration(
+    60,
+    10,
+    2,
+    4,
+  ),
+  "google-official/veo-3.1-lite-generate-preview": basePlusDuration(30, 5, 2),
+  "google-official/veo-3.0-generate-001": basePlusDuration(70, 12, 2, 4),
+  "google-official/veo-3.0-fast-generate-001": basePlusDuration(50, 8, 2, 4),
+  "google-official/veo-2.0-generate-001": basePlusDuration(20, 3),
   // Google Vertex AI (same pricing as google-official equivalents)
-  "google-vertex/veo-3.1-generate-001": { base: 80, perSecond: 15, multiplier1080p: 2, multiplier4k: 4 },
-  "google-vertex/veo-3.1-fast-generate-001": { base: 60, perSecond: 10, multiplier1080p: 2, multiplier4k: 4 },
-  "google-vertex/veo-3.1-lite-generate-001": { base: 30, perSecond: 5, multiplier1080p: 2 },
-  "google-vertex/veo-3.0-generate-001": { base: 70, perSecond: 12, multiplier1080p: 2, multiplier4k: 4 },
-  "google-vertex/veo-3.0-fast-generate-001": { base: 50, perSecond: 8, multiplier1080p: 2, multiplier4k: 4 },
-  "google-vertex/veo-2.0-generate-001": { base: 20, perSecond: 3 },
+  "google-vertex/veo-3.1-generate-001": basePlusDuration(80, 15, 2, 4),
+  "google-vertex/veo-3.1-fast-generate-001": basePlusDuration(60, 10, 2, 4),
+  "google-vertex/veo-3.1-lite-generate-001": basePlusDuration(30, 5, 2),
+  "google-vertex/veo-3.0-generate-001": basePlusDuration(70, 12, 2, 4),
+  "google-vertex/veo-3.0-fast-generate-001": basePlusDuration(50, 8, 2, 4),
+  "google-vertex/veo-2.0-generate-001": basePlusDuration(20, 3),
   // Replicate — Kling
-  "kwaivgi/kling-v3-video": { base: 50, perSecond: 10 },
-  "kwaivgi/kling-v3-omni-video": { base: 40, perSecond: 8 },
-  "kwaivgi/kling-v2.6": { base: 25, perSecond: 5 },
-  "kwaivgi/kling-o1": { base: 30, perSecond: 6 },
+  "kwaivgi/kling-v3-video": basePlusDuration(50, 10),
+  "kwaivgi/kling-v3-omni-video": basePlusDuration(40, 8),
+  "kwaivgi/kling-v2.6": basePlusDuration(25, 5),
+  "kwaivgi/kling-o1": basePlusDuration(30, 6),
   // Replicate — ByteDance
-  "bytedance/seedance-1.5-pro": { base: 25, perSecond: 5 },
+  "bytedance/seedance-1.5-pro": basePlusDuration(25, 5),
   // Replicate — Wan
-  "wan-video/wan-2.6": { base: 25, perSecond: 5 },
+  "wan-video/wan-2.6": basePlusDuration(25, 5),
   // Replicate — OpenAI
-  "openai/sora-2": { base: 40 },
-  "openai/sora-2-pro": { base: 120 },
+  "openai/sora-2": basePlusDuration(40),
+  "openai/sora-2-pro": basePlusDuration(120),
   // Replicate — Google
-  "google/veo-3": { base: 100 },
-  "google/veo-3.1": { base: 100 },
-  "google/veo-3.1-fast": { base: 40 },
+  "google/veo-3": basePlusDuration(100),
+  "google/veo-3.1": basePlusDuration(100),
+  "google/veo-3.1-fast": basePlusDuration(40),
   // Replicate — MiniMax
-  "minimax/hailuo-2.3": { base: 20, perSecond: 4 },
+  "minimax/hailuo-2.3": basePlusDuration(20, 4),
+  // Metaso — provider H3 points are the Loomic credit meter for this model.
+  "metaso/minimax-h3": {
+    calculation: "per_second",
+    rates: { "720p": 10.2, "1080p": 17 },
+  },
 };
 
-const DEFAULT_VIDEO_COST: VideoModelCost = { base: 80 };
+const DEFAULT_VIDEO_COST: VideoModelCost = basePlusDuration(80);
 
 /** Calculate the credit cost for an image generation. */
 export function getImageCreditCost(
@@ -315,18 +330,49 @@ export function getVideoCreditCost(
   durationSeconds?: number,
   resolution?: VideoResolution,
 ): number {
-  const costs = VIDEO_MODEL_COSTS[modelId] ?? DEFAULT_VIDEO_COST;
-  let total = costs.base;
-  if (costs.perSecond && durationSeconds && durationSeconds > 5) {
-    total += (durationSeconds - 5) * costs.perSecond;
+  const rule = VIDEO_MODEL_COSTS[modelId] ?? DEFAULT_VIDEO_COST;
+  const duration = durationSeconds ?? 5;
+  const selectedResolution = resolution ?? "720p";
+  if (!Number.isInteger(duration) || duration <= 0) {
+    throw new RangeError("Video duration must be a positive integer");
   }
-  // Apply resolution multiplier
-  if (resolution === "4k" && costs.multiplier4k) {
-    total = Math.round(total * costs.multiplier4k);
-  } else if (resolution === "1080p" && costs.multiplier1080p) {
-    total = Math.round(total * costs.multiplier1080p);
+
+  let total: number;
+  if (rule.calculation === "per_second") {
+    const rate = rule.rates[selectedResolution];
+    if (rate == null) {
+      throw new RangeError(
+        `No credit rate configured for ${modelId} at ${selectedResolution}`,
+      );
+    }
+    total = duration * rate;
+  } else {
+    const additionalSeconds = Math.max(0, duration - rule.includedSeconds);
+    total = rule.base + additionalSeconds * rule.perAdditionalSecond;
+    total *= rule.resolutionMultipliers[selectedResolution] ?? 1;
   }
-  return total;
+
+  // Credit balances are integer-valued. Always round up so fractional
+  // provider rates never undercharge a generation.
+  return Math.ceil(total);
+}
+
+function basePlusDuration(
+  base: number,
+  perAdditionalSecond = 0,
+  multiplier1080p?: number,
+  multiplier4k?: number,
+): VideoModelCost {
+  return {
+    calculation: "base_plus_duration",
+    base,
+    includedSeconds: 5,
+    perAdditionalSecond,
+    resolutionMultipliers: {
+      ...(multiplier1080p != null ? { "1080p": multiplier1080p } : {}),
+      ...(multiplier4k != null ? { "4k": multiplier4k } : {}),
+    },
+  };
 }
 
 // ── Resolution guard ─────────────────────────────────────────
@@ -415,5 +461,40 @@ export const annotatedModelSchema = z.object({
   accessible: z.boolean(),
   creditCost: z.number().int(),
   minTier: subscriptionPlanSchema,
+  capabilities: z
+    .object({
+      textToVideo: z.boolean(),
+      imageToVideo: z.boolean(),
+      videoToVideo: z.boolean(),
+      audio: z.boolean(),
+    })
+    .optional(),
+  limits: z
+    .object({
+      maxDuration: z.number().int().positive(),
+      allowedDurations: z.array(z.number().int().positive()).optional(),
+      maxResolution: z.enum(["480p", "720p", "1080p", "2160p"]),
+      maxInputImages: z.number().int().nonnegative(),
+    })
+    .optional(),
+  pricing: z
+    .object({
+      currency: z.literal("CNY"),
+      billingUnit: z.literal("generated_second"),
+      providerPointsName: z.string(),
+      evidenceDate: z.string(),
+      rates: z.array(
+        z.object({
+          resolution: z.enum(["720p", "1080p"]),
+          displayResolution: z.string(),
+          providerPointsPerSecond: z.number().positive(),
+          cnyPerSecond: z.object({
+            min: z.number().nonnegative(),
+            max: z.number().nonnegative(),
+          }),
+        }),
+      ),
+    })
+    .optional(),
 });
 export type AnnotatedModel = z.infer<typeof annotatedModelSchema>;

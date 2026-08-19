@@ -10,6 +10,7 @@ import { GoogleImageProvider } from "./google-image.js";
 import { GoogleVertexImageProvider } from "./google-vertex-image.js";
 import { GoogleVertexVideoProvider } from "./google-vertex-video.js";
 import { GoogleVideoProvider } from "./google-video.js";
+import { MetasoVideoProvider } from "./metaso-video.js";
 import { OpenAIImageProvider } from "./openai-image.js";
 import { registerImageProvider, registerVideoProvider } from "./registry.js";
 import { ReplicateImageProvider } from "./replicate-image.js";
@@ -24,6 +25,13 @@ import { VolcesImageProvider } from "./volces-image.js";
  * ensuring every process gets the full set.
  */
 export function registerAllProviders(env: ServerEnv): void {
+  // Metaso — MiniMax H3 V2 video
+  if (env.metasoApiKey) {
+    registerVideoProvider(
+      new MetasoVideoProvider(env.metasoApiKey, env.metasoApiBase),
+    );
+  }
+
   // Replicate — image + video
   if (env.replicateApiToken) {
     registerImageProvider(new ReplicateImageProvider(env.replicateApiToken));
@@ -46,11 +54,14 @@ export function registerAllProviders(env: ServerEnv): void {
     };
     registerImageProvider(new GoogleVertexImageProvider(vertexConfig));
 
-    const videoLocation = env.googleVertexVideoLocation ?? env.googleVertexLocation;
-    registerVideoProvider(new GoogleVertexVideoProvider({
-      project: env.googleVertexProject,
-      location: videoLocation,
-    }));
+    const videoLocation =
+      env.googleVertexVideoLocation ?? env.googleVertexLocation;
+    registerVideoProvider(
+      new GoogleVertexVideoProvider({
+        project: env.googleVertexProject,
+        location: videoLocation,
+      }),
+    );
   }
 
   // OpenAI — image only

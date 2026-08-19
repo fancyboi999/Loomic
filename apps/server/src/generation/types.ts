@@ -71,6 +71,26 @@ export interface VideoProvider {
   generate(params: VideoGenerateParams): Promise<GeneratedVideo>;
 }
 
+export interface VideoPriceRate {
+  /** Loomic's resolution value sent through the public generation API. */
+  resolution: "720p" | "1080p";
+  /** Provider-native label shown to users, for example 768P or 2K. */
+  displayResolution: string;
+  providerPointsPerSecond: number;
+  cnyPerSecond: {
+    min: number;
+    max: number;
+  };
+}
+
+export interface VideoPricingInfo {
+  currency: "CNY";
+  billingUnit: "generated_second";
+  providerPointsName: string;
+  evidenceDate: string;
+  rates: readonly VideoPriceRate[];
+}
+
 /** Extended model info with video-specific capabilities metadata. */
 export interface VideoModelInfo extends ModelInfo {
   capabilities: {
@@ -85,4 +105,6 @@ export interface VideoModelInfo extends ModelInfo {
     maxResolution: "480p" | "720p" | "1080p" | "2160p";
     maxInputImages: number;
   };
+  /** Verified provider pricing, separate from Loomic's own credit balance. */
+  pricing?: VideoPricingInfo;
 }

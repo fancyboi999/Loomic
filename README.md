@@ -135,7 +135,7 @@ Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对
 | AI Framework | LangChain 1.2, LangGraph 1.2 |
 | LLM Providers | OpenAI, Google Gemini, Google Vertex AI |
 | Image Generation | Imagen, DALL-E, Replicate (13+ models) |
-| Video Generation | Google Veo 3.x, Replicate (Kling, Sora, Seedance, etc.) |
+| Video Generation | Google Veo 3.x, Replicate (Kling, Sora, Seedance, etc.), Metaso MiniMax H3 |
 | Database | PostgreSQL (Supabase) |
 | Auth | Supabase Auth (Magic Link + OAuth) |
 | Storage | Supabase Storage (S3-compatible) |
@@ -200,6 +200,8 @@ GOOGLE_API_KEY=your-google-api-key             # for Gemini + Imagen + Veo
 
 # ── Optional: More generation providers ─────────────────────
 # REPLICATE_API_TOKEN=                          # 13+ image/video models
+# METASO_API_KEY=                               # MiniMax H3 video
+# METASO_API_BASE=https://metaso.cn/api/minimax/
 # GOOGLE_VERTEX_PROJECT=                        # Vertex AI (service account)
 # GOOGLE_VERTEX_LOCATION=global                 # global for image/LLM
 # GOOGLE_VERTEX_VIDEO_LOCATION=us-central1      # us-central1 for video
@@ -384,6 +386,8 @@ Loomic/
 | `OPENAI_API_KEY` | OpenAI API key (GPT + DALL-E) |
 | `OPENAI_API_BASE` | Custom OpenAI-compatible endpoint |
 | `REPLICATE_API_TOKEN` | Replicate API token (13+ models) |
+| `METASO_API_KEY` | Metaso API key (MiniMax H3 video) |
+| `METASO_API_BASE` | Optional Metaso H3 V2 base URL (default: `https://metaso.cn/api/minimax/`) |
 
 ### Google Vertex AI (optional)
 
@@ -437,6 +441,9 @@ Loomic/
 | Google (API Key) | Veo 3.1, Veo 3.1 Fast, Veo 3.1 Lite, Veo 3.0, Veo 2.0 |
 | Google (Vertex AI) | Veo 3.1, Veo 3.1 Fast, Veo 3.1 Lite, Veo 3.0, Veo 2.0 |
 | Replicate | Kling V3, Seedance 1.5, Wan 2.6, Sora 2, Hailuo 2.3, and more |
+| Metaso | MiniMax H3（文生视频、首帧/首尾帧，4–15 秒，768P/2K） |
+
+Metaso H3 的项目积分按生成秒数统一计算：768P 为 `10.2` 积分/秒，2K 为 `17` 积分/秒；最终扣分向上取整。人民币价格仅作为前端参考区间展示，不参与积分余额扣减。
 
 ### LLM (Agent)
 

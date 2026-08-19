@@ -17,9 +17,9 @@ LLM Agent
   │
   └─ generate_video tool (归一化 schema)
         │
-        └─ ReplicateVideoProvider.generate()  ← 参数映射到各模型
-              │
-              └─ POST replicate.com/v1/models/{model}/predictions
+        └─ Provider Registry
+              ├─ ReplicateVideoProvider.generate()
+              └─ MetasoVideoProvider.generate() ← MiniMax H3 V2 异步任务
 ```
 
 ### 三层归一化设计
@@ -121,7 +121,7 @@ Tool 层的 `standard / hd / ultra` 被翻译为每个模型各自的分辨率�
 | `inputVideo` | string | (可选) | V2V 源视频（仅 Kling O1） |
 | `enableAudio` | boolean | true | 是否生成同步音频 |
 
-### 3.2 模型清单（13 个）
+### 3.2 模型清单
 
 | 模型 ID | 名称 | 厂商 | T2V | I2V | V2V | 音频 | 最大时长 | 分辨率 | 最大参考图 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -138,8 +138,24 @@ Tool 层的 `standard / hd / ultra` 被翻译为每个模型各自的分辨率�
 | `google/veo-3.1-fast` | Veo 3.1 Fast | Google | Y | Y | — | Y | 8s | 1080p | 3 |
 | `minimax/hailuo-2.3` | Hailuo 2.3 | MiniMax | Y | Y | — | **—** | 10s | 1080p | 1 |
 | `vidu/q3-pro` | Vidu Q3 Pro | 生数科技 | Y | Y | — | Y | **16s** | 1080p | 1 |
+| `metaso/minimax-h3` | MiniMax H3 (Metaso) | 秘塔 | Y | Y（首帧/首尾帧） | — | — | **15s** | 768P / 2K | 2 |
 
 ### 3.3 Provider 层参数映射
+
+#### Metaso MiniMax H3 V2 (`metaso/minimax-h3`)
+
+| 归一化参数 | → Metaso 参数 | 说明 |
+|---|---|---|
+| `prompt` | `content[{type:"text", text}]` | 1–7000 字符 |
+| `inputImages[0]` | `first_frame` | 首帧，可选 |
+| `inputImages[1]` | `last_frame` | 尾帧，可选；有图片时 `ratio=adaptive` |
+| `duration` | `duration` | 4–15 秒整数 |
+| `resolution=720p` | `resolution=768P` | 10.2 H3 积分/秒 |
+| `resolution=1080p` | `resolution=2K` | 17 H3 积分/秒 |
+
+创建任务调用 `POST v2/video_generation`，随后轮询 `GET v2/query/video_generation/{task_id}`，仅将 `succeeded` 的 `task.content.url` 作为视频结果。当前集成不声明参考视频、音频或运行中取消能力。
+
+项目统一使用共享的 `getVideoCreditCost()` 计算预估和实际扣分。Metaso H3 按“每秒费率 × 生成秒数”计费，并向上取整为整数 Loomic 积分；人民币区间只用于价格透明展示，不参与扣款。
 
 #### 每个模型的 Replicate API 输入参数
 

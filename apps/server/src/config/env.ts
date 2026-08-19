@@ -10,9 +10,11 @@ export const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
  * Resolve the default agent model based on available provider configuration.
  * When Google/Vertex is configured but OpenAI is not, defaults to Gemini 2.5 Flash.
  */
-export function resolveDefaultAgentModel(
-  env: Pick<ServerEnv, "googleApiKey" | "googleVertexProject" | "openAIApiKey">,
-): string {
+export function resolveDefaultAgentModel(env: {
+  googleApiKey?: string | undefined;
+  googleVertexProject?: string | undefined;
+  openAIApiKey?: string | undefined;
+}): string {
   const hasOpenAI = !!env.openAIApiKey;
   const hasGoogle = !!(env.googleApiKey || env.googleVertexProject);
 
@@ -32,6 +34,8 @@ export type ServerEnv = {
   googleVertexLocation?: string;
   googleVertexProject?: string;
   googleVertexVideoLocation?: string;
+  metasoApiBase?: string;
+  metasoApiKey?: string;
   openAIApiBase?: string;
   openAIApiKey?: string;
   port: number;
@@ -85,7 +89,8 @@ export function loadServerEnv(
   const supabaseDbUrl =
     overrides.supabaseDbUrl ?? normalizeOptionalString(source.SUPABASE_DB_URL);
   const supabaseJwtSecret =
-    overrides.supabaseJwtSecret ?? normalizeOptionalString(source.SUPABASE_JWT_SECRET);
+    overrides.supabaseJwtSecret ??
+    normalizeOptionalString(source.SUPABASE_JWT_SECRET);
   const supabaseServiceRoleKey =
     overrides.supabaseServiceRoleKey ??
     normalizeOptionalString(source.SUPABASE_SERVICE_ROLE_KEY);
@@ -95,62 +100,93 @@ export function loadServerEnv(
   const googleApiKey =
     overrides.googleApiKey ?? normalizeOptionalString(source.GOOGLE_API_KEY);
   const googleApplicationCredentials =
-    overrides.googleApplicationCredentials ?? normalizeOptionalString(source.GOOGLE_APPLICATION_CREDENTIALS);
+    overrides.googleApplicationCredentials ??
+    normalizeOptionalString(source.GOOGLE_APPLICATION_CREDENTIALS);
   const googleFontsApiKey =
-    overrides.googleFontsApiKey ?? normalizeOptionalString(source.GOOGLE_FONTS_API_KEY);
+    overrides.googleFontsApiKey ??
+    normalizeOptionalString(source.GOOGLE_FONTS_API_KEY);
   const googleVertexProject =
-    overrides.googleVertexProject ?? normalizeOptionalString(source.GOOGLE_VERTEX_PROJECT);
+    overrides.googleVertexProject ??
+    normalizeOptionalString(source.GOOGLE_VERTEX_PROJECT);
   const googleVertexLocation =
-    overrides.googleVertexLocation ?? normalizeOptionalString(source.GOOGLE_VERTEX_LOCATION);
+    overrides.googleVertexLocation ??
+    normalizeOptionalString(source.GOOGLE_VERTEX_LOCATION);
   const googleVertexVideoLocation =
-    overrides.googleVertexVideoLocation ?? normalizeOptionalString(source.GOOGLE_VERTEX_VIDEO_LOCATION);
+    overrides.googleVertexVideoLocation ??
+    normalizeOptionalString(source.GOOGLE_VERTEX_VIDEO_LOCATION);
   const replicateApiToken =
-    overrides.replicateApiToken ?? normalizeOptionalString(source.REPLICATE_API_TOKEN);
+    overrides.replicateApiToken ??
+    normalizeOptionalString(source.REPLICATE_API_TOKEN);
+  const metasoApiKey =
+    overrides.metasoApiKey ?? normalizeOptionalString(source.METASO_API_KEY);
+  const metasoApiBase =
+    overrides.metasoApiBase ?? normalizeOptionalString(source.METASO_API_BASE);
   const volcesApiKey =
     overrides.volcesApiKey ?? normalizeOptionalString(source.VOLCES_API_KEY);
   const volcesBaseUrl =
     overrides.volcesBaseUrl ?? normalizeOptionalString(source.VOLCES_BASE_URL);
   const lemonSqueezyApiKey =
-    overrides.lemonSqueezyApiKey ?? normalizeOptionalString(source.LEMONSQUEEZY_API_KEY);
+    overrides.lemonSqueezyApiKey ??
+    normalizeOptionalString(source.LEMONSQUEEZY_API_KEY);
   const lemonSqueezyStoreId =
-    overrides.lemonSqueezyStoreId ?? normalizeOptionalString(source.LEMONSQUEEZY_STORE_ID);
+    overrides.lemonSqueezyStoreId ??
+    normalizeOptionalString(source.LEMONSQUEEZY_STORE_ID);
   const lemonSqueezyWebhookSecret =
-    overrides.lemonSqueezyWebhookSecret ?? normalizeOptionalString(source.LEMONSQUEEZY_WEBHOOK_SECRET);
+    overrides.lemonSqueezyWebhookSecret ??
+    normalizeOptionalString(source.LEMONSQUEEZY_WEBHOOK_SECRET);
   const lemonSqueezyVariantStarterMonthly =
-    overrides.lemonSqueezyVariantStarterMonthly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_STARTER_MONTHLY);
+    overrides.lemonSqueezyVariantStarterMonthly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_STARTER_MONTHLY);
   const lemonSqueezyVariantStarterYearly =
-    overrides.lemonSqueezyVariantStarterYearly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_STARTER_YEARLY);
+    overrides.lemonSqueezyVariantStarterYearly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_STARTER_YEARLY);
   const lemonSqueezyVariantProMonthly =
-    overrides.lemonSqueezyVariantProMonthly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_PRO_MONTHLY);
+    overrides.lemonSqueezyVariantProMonthly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_PRO_MONTHLY);
   const lemonSqueezyVariantProYearly =
-    overrides.lemonSqueezyVariantProYearly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_PRO_YEARLY);
+    overrides.lemonSqueezyVariantProYearly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_PRO_YEARLY);
   const lemonSqueezyVariantUltraMonthly =
-    overrides.lemonSqueezyVariantUltraMonthly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_ULTRA_MONTHLY);
+    overrides.lemonSqueezyVariantUltraMonthly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_ULTRA_MONTHLY);
   const lemonSqueezyVariantUltraYearly =
-    overrides.lemonSqueezyVariantUltraYearly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_ULTRA_YEARLY);
+    overrides.lemonSqueezyVariantUltraYearly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_ULTRA_YEARLY);
   const lemonSqueezyVariantBusinessMonthly =
-    overrides.lemonSqueezyVariantBusinessMonthly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_BUSINESS_MONTHLY);
+    overrides.lemonSqueezyVariantBusinessMonthly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_BUSINESS_MONTHLY);
   const lemonSqueezyVariantBusinessYearly =
-    overrides.lemonSqueezyVariantBusinessYearly ?? normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_BUSINESS_YEARLY);
+    overrides.lemonSqueezyVariantBusinessYearly ??
+    normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_BUSINESS_YEARLY);
   const skillsRoot =
     overrides.skillsRoot ?? normalizeOptionalString(source.LOOMIC_SKILLS_ROOT);
-  const workerConcurrency = overrides.workerConcurrency ??
+  const workerConcurrency =
+    overrides.workerConcurrency ??
     (source.WORKER_CONCURRENCY
-      ? parseInt(source.WORKER_CONCURRENCY, 10) : undefined);
-  const workerImageConcurrency = overrides.workerImageConcurrency ??
+      ? Number.parseInt(source.WORKER_CONCURRENCY, 10)
+      : undefined);
+  const workerImageConcurrency =
+    overrides.workerImageConcurrency ??
     (source.WORKER_IMAGE_CONCURRENCY
-      ? parseInt(source.WORKER_IMAGE_CONCURRENCY, 10) : undefined);
-  const workerVideoConcurrency = overrides.workerVideoConcurrency ??
+      ? Number.parseInt(source.WORKER_IMAGE_CONCURRENCY, 10)
+      : undefined);
+  const workerVideoConcurrency =
+    overrides.workerVideoConcurrency ??
     (source.WORKER_VIDEO_CONCURRENCY
-      ? parseInt(source.WORKER_VIDEO_CONCURRENCY, 10) : undefined);
-  const workerId = overrides.workerId ??
-    normalizeOptionalString(source.WORKER_ID);
-  const workerPollIntervalMs = overrides.workerPollIntervalMs ??
+      ? Number.parseInt(source.WORKER_VIDEO_CONCURRENCY, 10)
+      : undefined);
+  const workerId =
+    overrides.workerId ?? normalizeOptionalString(source.WORKER_ID);
+  const workerPollIntervalMs =
+    overrides.workerPollIntervalMs ??
     (source.WORKER_POLL_INTERVAL_MS
-      ? parseInt(source.WORKER_POLL_INTERVAL_MS, 10) : undefined);
-  const workerMaxBatchSize = overrides.workerMaxBatchSize ??
+      ? Number.parseInt(source.WORKER_POLL_INTERVAL_MS, 10)
+      : undefined);
+  const workerMaxBatchSize =
+    overrides.workerMaxBatchSize ??
     (source.WORKER_MAX_BATCH_SIZE
-      ? parseInt(source.WORKER_MAX_BATCH_SIZE, 10) : undefined);
+      ? Number.parseInt(source.WORKER_MAX_BATCH_SIZE, 10)
+      : undefined);
 
   // Resolve default agent model based on available provider keys.
   // Explicit LOOMIC_AGENT_MODEL always takes precedence; otherwise fall back
@@ -190,19 +226,33 @@ export function loadServerEnv(
     ...(googleVertexLocation ? { googleVertexLocation } : {}),
     ...(googleVertexVideoLocation ? { googleVertexVideoLocation } : {}),
     ...(replicateApiToken ? { replicateApiToken } : {}),
+    ...(metasoApiKey ? { metasoApiKey } : {}),
+    ...(metasoApiBase ? { metasoApiBase } : {}),
     ...(volcesApiKey ? { volcesApiKey } : {}),
     ...(volcesBaseUrl ? { volcesBaseUrl } : {}),
     ...(lemonSqueezyApiKey ? { lemonSqueezyApiKey } : {}),
     ...(lemonSqueezyStoreId ? { lemonSqueezyStoreId } : {}),
     ...(lemonSqueezyWebhookSecret ? { lemonSqueezyWebhookSecret } : {}),
-    ...(lemonSqueezyVariantStarterMonthly ? { lemonSqueezyVariantStarterMonthly } : {}),
-    ...(lemonSqueezyVariantStarterYearly ? { lemonSqueezyVariantStarterYearly } : {}),
+    ...(lemonSqueezyVariantStarterMonthly
+      ? { lemonSqueezyVariantStarterMonthly }
+      : {}),
+    ...(lemonSqueezyVariantStarterYearly
+      ? { lemonSqueezyVariantStarterYearly }
+      : {}),
     ...(lemonSqueezyVariantProMonthly ? { lemonSqueezyVariantProMonthly } : {}),
     ...(lemonSqueezyVariantProYearly ? { lemonSqueezyVariantProYearly } : {}),
-    ...(lemonSqueezyVariantUltraMonthly ? { lemonSqueezyVariantUltraMonthly } : {}),
-    ...(lemonSqueezyVariantUltraYearly ? { lemonSqueezyVariantUltraYearly } : {}),
-    ...(lemonSqueezyVariantBusinessMonthly ? { lemonSqueezyVariantBusinessMonthly } : {}),
-    ...(lemonSqueezyVariantBusinessYearly ? { lemonSqueezyVariantBusinessYearly } : {}),
+    ...(lemonSqueezyVariantUltraMonthly
+      ? { lemonSqueezyVariantUltraMonthly }
+      : {}),
+    ...(lemonSqueezyVariantUltraYearly
+      ? { lemonSqueezyVariantUltraYearly }
+      : {}),
+    ...(lemonSqueezyVariantBusinessMonthly
+      ? { lemonSqueezyVariantBusinessMonthly }
+      : {}),
+    ...(lemonSqueezyVariantBusinessYearly
+      ? { lemonSqueezyVariantBusinessYearly }
+      : {}),
     ...(skillsRoot ? { skillsRoot } : {}),
     ...(workerConcurrency ? { workerConcurrency } : {}),
     ...(workerImageConcurrency ? { workerImageConcurrency } : {}),
