@@ -28,6 +28,8 @@ export type ServerEnv = {
   agentBackendMode: AgentBackendMode;
   agentFilesRoot?: string;
   agentModel: string;
+  atlasCloudApiBase?: string;
+  atlasCloudApiKey?: string;
   googleApiKey?: string;
   googleApplicationCredentials?: string;
   googleFontsApiKey?: string;
@@ -74,6 +76,12 @@ export function loadServerEnv(
   overrides: Partial<ServerEnv> = {},
   source: NodeJS.ProcessEnv = process.env,
 ): ServerEnv {
+  const atlasCloudApiKey =
+    overrides.atlasCloudApiKey ??
+    normalizeOptionalString(source.ATLASCLOUD_API_KEY);
+  const atlasCloudApiBase =
+    overrides.atlasCloudApiBase ??
+    normalizeOptionalString(source.ATLASCLOUD_API_BASE);
   const agentFilesRoot =
     overrides.agentFilesRoot ??
     parseAgentFilesRoot(source.LOOMIC_AGENT_FILES_ROOT);
@@ -210,6 +218,8 @@ export function loadServerEnv(
     version: overrides.version ?? readServerVersion(),
     webOrigin:
       overrides.webOrigin ?? source.LOOMIC_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN,
+    ...(atlasCloudApiKey ? { atlasCloudApiKey } : {}),
+    ...(atlasCloudApiBase ? { atlasCloudApiBase } : {}),
     ...(agentFilesRoot ? { agentFilesRoot } : {}),
     ...(googleApiKey ? { googleApiKey } : {}),
     ...(googleApplicationCredentials ? { googleApplicationCredentials } : {}),

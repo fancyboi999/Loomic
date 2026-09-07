@@ -6,6 +6,7 @@
  * source of truth so that adding a new provider only requires a change here.
  */
 import type { ServerEnv } from "../../config/env.js";
+import { AtlasCloudImageProvider } from "./atlas-cloud-image.js";
 import { GoogleImageProvider } from "./google-image.js";
 import { GoogleVertexImageProvider } from "./google-vertex-image.js";
 import { GoogleVertexVideoProvider } from "./google-vertex-video.js";
@@ -25,6 +26,13 @@ import { VolcesImageProvider } from "./volces-image.js";
  * ensuring every process gets the full set.
  */
 export function registerAllProviders(env: ServerEnv): void {
+  // Atlas Cloud - Seedream image generation
+  if (env.atlasCloudApiKey) {
+    registerImageProvider(
+      new AtlasCloudImageProvider(env.atlasCloudApiKey, env.atlasCloudApiBase),
+    );
+  }
+
   // Metaso — MiniMax H3 V2 video
   if (env.metasoApiKey) {
     registerVideoProvider(

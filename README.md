@@ -385,6 +385,8 @@ Loomic/
 | `GOOGLE_API_KEY` | Google AI API key (Gemini + Imagen + Veo) |
 | `OPENAI_API_KEY` | OpenAI API key (GPT + DALL-E) |
 | `OPENAI_API_BASE` | Custom OpenAI-compatible endpoint |
+| `ATLASCLOUD_API_KEY` | Atlas Cloud API key (Seedream image generation) |
+| `ATLASCLOUD_API_BASE` | Optional Atlas Cloud API base URL (default: `https://api.atlascloud.ai/`) |
 | `REPLICATE_API_TOKEN` | Replicate API token (13+ models) |
 | `METASO_API_KEY` | Metaso API key (MiniMax H3 video) |
 | `METASO_API_BASE` | Optional Metaso H3 V2 base URL (default: `https://metaso.cn/api/minimax/`) |
@@ -432,6 +434,7 @@ Loomic/
 | Google (API Key) | Imagen 4, Gemini 2.5 Flash Image, Gemini 3 Pro Image |
 | Google (Vertex AI) | Gemini 3 Pro Image, Gemini 3.1 Flash Image, Gemini 2.5 Flash Image |
 | OpenAI | DALL-E 3, GPT Image 1.5 |
+| Atlas Cloud | Seedream 5.0 Lite |
 | Replicate | Flux Kontext Pro/Max, SDXL, Recraft V3, Seedream, and more |
 
 ### Video Generation
