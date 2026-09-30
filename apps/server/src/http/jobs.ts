@@ -49,13 +49,14 @@ export async function registerJobRoutes(
       // Credit checks (skip if credit system not configured)
       const model = payload.model ?? "black-forest-labs/flux-kontext-pro";
       let creditsCost = 0;
+      let quality: ImageQualityLevel = payload.quality ?? "hd";
 
       if (options.creditService && options.tierGuard) {
         const sub = await options.creditService.getSubscription(viewer.workspace.id);
         const planConfig = getPlanConfig(sub.plan);
-        // Use the plan's max resolution as the quality for cost calculation
-        const quality: ImageQualityLevel = planConfig.maxResolution;
+        quality = payload.quality ?? planConfig.maxResolution;
         options.tierGuard.checkModelAccess(sub.plan, model);
+        options.tierGuard.checkResolution(sub.plan, quality);
         await options.tierGuard.checkConcurrency(viewer.workspace.id, sub.plan);
         creditsCost = options.tierGuard.calculateCreditCost(model, "image_generation", { quality });
       }
@@ -81,6 +82,7 @@ export async function registerJobRoutes(
           ...(payload.aspect_ratio !== undefined
             ? { aspect_ratio: payload.aspect_ratio }
             : {}),
+          quality,
         },
       });
 

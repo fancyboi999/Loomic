@@ -181,6 +181,10 @@ function createStreamingChatModel(specifier: string): BaseLanguageModel {
         model: modelName,
         streaming: true,
         streamUsage: false,
+        // GPT-6 tool calling requires Responses (Astra always; Sol/Luna when reasoning).
+        ...(modelName.startsWith("gpt-6-") || modelName.startsWith("gpt-6.")
+          ? { useResponsesApi: true }
+          : {}),
       });
   }
 }

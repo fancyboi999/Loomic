@@ -4,7 +4,7 @@ import { generateImage } from "../../../generation/image-generation.js";
 import { resolveImageProviderName } from "../../../generation/providers/registry.js";
 import { applyWatermark } from "../../credits/watermark.js";
 
-import type { SubscriptionPlan } from "@loomic/shared";
+import type { ImageQualityLevel, SubscriptionPlan } from "@loomic/shared";
 
 registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorContext) => {
   const t0 = Date.now();
@@ -33,6 +33,7 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
     aspect_ratio?: string;
     title?: string;
     input_images?: string[];
+    quality?: ImageQualityLevel;
   };
 
   if (!payload.prompt) throw new Error(`Job ${jobId} has no prompt in payload`);
@@ -69,6 +70,7 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
         model,
         ...(payload.aspect_ratio !== undefined ? { aspectRatio: payload.aspect_ratio } : {}),
         ...(payload.input_images?.length ? { inputImages: payload.input_images } : {}),
+        ...(payload.quality ? { quality: payload.quality } : {}),
       });
     } catch (genError) {
       const detail = genError instanceof Error ? genError.message : String(genError);

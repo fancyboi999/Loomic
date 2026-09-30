@@ -511,6 +511,7 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
               title: input.title,
               model: input.model,
               aspect_ratio: input.aspectRatio,
+              ...(input.quality ? { quality: input.quality } : {}),
               ...(input.inputImages ? { input_images: input.inputImages } : {}),
             },
           });
