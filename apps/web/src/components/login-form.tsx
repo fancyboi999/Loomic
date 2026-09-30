@@ -30,7 +30,7 @@ export function LoginForm({ initialErrorMessage = null }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"magic" | "password">("magic");
+  const [mode, setMode] = useState<"magic" | "password">("password");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(initialErrorMessage);
@@ -62,7 +62,11 @@ export function LoginForm({ initialErrorMessage = null }: LoginFormProps) {
 
     setLoading(false);
     if (authError) {
-      setError(authError.message);
+      setError(
+        authError.code === "otp_disabled"
+          ? "Login link unavailable for this email. Create an account first, or use password sign-in."
+          : authError.message,
+      );
     } else {
       setSent(true);
     }
