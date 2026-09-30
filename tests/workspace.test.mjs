@@ -3,9 +3,29 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseEnvValue } from "../scripts/parse-env-value.mjs";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(dirname, "..");
+
+test("seed env parser ignores template comments without truncating values", () => {
+  assert.equal(
+    parseEnvValue("https://example.supabase.co # [required]"),
+    "https://example.supabase.co",
+  );
+  assert.equal(
+    parseEnvValue("sb_secret_example # [required]"),
+    "sb_secret_example",
+  );
+  assert.equal(
+    parseEnvValue("'postgresql://host/db#fragment' # database"),
+    "postgresql://host/db#fragment",
+  );
+  assert.equal(
+    parseEnvValue("https://example.supabase.co/#fragment"),
+    "https://example.supabase.co/#fragment",
+  );
+});
 
 async function readJson(relativePath) {
   const filePath = path.join(rootDir, relativePath);
