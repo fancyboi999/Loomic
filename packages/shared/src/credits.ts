@@ -143,6 +143,9 @@ export const MODEL_MIN_TIER: Record<string, SubscriptionPlan> = {
   "google/nano-banana-2": "starter",
   "google/imagen-4": "starter",
   "openai/gpt-image-1.5": "starter",
+  "openai-official/gpt-image-2": "pro",
+  "openai-official/gpt-image-2.5-flare": "pro",
+  "openai-official/gpt-image-2.5-sunburst": "ultra",
   "black-forest-labs/flux-kontext-pro": "starter",
   "bytedance/seedream-5-lite": "starter",
   "bytedance/seedream-4.5": "starter",
@@ -246,6 +249,10 @@ export const IMAGE_MODEL_COSTS: Record<string, ImageModelCost> = {
   "google/imagen-3": { standard: 5, hd: 10, ultra: 20 },
   // Replicate — OpenAI
   "openai/gpt-image-1.5": { standard: 4, hd: 8, ultra: 16 },
+  // Direct OpenAI models use token billing; these are fixed Loomic credit rates.
+  "openai-official/gpt-image-2": { standard: 10, hd: 20, ultra: 40 },
+  "openai-official/gpt-image-2.5-flare": { standard: 8, hd: 16, ultra: 32 },
+  "openai-official/gpt-image-2.5-sunburst": { standard: 20, hd: 40, ultra: 80 },
   // Replicate — BFL
   "black-forest-labs/flux-kontext-pro": { standard: 8, hd: 12, ultra: 20 },
   "black-forest-labs/flux-kontext-max": { standard: 12, hd: 18, ultra: 30 },
