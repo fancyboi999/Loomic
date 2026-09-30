@@ -208,6 +208,12 @@ GOOGLE_API_KEY=your-google-api-key             # for Gemini + Imagen + Veo
 # GOOGLE_APPLICATION_CREDENTIALS=               # path to SA JSON
 ```
 
+The database URL above is a direct connection and requires IPv6. If your network does not support IPv6, copy the **Session pooler** URI (port 5432) from your Supabase project's **Connect** dialog into `SUPABASE_DB_URL`. Its host and username differ from the direct connection. Leave `SUPABASE_JWT_SECRET` empty for remote token verification, or set it to a single public JWK object (not a JWKS `{"keys":[...]}` object).
+
+Next.js reads `apps/web/.env.local` separately. Copy `apps/web/.env.local.example` to that path, then set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the same public values as the root `.env.local`. Set `NEXT_PUBLIC_SERVER_BASE_URL` to your local API URL (by default `http://localhost:3001`).
+
+Google sign-in needs separate OAuth credentials; `GOOGLE_API_KEY` is only for AI models. To enable the **Continue with Google** button, create a **Web application** OAuth client in Google Auth Platform. Set `http://localhost:3000` as an authorized JavaScript origin and `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback` as an authorized redirect URI. Add the client's ID and secret under **Supabase Dashboard → Authentication → Sign In / Providers → Google**, then enable the provider. In **Authentication → URL Configuration**, allow `http://localhost:3000/auth/callback` as a redirect URL. You can use the seeded email/password accounts without configuring Google OAuth.
+
 > **Note**: See [Environment Variables Reference](#environment-variables-reference) for the full list.
 
 ### 4. Seed Test Accounts (optional)
@@ -228,6 +234,8 @@ pnpm seed
 | `ultra@test.loomic.com` | `opensourceloomic` | Ultra | 15,000 |
 
 > These accounts are created in YOUR Supabase instance.
+
+Use **password sign-in** on `/login` for these accounts. The login-link option only works for an email account that already exists; use `/register` to create a new account.
 
 ### 5. Start Development
 
