@@ -201,6 +201,7 @@ export async function runImageGenerate(
         title: input.title,
         model: input.model,
         aspectRatio: input.aspectRatio ?? "1:1",
+        ...(input.quality ? { quality: input.quality } : {}),
         ...(input.inputImages ? { inputImages: input.inputImages } : {}),
       });
 
