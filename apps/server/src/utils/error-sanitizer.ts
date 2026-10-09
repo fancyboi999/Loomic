@@ -4,7 +4,7 @@
  */
 
 const PROVIDER_PATTERN =
-  /google|vertex|openai|replicate|langchain|gaxios|undici|fetch failed/i;
+  /google|vertex|openai|replicate|gaxios|undici|fetch failed/i;
 const DB_PATTERN =
   /supabase|postgres|pgmq|database|relation|column|constraint/i;
 const AUTH_PATTERN =
@@ -18,7 +18,7 @@ export function sanitizeErrorForClient(error: unknown): string {
   // Log full detail server-side for debugging
   console.error("[error-sanitizer] Raw error:", raw);
   if (error instanceof Error) {
-    // Log nested cause chain (LangChain wraps errors multiple levels deep)
+    // Log nested causes for server-side diagnosis.
     let cause = (error as any).cause;
     while (cause) {
       console.error("[error-sanitizer] Caused by:", cause.message ?? cause);

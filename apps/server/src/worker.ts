@@ -18,6 +18,7 @@ import { createCreditService, type CreditService } from "./features/credits/cred
 import { getExecutor, type ExecutorContext } from "./features/jobs/job-executor.js";
 import { createAdminSupabaseClient } from "./supabase/admin.js";
 import { createUserSupabaseClientFactory } from "./supabase/user.js";
+import { createJobTrace } from "./observability/langfuse.js";
 
 // Import executors to trigger registration via side effects
 import "./features/jobs/executors/image-generation.js";
@@ -179,17 +180,25 @@ async function processMessage(
 
   // Increment attempt count
   const { attempt_count, max_attempts } = await ctx.jobService.incrementAttempt(jobId);
+  const trace = createJobTrace(ctx.env, {
+    jobId, jobType, attempt: attempt_count,
+    ...(typeof msg.message.run_id === "string" ? { runId: msg.message.run_id } : {}),
+    ...(typeof msg.message.traceparent === "string" ? { traceparent: msg.message.traceparent } : {}),
+  });
 
-  // Mark running
-  await ctx.jobService.markRunning(jobId);
-
+  let traceStatus: "completed" | "failed" = "failed";
+  let traceError: string | undefined;
   try {
+    // Mark running after the trace starts so persistence failures are visible.
+    await ctx.jobService.markRunning(jobId);
     const result = await executor(jobId, msg.message as Record<string, unknown>, ctx);
     await ctx.jobService.markSucceeded(jobId, result);
     await ctx.pgmq.deleteMsg(queue, msg.msg_id);
     console.log(`${tag} Job ${jobId} succeeded +${Date.now() - startTime}ms`);
+    traceStatus = "completed";
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
+    traceError = errorMessage;
     const errorCode = (err as { code?: string })?.code ?? "executor_error";
 
     // Non-retryable errors: retrying with the same input will always fail.
@@ -216,6 +225,8 @@ async function processMessage(
       // Message will re-appear after VT expires for retry
       console.warn(`${tag} Job ${jobId} failed (attempt ${attempt_count}/${max_attempts}) +${Date.now() - startTime}ms: ${errorMessage}`);
     }
+  } finally {
+    await trace.finish(traceStatus, traceError);
   }
 }
 

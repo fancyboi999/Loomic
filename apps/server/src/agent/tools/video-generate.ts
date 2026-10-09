@@ -1,4 +1,4 @@
-import { tool } from "langchain";
+import { createTool, type ToolContext } from "./pi-tool.js";
 import { z } from "zod";
 
 import {
@@ -13,6 +13,7 @@ const DEFAULT_MODEL = "wan-video/wan-2.6";
 // ── Submit function type ───────────────────────────────────────────────────
 
 export type SubmitVideoJobFn = (input: {
+  title?: string;
   prompt: string;
   model: string;
   duration?: number;
@@ -21,6 +22,10 @@ export type SubmitVideoJobFn = (input: {
   inputImages?: string[];
   inputVideo?: string;
   enableAudio?: boolean;
+  placementX?: number;
+  placementY?: number;
+  placementWidth?: number;
+  placementHeight?: number;
 }) => Promise<{
   jobId: string;
   elementId?: string;
@@ -31,6 +36,8 @@ export type SubmitVideoJobFn = (input: {
   mimeType?: string;
   error?: string;
 }>;
+
+export type TranslateVideoPromptFn = (prompt: string) => Promise<string>;
 
 // ── Dynamic schema builder ─────────────────────────────────────────────────
 
@@ -63,7 +70,7 @@ function buildVideoGenerateSchema(models: AvailableVideoModel[]) {
       .string()
       .min(1)
       .describe(
-        "Detailed video generation prompt. Be specific about motion, camera angles, lighting, mood, action, and scene transitions.",
+        "Detailed video generation prompt. For Google Vertex Veo models, write in English while preserving the user's requested subjects, colors, motion, camera, and lighting. Be specific about action and scene transitions.",
       ),
     model: modelField,
     duration: z
@@ -160,6 +167,7 @@ export async function runVideoGenerate(
   rawInput: VideoGenerateInput,
   submitVideoJob?: SubmitVideoJobFn,
   availableModels = getAvailableVideoModels(),
+  translatePrompt?: TranslateVideoPromptFn,
 ): Promise<VideoGenerateResult> {
   let input = rawInput;
   const t0 = Date.now();
@@ -194,6 +202,15 @@ export async function runVideoGenerate(
     };
   }
 
+  if (translatePrompt && input.model.startsWith("google-vertex/") && /[\u3400-\u9fff]/u.test(input.prompt)) {
+    try {
+      input = { ...input, prompt: await translatePrompt(input.prompt) };
+    } catch (error) {
+      // Translation improves Veo fidelity, but its failure must not block generation.
+      console.warn("[generate_video] prompt translation failed:", error instanceof Error ? error.message : error);
+    }
+  }
+
   const capabilityError = validateCapabilities(input, selectedModel);
   if (capabilityError) {
     return {
@@ -211,6 +228,7 @@ export async function runVideoGenerate(
     try {
       lap("job_submit", { model: input.model });
       const jobResult = await submitVideoJob({
+        title: input.title,
         prompt: input.prompt,
         model: input.model,
         duration: input.duration,
@@ -219,6 +237,10 @@ export async function runVideoGenerate(
         ...(input.inputImages ? { inputImages: input.inputImages } : {}),
         ...(input.inputVideo ? { inputVideo: input.inputVideo } : {}),
         ...(enableAudio != null ? { enableAudio } : {}),
+        ...(input.placementX != null ? { placementX: input.placementX } : {}),
+        ...(input.placementY != null ? { placementY: input.placementY } : {}),
+        ...(input.placementWidth != null ? { placementWidth: input.placementWidth } : {}),
+        ...(input.placementHeight != null ? { placementHeight: input.placementHeight } : {}),
       });
 
       if (jobResult.error) {
@@ -321,8 +343,15 @@ export async function runVideoGenerate(
 export function createVideoGenerateTool(deps?: {
   submitVideoJob?: SubmitVideoJobFn;
   availableModels?: AvailableVideoModel[];
-}) {
-  const models = deps?.availableModels ?? getAvailableVideoModels();
+  allowedModelIds?: string[];
+  translatePrompt?: TranslateVideoPromptFn;
+}, context: ToolContext = {}) {
+  const tool = createTool(context);
+  const availableModels = deps?.availableModels ?? getAvailableVideoModels();
+  const selectedModels = deps?.allowedModelIds?.length
+    ? availableModels.filter((model) => deps.allowedModelIds!.includes(model.id))
+    : [];
+  const models = deps?.allowedModelIds?.length ? selectedModels : availableModels;
 
   const modelSummary = models.length
     ? models.map((m) => `${m.displayName} (${m.id})`).join(", ")
@@ -330,7 +359,7 @@ export function createVideoGenerateTool(deps?: {
 
   return tool(
     async (input: VideoGenerateInput) => {
-      return await runVideoGenerate(input, deps?.submitVideoJob, models);
+      return await runVideoGenerate(input, deps?.submitVideoJob, models, deps?.translatePrompt);
     },
     {
       name: "generate_video",

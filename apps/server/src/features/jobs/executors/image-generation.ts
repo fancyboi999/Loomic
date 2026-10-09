@@ -3,6 +3,7 @@ import { registerExecutor, type ExecutorContext } from "../job-executor.js";
 import { generateImage } from "../../../generation/image-generation.js";
 import { resolveImageProviderName } from "../../../generation/providers/registry.js";
 import { applyWatermark } from "../../credits/watermark.js";
+import { browserStorageUrl } from "../../../supabase/public-url.js";
 
 import type { ImageQualityLevel, SubscriptionPlan } from "@loomic/shared";
 
@@ -148,15 +149,18 @@ registerExecutor("image_generation", async (jobId, _rawPayload, ctx: ExecutorCon
 
     lap("asset_record_done");
 
-    // Generate a public URL for the result consumer
-    const { data: urlData } = admin.storage
+    // Generated assets live in a private bucket; the browser needs a signed URL.
+    const { data: urlData, error: signedUrlError } = await admin.storage
       .from("project-assets")
-      .getPublicUrl(objectPath);
+      .createSignedUrl(objectPath, 60 * 60 * 24 * 7);
+    if (signedUrlError || !urlData) {
+      throw new Error(`Failed to sign generated image: ${signedUrlError?.message ?? "unknown error"}`);
+    }
 
     lap("total");
     return {
       asset_id: (assetRow as { id: string }).id,
-      signed_url: urlData.publicUrl,
+      signed_url: browserStorageUrl(urlData.signedUrl, ctx.env.supabasePublicUrl),
       object_path: objectPath,
       width: generated.width,
       height: generated.height,

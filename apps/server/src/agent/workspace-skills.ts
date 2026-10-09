@@ -12,7 +12,6 @@ export interface SkillFileEntry {
 
 /**
  * Metadata for a workspace skill loaded from the database.
- * Compatible with the deepagents SkillsMiddleware SkillMetadata shape.
  */
 export interface WorkspaceSkillEntry {
   /** Skill slug (used as directory name in virtual path) */

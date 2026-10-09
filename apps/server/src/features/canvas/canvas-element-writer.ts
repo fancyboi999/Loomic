@@ -19,7 +19,8 @@ type ImageInsertOpts = {
 
 type VideoInsertOpts = {
   canvasId: string;
-  signedUrl: string;        // Public URL for embeddable link
+  signedUrl: string;
+  objectPath: string;       // Stable Storage identity; the signed URL expires.
   width: number;
   height: number;
   mimeType: string;
@@ -56,10 +57,11 @@ function calculateAutoPlacement(
   const visible = elements.filter((el) => !el.isDeleted);
 
   if (visible.length === 0) {
-    // Empty canvas: center around origin
+    // The initial Excalidraw viewport starts near the origin. Keep the first
+    // generated asset in view instead of placing half of it at negative coordinates.
     return {
-      x: -scaled.width / 2,
-      y: -scaled.height / 2,
+      x: 0,
+      y: 80,
       width: scaled.width,
       height: scaled.height,
     };
@@ -171,6 +173,7 @@ function buildVideoElement(
     locked: false,
     customData: {
       isVideo: true,
+      objectPath: opts.objectPath,
       mimeType: opts.mimeType,
       ...(opts.durationSeconds != null ? { durationSeconds: opts.durationSeconds } : {}),
       ...(opts.title ? { title: opts.title } : {}),

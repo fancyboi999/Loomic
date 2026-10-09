@@ -272,6 +272,13 @@ export class GoogleVertexVideoProvider implements VideoProvider {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       console.error(`[google-vertex-video] generateVideos API error:`, detail);
+      if ((err as { status?: number })?.status === 404 || /\bNOT_FOUND\b|"code":404/.test(detail)) {
+        throw new GenerationError(
+          PROVIDER_NAME,
+          "model_not_found",
+          `Vertex AI video model ${apiModel} is unavailable in the configured region for this project.`,
+        );
+      }
       if (detail.includes("PERMISSION_DENIED") || detail.includes("403") || detail.includes("SERVICE_DISABLED")) {
         throw new GenerationError(
           PROVIDER_NAME,

@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/Fastify-5-000000?logo=fastify" alt="Fastify" />
-  <img src="https://img.shields.io/badge/LangGraph-1.2-1C3C3C?logo=langchain&logoColor=white" alt="LangGraph" />
+  <img src="https://img.shields.io/badge/Pi-Agent-1.1-1C3C3C" alt="Pi Agent" />
   <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/Excalidraw-Canvas-6965DB?logo=excalidraw&logoColor=white" alt="Excalidraw" />
   <img src="https://img.shields.io/badge/Turborepo-Monorepo-EF4444?logo=turborepo&logoColor=white" alt="Turborepo" />
@@ -38,11 +38,11 @@
 
 CapCut 刚推出了 Video Studio——基于画布的 AI 视频制作空间，Lovart 做的是 AI 设计 Agent，Canva 也在往 AI 方向猛推。这类产品的共同点：闭源、数据不在你手里、定价你说了不算。
 
-Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对话，它直接生成图片、视频，摆好位置，调好样式。不需要时间轴，不需要模板，不需要学 prompt 工程。说"把左边那张换成暖色调"，AI 就懂了。
+Loomic 是一个开源的对话式创作画布。你可以用自然语言生成图片、视频，也可以让 Agent 移动元素、调整排版和修改文字。比如说“把左边那张换成暖色调”，Agent 会结合当前画布中的元素和你的参考图处理请求。
 
-从构思、角色设定、故事板、场景生成、细节打磨到导出——整个创作流程在一个画布上完成。底层是 LangGraph 驱动的 Agent，接了 Google Gemini / Vertex AI / OpenAI / Replicate 十几个模型（包括 Veo 3.1、Kling、Seedance、Sora 等），图片视频都能生。
+从构思、角色设定、故事板、场景生成、细节打磨到导出——整个创作流程在一个画布上完成。底层是 Pi 驱动的 Agent，接了 Google Gemini / Vertex AI / OpenAI / Replicate 十几个模型（包括 Veo 3.1、Kling、Seedance、Sora 等），图片视频都能生。
 
-开源，可以自己部署，数据全在你手里。
+你可以自己部署，并在自己的 Supabase 项目中保存作品和会话。
 
 <p align="center">
   <img width="900" src="docs/images/canvas-image.png" alt="Loomic Canvas" />
@@ -70,12 +70,12 @@ Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对
 
 🎨 **无限画布**
 - 基于 Excalidraw，自由拖拽、缩放、分层
-- AI 生成的素材直接落在画布上，不用手动导入
+- 成功生成的素材可以直接显示在画布上，不用手动导入
 - 导出、截图、分享
 
 🏷️ **Brand Kit**
 - 设定品牌色、字体、Logo
-- AI 生成时自动遵循品牌规范
+- Agent 可在生成前读取品牌色、字体和 Logo 作为参考
 - 集成 Google Fonts
 
 💰 **积分 & 付费**
@@ -89,13 +89,28 @@ Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对
 
 ---
 
+## 🤖 Agent 怎样让生成结果更贴近要求
+
+Agent 的作用是把一句话变成可检查、可继续修改的画布操作。它使用 Pi 处理对话和工具调用；图片与视频由相应的生成模型制作。
+
+以“参考这张图，做一张符合品牌色的海报”为例：
+
+1. **先看已有内容。** 每轮对话都会附带当前画布的元素摘要。需要确认精确位置、文字或样式时，Agent 可以进一步读取画布；上传的图片会作为参考图传给支持该能力的模型。
+2. **按任务选工具。** 品牌套件提供颜色、字体和 Logo 信息；用户指定模型或参考图时，Agent 会将这些条件带入生成请求。生成工具会校验模型与参数，并过滤无效的参考图地址，提前拦截一部分无法执行的组合。
+3. **生成并放回画布。** 图片、视频任务由后台处理；成功后结果会保存并显示在画布中。移动、改色、改字会修改现有元素；形状内文字和箭头可以与元素绑定，后续调整时不容易散架。
+4. **看结果，继续调整。** 复杂画布操作后可以获取截图，方便你核对布局；Agent 可结合画布元素状态和你的反馈继续修改。会话记录让下一轮能接着当前作品讨论；长对话会在发给模型前压缩较早的上下文。
+
+这些步骤提高了结果符合要求的机会，也让失败原因和下一步修改更明确。截图目前用于展示和核对，Agent 不会自动对截图像素做审美评分。**生成模型的审美、文字准确性和视频内容不能保证一次就达到预期**；你可以在画布上指出具体问题，让 Agent 继续修改。
+
+---
+
 ## 🏗️ Architecture
 
 ```
 ┌─────────────┐     WebSocket / REST      ┌─────────────────┐
 │   Next.js   │ ◄──────────────────────►  │  Fastify API    │
-│   Frontend  │                           │  + LangGraph    │
-│  (Vercel)   │                           │  Agent (Railway) │
+│   Frontend  │                           │  + Pi Agent     │
+│  (Vercel)   │                           │  (Railway)      │
 └─────────────┘                           └────────┬────────┘
                                                    │ PGMQ
                                           ┌────────▼────────┐
@@ -115,11 +130,12 @@ Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对
 | Component | Tech | Role |
 |-----------|------|------|
 | **Frontend** | Next.js 15 + React 19 + Tailwind CSS 4 | Canvas UI, chat panel, workspace |
-| **API Server** | Fastify 5 + LangGraph | Agent runtime, WebSocket, REST API |
+| **API Server** | Fastify 5 + Pi Agent | Agent runtime, WebSocket, REST API |
 | **Worker** | Node.js poll-based consumer | Async image/video generation jobs |
 | **Database** | Supabase (PostgreSQL) | Data, auth, storage, job queue (PGMQ) |
 | **Canvas** | Excalidraw 0.18 | Infinite canvas rendering |
-| **AI** | LangChain + LangGraph | Agent orchestration, tool calling |
+| **AI** | Pi | Model conversations, tool calls, streaming |
+| **Tracing** | Langfuse + OpenTelemetry (optional) | Agent, model, tool, and Worker observations |
 | **Queue** | PGMQ | Reliable async job processing |
 
 ---
@@ -132,7 +148,8 @@ Loomic 做的是同一件事，但完全开源。你在无限画布上跟 AI 对
 | Frontend | Next.js 15 (App Router), React 19, Tailwind CSS 4 |
 | Canvas | Excalidraw |
 | Backend | Node.js, Fastify 5, TypeScript |
-| AI Framework | LangChain 1.2, LangGraph 1.2 |
+| AI Framework | Pi Agent Core, Pi AI |
+| Observability | Langfuse + OpenTelemetry |
 | LLM Providers | OpenAI, Google Gemini, Google Vertex AI |
 | Image Generation | Imagen, DALL-E, Replicate (13+ models) |
 | Video Generation | Google Veo 3.x, Replicate (Kling, Sora, Seedance, etc.), Metaso MiniMax H3 |
@@ -335,7 +352,7 @@ Loomic/
 │   │
 │   └── server/                 # Fastify API + Worker
 │       ├── src/
-│       │   ├── agent/          #   LangGraph agent, tools, prompts
+│       │   ├── agent/          #   Pi agent, tools, prompts
 │       │   ├── generation/     #   Image & video generation providers
 │       │   │   └── providers/  #     Google, OpenAI, Replicate, Vertex AI, Volces
 │       │   ├── features/       #   Domain services
@@ -395,6 +412,8 @@ Loomic/
 | `OPENAI_API_BASE` | Custom OpenAI-compatible endpoint |
 | `REPLICATE_API_TOKEN` | Replicate API token (13+ models) |
 | `METASO_API_KEY` | Metaso API key (MiniMax H3 video) |
+
+Langfuse tracing is optional. Set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and optionally `LANGFUSE_BASE_URL` on both API and Worker processes. Search by `runId` to correlate a user request with model and tool observations; Worker jobs are child spans when the Agent supplies trace context. Telemetry failures do not fail generation. See [integration notes](docs/tech/langfuse-integration-analysis.md).
 | `METASO_API_BASE` | Optional Metaso H3 V2 base URL (default: `https://metaso.cn/api/minimax/`) |
 
 ### Google Vertex AI (optional)

@@ -1,7 +1,7 @@
 import { realpathSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { basename, extname } from "node:path";
-import { tool } from "@langchain/core/tools";
+import { basename, extname, sep } from "node:path";
+import { createTool, type ToolContext } from "./pi-tool.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -34,7 +34,8 @@ export type PersistSandboxFileDeps = {
   sandboxDir?: string;
 };
 
-export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
+export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps, context: ToolContext = {}) {
+  const tool = createTool(context);
   return tool(
     async (input, config) => {
       const accessToken = (config as any)?.configurable?.access_token as
@@ -50,15 +51,15 @@ export function createPersistSandboxFileTool(deps: PersistSandboxFileDeps) {
 
       // Path traversal guard: restrict reads to sandbox directory.
       // Use realpathSync to resolve symlinks (macOS /tmp → /private/tmp).
-      if (deps.sandboxDir) {
-        try {
-          const realFilePath = realpathSync(input.filePath);
-          if (!realFilePath.startsWith(deps.sandboxDir)) {
-            return "Error: filePath must be inside the sandbox directory.";
-          }
-        } catch {
-          return "Error: filePath does not exist or is not accessible.";
+      if (!deps.sandboxDir) return "Error: Sandbox directory is unavailable.";
+      try {
+        const realFilePath = realpathSync(input.filePath);
+        const realSandboxDir = realpathSync(deps.sandboxDir);
+        if (realFilePath !== realSandboxDir && !realFilePath.startsWith(`${realSandboxDir}${sep}`)) {
+          return "Error: filePath must be inside the sandbox directory.";
         }
+      } catch {
+        return "Error: filePath does not exist or is not accessible.";
       }
 
       try {

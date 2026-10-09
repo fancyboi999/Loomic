@@ -46,6 +46,7 @@ export type ServerEnv = {
   supabaseProjectId?: string;
   supabaseServiceRoleKey?: string;
   supabaseUrl?: string;
+  supabasePublicUrl?: string;
   version: string;
   volcesApiKey?: string;
   volcesBaseUrl?: string;
@@ -60,6 +61,9 @@ export type ServerEnv = {
   lemonSqueezyVariantUltraYearly?: string;
   lemonSqueezyVariantBusinessMonthly?: string;
   lemonSqueezyVariantBusinessYearly?: string;
+  langfusePublicKey?: string;
+  langfuseSecretKey?: string;
+  langfuseBaseUrl?: string;
   skillsRoot?: string;
   webOrigin: string;
   workerConcurrency?: number;
@@ -83,6 +87,8 @@ export function loadServerEnv(
     overrides.openAIApiKey ?? normalizeOptionalString(source.OPENAI_API_KEY);
   const supabaseUrl =
     overrides.supabaseUrl ?? normalizeOptionalString(source.SUPABASE_URL);
+  const supabasePublicUrl =
+    overrides.supabasePublicUrl ?? normalizeOptionalString(source.NEXT_PUBLIC_SUPABASE_URL);
   const supabaseAnonKey =
     overrides.supabaseAnonKey ??
     normalizeOptionalString(source.SUPABASE_ANON_KEY);
@@ -160,6 +166,9 @@ export function loadServerEnv(
     normalizeOptionalString(source.LEMONSQUEEZY_VARIANT_BUSINESS_YEARLY);
   const skillsRoot =
     overrides.skillsRoot ?? normalizeOptionalString(source.LOOMIC_SKILLS_ROOT);
+  const langfusePublicKey = overrides.langfusePublicKey ?? normalizeOptionalString(source.LANGFUSE_PUBLIC_KEY);
+  const langfuseSecretKey = overrides.langfuseSecretKey ?? normalizeOptionalString(source.LANGFUSE_SECRET_KEY);
+  const langfuseBaseUrl = overrides.langfuseBaseUrl ?? normalizeOptionalString(source.LANGFUSE_BASE_URL);
   const workerConcurrency =
     overrides.workerConcurrency ??
     (source.WORKER_CONCURRENCY
@@ -202,6 +211,9 @@ export function loadServerEnv(
     });
 
   return {
+    ...(langfusePublicKey ? { langfusePublicKey } : {}),
+    ...(langfuseSecretKey ? { langfuseSecretKey } : {}),
+    ...(langfuseBaseUrl ? { langfuseBaseUrl } : {}),
     agentBackendMode:
       overrides.agentBackendMode ??
       parseAgentBackendMode(source.LOOMIC_AGENT_BACKEND_MODE),
@@ -216,6 +228,7 @@ export function loadServerEnv(
     ...(openAIApiBase ? { openAIApiBase } : {}),
     ...(openAIApiKey ? { openAIApiKey } : {}),
     ...(supabaseUrl ? { supabaseUrl } : {}),
+    ...(supabasePublicUrl ? { supabasePublicUrl } : {}),
     ...(supabaseAnonKey ? { supabaseAnonKey } : {}),
     ...(supabaseDbUrl ? { supabaseDbUrl } : {}),
     ...(supabaseJwtSecret ? { supabaseJwtSecret } : {}),

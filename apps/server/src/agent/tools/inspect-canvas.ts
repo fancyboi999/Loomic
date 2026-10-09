@@ -1,4 +1,4 @@
-import { tool } from "langchain";
+import { createTool, type ToolContext } from "./pi-tool.js";
 import { z } from "zod";
 
 const inspectCanvasSchema = z.object({
@@ -151,7 +151,8 @@ export function buildCanvasSummaryForContext(
 
 export function createInspectCanvasTool(deps: {
   createUserClient: (accessToken: string) => any;
-}) {
+}, context: ToolContext = {}) {
+  const tool = createTool(context);
   return tool(
     async (input, config) => {
       const canvasId = (config as any)?.configurable?.canvas_id;

@@ -54,8 +54,7 @@ export function registerAllProviders(env: ServerEnv): void {
     };
     registerImageProvider(new GoogleVertexImageProvider(vertexConfig));
 
-    const videoLocation =
-      env.googleVertexVideoLocation ?? env.googleVertexLocation;
+    const videoLocation = env.googleVertexVideoLocation ?? "us-central1";
     registerVideoProvider(
       new GoogleVertexVideoProvider({
         project: env.googleVertexProject,

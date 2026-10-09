@@ -1,4 +1,4 @@
-import { tool } from "langchain";
+import { createTool, type ToolContext } from "./pi-tool.js";
 import { z } from "zod";
 
 const brandKitSchema = z.object({});
@@ -6,7 +6,9 @@ const brandKitSchema = z.object({});
 export function createBrandKitTool(
   deps: { createUserClient: (accessToken: string) => any },
   brandKitId: string,
+  context: ToolContext = {},
 ) {
+  const tool = createTool(context);
   return tool(
     async (_input, config) => {
       const accessToken = (config as any)?.configurable?.access_token;

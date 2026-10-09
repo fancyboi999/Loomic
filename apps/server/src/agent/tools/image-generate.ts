@@ -1,4 +1,4 @@
-import { tool } from "langchain";
+import { createTool, type ToolContext } from "./pi-tool.js";
 import { z } from "zod";
 
 import { randomUUID } from "node:crypto";
@@ -303,20 +303,26 @@ export function createImageGenerateTool(deps?: {
   submitImageJob?: SubmitImageJobFn;
   /** Override for testing — defaults to querying the provider registry. */
   availableModels?: AvailableModel[];
-}) {
-  const models = deps?.availableModels ?? getAvailableImageModels();
+  allowedModelIds?: string[];
+}, context: ToolContext = {}) {
+  const tool = createTool(context);
+  const availableModels = deps?.availableModels ?? getAvailableImageModels();
+  const selectedModels = deps?.allowedModelIds?.length
+    ? availableModels.filter((model) => deps.allowedModelIds!.includes(model.id))
+    : [];
+  const models = deps?.allowedModelIds?.length ? selectedModels : availableModels;
 
   const modelSummary = models.length
     ? models.map((m) => `${m.displayName} (${m.id})`).join(", ")
     : "No models available";
 
   return tool(
-    async (input: ImageGenerateInput, config) => {
+    async (input, config) => {
       const attachmentMap =
         (config as any)?.configurable?.user_attachment_map as
           Record<string, string> | undefined;
       return await runImageGenerate(
-        input,
+        input as ImageGenerateInput,
         deps?.persistImage,
         deps?.submitImageJob,
         attachmentMap,

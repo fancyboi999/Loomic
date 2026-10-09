@@ -1,4 +1,5 @@
 import { registerExecutor, type ExecutorContext } from "../job-executor.js";
+import { browserStorageUrl } from "../../../supabase/public-url.js";
 import { generateVideo } from "../../../generation/video-generation.js";
 import { resolveVideoProviderName } from "../../../generation/providers/registry.js";
 
@@ -47,7 +48,7 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
   }, 120_000);
 
   try {
-    lap("replicate_call_start");
+    lap("provider_call_start");
     const generated = await generateVideo(providerName, {
       prompt: payload.prompt,
       model,
@@ -58,7 +59,7 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
       ...(payload.input_video ? { inputVideo: payload.input_video } : {}),
       ...(payload.enable_audio != null ? { enableAudio: payload.enable_audio } : {}),
     });
-    lap("replicate_call_done");
+    lap("provider_call_done");
 
     // Vertex AI returns inline base64 data URIs; Developer API returns HTTP URLs.
     let buffer: Buffer;
@@ -110,14 +111,17 @@ registerExecutor("video_generation", async (jobId, _rawPayload, ctx: ExecutorCon
     }
     lap("asset_record_done");
 
-    const { data: urlData } = admin.storage
+    const { data: urlData, error: signedUrlError } = await admin.storage
       .from("project-assets")
-      .getPublicUrl(objectPath);
+      .createSignedUrl(objectPath, 60 * 60 * 24 * 7);
+    if (signedUrlError || !urlData) {
+      throw new Error(`Failed to sign generated video: ${signedUrlError?.message ?? "unknown error"}`);
+    }
 
     lap("total");
     return {
       asset_id: (assetRow as { id: string }).id,
-      signed_url: urlData.publicUrl,
+      signed_url: browserStorageUrl(urlData.signedUrl, ctx.env.supabasePublicUrl),
       object_path: objectPath,
       width: generated.width,
       height: generated.height,

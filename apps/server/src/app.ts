@@ -1,9 +1,9 @@
-import type { BaseLanguageModel } from "@langchain/core/language_models/base";
+import type { Model } from "@earendil-works/pi-ai";
 import multipart from "@fastify/multipart";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 
-import type { LoomicAgentFactory } from "./agent/deep-agent.js";
+import type { LoomicAgentFactory } from "./agent/pi-agent.js";
 import {
   createAgentPersistenceService,
   type AgentPersistenceService,
@@ -99,7 +99,7 @@ import {
 
 export type BuildAppOptions = {
   agentFactory?: LoomicAgentFactory;
-  agentModel?: BaseLanguageModel | string;
+  agentModel?: Model<any> | string;
   agentPersistenceService?: AgentPersistenceService;
   agentRunMetadataService?: AgentRunMetadataService;
   auth?: RequestAuthenticator;
@@ -163,7 +163,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const brandKitService =
     options.brandKitService ?? createBrandKitService({ createUserClient });
   const canvasService =
-    options.canvasService ?? createCanvasService({ createUserClient });
+    options.canvasService ?? createCanvasService({
+      createUserClient,
+      ...(env.supabasePublicUrl ? { supabasePublicUrl: env.supabasePublicUrl } : {}),
+    });
   const threadService =
     options.threadService ?? createThreadService({ createUserClient });
   const chatService =

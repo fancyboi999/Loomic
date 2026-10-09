@@ -1,5 +1,5 @@
-import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
+import { definePiTool, type ToolContext } from "./pi-tool.js";
 
 import type { ConnectionManager } from "../../ws/connection-manager.js";
 import type { PersistImageFn } from "./image-generate.js";
@@ -28,16 +28,16 @@ export function createScreenshotCanvasTool(deps: {
   connectionManager: ConnectionManager;
   persistImage?: PersistImageFn;
   rpcTimeout?: number;
-}) {
+}, context: ToolContext = {}) {
   const timeout = deps.rpcTimeout ?? 10_000;
 
-  return new DynamicStructuredTool({
+  return definePiTool({
     name: "screenshot_canvas",
     description:
       "Take a visual screenshot of the canvas to inspect layout, design quality, color harmony, and spatial relationships. Use this to visually verify your changes or understand the current canvas state. Supports full canvas, specific region, or current viewport capture.",
     schema: screenshotCanvasSchema,
-    func: async (input, _runManager, config): Promise<string> => {
-      const userId = (config as any)?.configurable?.user_id;
+    run: async (input): Promise<string> => {
+      const userId = context.user_id;
 
       if (!userId) {
         return JSON.stringify({
@@ -60,8 +60,8 @@ export function createScreenshotCanvasTool(deps: {
 
         // Upload screenshot to storage to get a short HTTPS URL.
         // Returning the raw data: URI (~1-2 MB base64) in the ToolMessage
-        // would be serialized as text by LangChain adapters (Google Gemini,
-        // OpenAI) since tool responses only support string content — this
+        // would be serialized as text by model adapters since tool responses
+        // only support string content — this
         // causes the conversation to instantly exceed the model's token limit.
         // Pattern: same as generate_image — short URL in JSON, stream-adapter
         // extracts screenshotUrl as a frontend artifact.

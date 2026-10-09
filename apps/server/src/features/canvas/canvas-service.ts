@@ -1,6 +1,7 @@
 import type { CanvasContent, CanvasDetail, Json } from "@loomic/shared";
 
 import type { AuthenticatedUser, UserSupabaseClient } from "../../supabase/user.js";
+import { browserStorageUrl } from "../../supabase/public-url.js";
 
 export class CanvasServiceError extends Error {
   readonly statusCode: number;
@@ -35,6 +36,7 @@ const CANVAS_FILES_BUCKET = "project-assets";
 
 export function createCanvasService(options: {
   createUserClient: (accessToken: string) => UserSupabaseClient;
+  supabasePublicUrl?: string;
 }): CanvasService {
   return {
     async getCanvas(user, canvasId) {
@@ -51,8 +53,12 @@ export function createCanvasService(options: {
 
       const content = (data.content as CanvasContent) ?? { elements: [], appState: {} };
 
-      // Resolve OSS-stored files back to base64 dataURLs for the frontend
-      const resolvedContent = await resolveFilesFromStorage(client, content);
+      // Resolve OSS markers to browser-reachable Storage URLs.
+      const resolvedContent = await resolveVideoLinks(
+        client,
+        await resolveFilesFromStorage(client, content, options.supabasePublicUrl),
+        options.supabasePublicUrl,
+      );
 
       return {
         id: data.id,
@@ -78,6 +84,28 @@ export function createCanvasService(options: {
       }
     },
   };
+}
+
+/** Refresh generated video links whenever the canvas is loaded. */
+async function resolveVideoLinks(
+  client: UserSupabaseClient,
+  content: CanvasContent,
+  supabasePublicUrl?: string,
+): Promise<CanvasContent> {
+  const elements = content.elements as Array<Record<string, unknown>> | undefined;
+  if (!elements?.some((element) => typeof (element.customData as Record<string, unknown> | undefined)?.objectPath === "string")) {
+    return content;
+  }
+  const resolved = await Promise.all(elements.map(async (element) => {
+    const customData = element.customData as Record<string, unknown> | undefined;
+    if (element.type !== "embeddable" || customData?.isVideo !== true || typeof customData.objectPath !== "string") {
+      return element;
+    }
+    const { data, error } = await client.storage.from(CANVAS_FILES_BUCKET).createSignedUrl(customData.objectPath, 60 * 60 * 24 * 7);
+    if (error || !data) throw new Error(`Failed to sign canvas video: ${error?.message ?? "unknown error"}`);
+    return { ...element, link: browserStorageUrl(data.signedUrl, supabasePublicUrl) };
+  }));
+  return { ...content, elements: resolved } as CanvasContent;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,12 +176,13 @@ async function extractFilesToStorage(
 }
 
 // ---------------------------------------------------------------------------
-// File resolution (load path): oss:// marker → base64 dataURL
+// File resolution (load path): oss:// marker → public Storage URL
 // ---------------------------------------------------------------------------
 
 async function resolveFilesFromStorage(
   client: UserSupabaseClient,
   content: CanvasContent,
+  supabasePublicUrl?: string,
 ): Promise<CanvasContent> {
   const files = (content as { files?: CanvasFileRecord }).files;
   if (!files || Object.keys(files).length === 0) {
@@ -197,13 +226,16 @@ async function resolveFilesFromStorage(
 
   for (const [bucket, entries] of byBucket) {
     for (const entry of entries) {
-      const { data } = client.storage
+      const { data, error } = await client.storage
         .from(bucket)
-        .getPublicUrl(entry.objectPath);
+        .createSignedUrl(entry.objectPath, 60 * 60 * 24 * 7);
+      if (error || !data) {
+        throw new Error(`Failed to sign canvas file: ${error?.message ?? "unknown error"}`);
+      }
       updatedFiles[entry.fileId] = {
         ...entry.fileData,
         dataURL: undefined,
-        storageUrl: data.publicUrl,
+        storageUrl: browserStorageUrl(data.signedUrl, supabasePublicUrl),
       };
     }
   }

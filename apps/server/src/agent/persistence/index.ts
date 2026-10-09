@@ -1,12 +1,12 @@
-import type { BaseCheckpointSaver, BaseStore } from "@langchain/langgraph-checkpoint";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import type { ServerEnv } from "../../config/env.js";
-import { createSupabaseCheckpointer } from "./supabase-checkpointer.js";
-import { createSupabaseStore } from "./supabase-store.js";
+import { createPiSessionStore } from "./pi-session-store.js";
 
 export type AgentPersistence = {
-  checkpointer: BaseCheckpointSaver;
-  store: BaseStore;
+  fileStore: ReturnType<typeof createPiSessionStore>["fileStore"];
+  loadMessages(threadId: string): Promise<AgentMessage[]>;
+  saveMessages(threadId: string, messages: AgentMessage[]): Promise<void>;
 };
 
 export type AgentPersistenceService = {
@@ -16,35 +16,25 @@ export type AgentPersistenceService = {
 export function createAgentPersistenceService(
   env: Pick<ServerEnv, "supabaseDbUrl">,
   overrides?: {
-    createCheckpointer?: typeof createSupabaseCheckpointer;
-    createStore?: typeof createSupabaseStore;
+    createPiSessionStore?: typeof createPiSessionStore;
   },
 ): AgentPersistenceService {
-  let pendingPersistence: Promise<AgentPersistence> | null = null;
+  let persistence: AgentPersistence | null = null;
 
   return {
     async getPersistence() {
-      if (!env.supabaseDbUrl) {
-        return null;
+      if (!env.supabaseDbUrl) return null;
+      if (!persistence) {
+        const store = (overrides?.createPiSessionStore ?? createPiSessionStore)(env.supabaseDbUrl);
+        persistence = {
+          fileStore: store.fileStore,
+          async loadMessages(threadId) {
+            return await store.loadMessages(threadId) ?? [];
+          },
+          saveMessages: store.saveMessages,
+        };
       }
-
-      if (!pendingPersistence) {
-        pendingPersistence = Promise.all([
-          (overrides?.createCheckpointer ?? createSupabaseCheckpointer)({
-            connectionString: env.supabaseDbUrl,
-          }),
-          (overrides?.createStore ?? createSupabaseStore)({
-            connectionString: env.supabaseDbUrl,
-          }),
-        ])
-          .then(([checkpointer, store]) => ({ checkpointer, store }))
-          .catch((error) => {
-            pendingPersistence = null;
-            throw error;
-          });
-      }
-
-      return pendingPersistence;
+      return persistence;
     },
   };
 }

@@ -44,6 +44,8 @@ export type CreateJobInput = {
   canvasId?: string;
   sessionId?: string;
   threadId?: string;
+  runId?: string;
+  traceparent?: string;
   jobType: BackgroundJobType;
   payload: Record<string, unknown>;
 };
@@ -139,6 +141,8 @@ export function createJobService(options: {
           workspace_id: input.workspaceId,
           ...(input.canvasId ? { canvas_id: input.canvasId } : {}),
           ...(input.sessionId ? { session_id: input.sessionId } : {}),
+          ...(input.runId ? { run_id: input.runId } : {}),
+          ...(input.traceparent ? { traceparent: input.traceparent } : {}),
         });
       } catch (enqueueErr) {
         console.error("[job-service] pgmq.send failed:", enqueueErr);

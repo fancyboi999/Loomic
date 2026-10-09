@@ -1,6 +1,5 @@
-import type { ToolRuntime } from "@langchain/core/tools";
-import type { BackendFactory, BackendProtocol } from "deepagents";
-import { tool } from "langchain";
+import type { AgentWorkspace } from "../backends/types.js";
+import { definePiTool } from "./pi-tool.js";
 import { z } from "zod";
 
 const DEFAULT_SEARCH_ROOT = "/workspace";
@@ -25,7 +24,7 @@ type ProjectSearchResult = {
 };
 
 export async function runProjectSearch(
-  backend: BackendProtocol,
+  backend: AgentWorkspace,
   input: ProjectSearchInput,
 ): Promise<ProjectSearchResult> {
   const rawMatches = await backend.grepRaw(
@@ -70,31 +69,12 @@ export async function runProjectSearch(
   };
 }
 
-export function createProjectSearchTool(
-  backend: BackendProtocol | BackendFactory,
-) {
-  return tool(
-    async (input, runtime: ToolRuntime) => {
-      return await runProjectSearch(resolveBackend(backend, runtime), input);
-    },
-    {
+export function createProjectSearchTool(backend: AgentWorkspace) {
+  return definePiTool({
       name: "project_search",
       description:
         "Search the Loomic workspace for matching project text without using shell execution.",
       schema: projectSearchSchema,
-    },
-  );
-}
-
-function resolveBackend(
-  backend: BackendProtocol | BackendFactory,
-  runtime: ToolRuntime,
-): BackendProtocol {
-  if (typeof backend === "function") {
-    return backend({
-      state: runtime.state,
-    });
-  }
-
-  return backend;
+      run: (input) => runProjectSearch(backend, input),
+  });
 }
