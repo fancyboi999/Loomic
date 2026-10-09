@@ -8,7 +8,7 @@ import { createWorkspace } from "./workspace.js";
 
 type AgentBackendEnv = Pick<ServerEnv, "agentBackendMode" | "agentFilesRoot" | "skillsRoot">;
 
-export type AgentBackendResult = { workspace: AgentWorkspace; sandboxDir: string };
+export type AgentBackendResult = { workspace: AgentWorkspace; sandboxDir: string; skillsRoot: string };
 
 export function createAgentBackend(
   env: AgentBackendEnv,
@@ -35,6 +35,7 @@ export function createAgentBackend(
 
   return {
     sandboxDir: realSandboxDir,
+    skillsRoot,
     workspace: createWorkspace({
       sandboxDir: realSandboxDir,
       skillsRoot,

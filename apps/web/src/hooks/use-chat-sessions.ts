@@ -119,6 +119,7 @@ export function useChatSessions({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const creatingSessionRef = useRef(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
 
@@ -231,6 +232,9 @@ export function useChatSessions({
 
   // ── New chat ──
   const handleNewChat = useCallback(async () => {
+    if (creatingSessionRef.current) return;
+    creatingSessionRef.current = true;
+    setSessionsLoading(true);
     if (streaming) setStreaming(false);
     try {
       const res = await createSession(accessTokenRef.current, canvasId);
@@ -240,6 +244,9 @@ export function useChatSessions({
       setMessages([]);
     } catch {
       // Silently fail
+    } finally {
+      creatingSessionRef.current = false;
+      setSessionsLoading(false);
     }
   }, [canvasId, streaming]);
 
@@ -335,6 +342,7 @@ export function useChatSessions({
     messagesRef,
     setMessages,
     sessionsLoading,
+    creatingSessionRef,
     messagesLoading,
     streaming,
     setStreaming,

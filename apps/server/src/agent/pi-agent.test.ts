@@ -1,13 +1,55 @@
 import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ServerEnv } from "../config/env.js";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AgentBackendResult } from "./backends/index.js";
+import { createWorkspace } from "./backends/workspace.js";
 import type { AgentPersistence } from "./persistence/index.js";
 import { createLoomicPiAgent } from "./pi-agent.js";
 
 describe("Pi agent runtime", () => {
+  it("loads an automatically discovered Skill's instructions and keeps its files readable", async () => {
+    const root = await mkdtemp(join(tmpdir(), "loomic-pi-skill-"));
+    try {
+      const skillsRoot = join(root, "skills");
+      await mkdir(join(skillsRoot, "new-skill"), { recursive: true });
+      await writeFile(join(skillsRoot, "new-skill", "SKILL.md"), "---\nname: new-skill\ndescription: Use for a blue bird.\n---\n\nPaint a blue bird.");
+      const faux = fauxProvider();
+      faux.setResponses([
+        (context) => {
+          const transcript = JSON.stringify(context.messages);
+          expect(transcript).toContain("/skills/new-skill/SKILL.md");
+          expect(transcript).toContain("Use for a blue bird.");
+          expect(transcript).toContain("Paint a blue bird.");
+          return fauxAssistantMessage([fauxToolCall("read_file", { file_path: "/skills/new-skill/SKILL.md" })], { stopReason: "toolUse" });
+        },
+        fauxAssistantMessage("I followed the skill."),
+      ]);
+      const models = createModels();
+      models.setProvider(faux.provider);
+      const workspace = createWorkspace({ sandboxDir: root, skillsRoot });
+      const agent = createLoomicPiAgent({
+        env: { openAIApiKey: "test", agentModel: "gpt-4.1" } as ServerEnv,
+        model: faux.getModel(), streamFn: models.streamSimple.bind(models),
+        backendResult: { workspace, sandboxDir: root, skillsRoot },
+        discoverLocalSkills: true,
+      });
+      const events = [];
+      for await (const event of agent.stream(
+        { role: "user", content: "Paint a blue bird", timestamp: Date.now() },
+        {}, new AbortController().signal,
+      )) events.push(event);
+      expect(events.find((event) => event.type === "tool_execution_end" && event.toolName === "read_file"))
+        .toMatchObject({ result: { content: [{ type: "text", text: expect.stringContaining("Paint a blue bird.") }] } });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("routes task to a Pi video specialist while keeping direct generate_video available", async () => {
     const faux = fauxProvider();
     faux.setResponses([

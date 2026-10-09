@@ -94,6 +94,7 @@ export function ChatSidebar({
     messagesRef,
     setMessages,
     sessionsLoading,
+    creatingSessionRef,
     messagesLoading,
     streaming,
     setStreaming,
@@ -367,7 +368,7 @@ export function ChatSidebar({
       mentionsOverride?: MessageMention[],
     ) => {
       const currentSessionId = activeSessionIdRef.current;
-      if (streaming || !currentSessionId) return;
+      if (streaming || creatingSessionRef.current || !currentSessionId) return;
 
       // Merge explicitly-attached images with auto-sensed canvas selection images
       let currentAttachments = attachmentsOverride ?? readyAttachments;

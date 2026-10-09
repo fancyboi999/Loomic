@@ -20,6 +20,7 @@ import { createAgentTrace } from "../observability/langfuse.js";
 import { createAgentBackend, type AgentBackendResult } from "./backends/index.js";
 import type { AgentWorkspace } from "./backends/types.js";
 import { createContextCompactor } from "./context-compaction.js";
+import { discoverLocalSkills } from "./local-skills.js";
 import { createTaskTool } from "./sub-agents.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import type { AgentPersistence } from "./persistence/index.js";
@@ -58,6 +59,8 @@ export type LoomicAgentFactory = (options: {
   submitVideoJob?: SubmitVideoJobFn;
   streamFn?: StreamFn;
   workspaceSkills?: WorkspaceSkillEntry[];
+  managedSkillNames?: string[];
+  discoverLocalSkills?: boolean;
 }) => LoomicAgent;
 
 /** Pi owns the model loop, tool calls, and transcript. */
@@ -163,7 +166,9 @@ export function createLoomicPiAgent(options: Parameters<LoomicAgentFactory>[0]):
         ...(context.threadId ? { threadId: context.threadId } : {}),
         ...(context.userId ? { userId: context.userId } : {}),
         modelId: model.id,
-        input: typeof message.content === "string" ? message.content : message.content.filter((part) => part.type === "text").map((part) => part.text).join(""),
+        input: "content" in message
+          ? typeof message.content === "string" ? message.content : message.content.filter((part) => part.type === "text").map((part) => part.text).join("")
+          : "",
       });
       const tracedStreamFn: StreamFn = (requestModel, requestContext, requestOptions) => {
         trace.recordModelRequest(requestContext);
@@ -171,7 +176,10 @@ export function createLoomicPiAgent(options: Parameters<LoomicAgentFactory>[0]):
       };
       const events: AgentEvent[] = [];
       let wake: (() => void) | undefined;
-      const systemPrompt = buildSystemPrompt(options.brandKitId, options.workspaceSkills);
+      const localSkills = options.discoverLocalSkills && backendResult.skillsRoot
+        ? discoverLocalSkills(backendResult.skillsRoot, options.managedSkillNames)
+        : [];
+      const systemPrompt = buildSystemPrompt(options.brandKitId, options.workspaceSkills, localSkills);
       const mainTools = [...createFileTools(backend), createTodoTool(), ...tools];
       const agent = new Agent({
         initialState: {
@@ -298,19 +306,17 @@ function createTodoTool(): AgentTool {
   };
 }
 
-function buildSystemPrompt(brandKitId?: string | null, skills: WorkspaceSkillEntry[] = []): string {
+function buildSystemPrompt(brandKitId?: string | null, skills: WorkspaceSkillEntry[] = [], localSkills: ReturnType<typeof discoverLocalSkills> = []): string {
   let prompt = LOOMIC_SYSTEM_PROMPT;
   if (brandKitId) prompt += "\n\n当前项目已绑定品牌套件。在进行设计相关工作时，请先使用 get_brand_kit 工具查询品牌信息，确保设计符合品牌规范。";
-  if (skills.length > 0) {
-    prompt += `\n\n## Skills\n\nThe following skills are enabled in this workspace:\n${skills.map((skill) => {
-      const counts: Record<string, number> = {};
-      for (const file of skill.files) {
-        const dir = file.path.split("/")[0] ?? "other";
-        counts[dir] = (counts[dir] ?? 0) + 1;
-      }
-      const summary = Object.entries(counts).map(([dir, count]) => `${dir}/ (${count})`).join(", ");
-      return `- **${skill.name}**: ${skill.description}\n  → Read \`${skill.path}\` for full instructions${summary ? `\n  → Has: ${summary}` : ""}`;
-    }).join("\n")}`;
+  const activeSkills = [
+    ...skills.map((skill) => ({ name: skill.name, path: skill.path, content: skill.content })),
+    ...localSkills.map((skill) => ({ name: skill.name, path: skill.filePath, content: skill.content })),
+  ];
+  if (activeSkills.length > 0) {
+    // Pi Agent Core has no Skills middleware. Give it the enabled instructions
+    // directly so a model cannot skip them by omitting a read_file call.
+    prompt += `\n\n## Enabled Skills\nApply each Skill when its task matches. Relative references are resolved from its SKILL.md directory; use read_file for those files.\n${activeSkills.map((skill) => `\n### ${skill.name} (${skill.path})\n${skill.content}`).join("\n")}`;
   }
   return prompt;
 }

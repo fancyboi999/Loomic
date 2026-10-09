@@ -125,7 +125,8 @@ describe("Pi context compaction", () => {
       role: "user", timestamp: 9,
       content: [{ type: "text", text: "Use this reference" }, { type: "image", data: "image-bytes", mimeType: "image/png" }],
     });
-    expect(observed.at(-1)?.content).toEqual([
+    const latest = observed.at(-1);
+    expect(latest && "content" in latest ? latest.content : undefined).toEqual([
       { type: "text", text: "Use this reference" },
       { type: "image", data: "image-bytes", mimeType: "image/png" },
     ]);

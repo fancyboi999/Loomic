@@ -855,10 +855,15 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
       // Done before backend creation so we know whether to add the
       // /workspace-skills/ Store route.
       let workspaceSkills: WorkspaceSkillEntry[] = [];
+      let managedSkillNames: string[] = [];
+      let discoverLocalSkills = options.env.agentBackendMode === "filesystem";
       if (run.canvasId && run.accessToken && options.createUserClient) {
         try {
           const wsClient = options.createUserClient(run.accessToken) as UserSupabaseClient;
-          workspaceSkills = await loadWorkspaceSkills(wsClient, run.canvasId);
+          const catalog = await loadWorkspaceSkills(wsClient, run.canvasId);
+          workspaceSkills = catalog.enabled;
+          managedSkillNames = catalog.managedNames;
+          discoverLocalSkills = true;
           rlog.lap("workspace_skills_loaded", { count: workspaceSkills.length });
         } catch (err) {
           // Non-fatal: agent runs without workspace skills
@@ -996,6 +1001,8 @@ export function createAgentRunService(options: CreateAgentRuntimeOptions) {
             ...(submitImageJob ? { submitImageJob } : {}),
             ...(submitVideoJob ? { submitVideoJob } : {}),
             ...(workspaceSkills.length > 0 ? { workspaceSkills } : {}),
+            managedSkillNames,
+            discoverLocalSkills,
           });
           rlog.lap("agent_factory_done");
         } catch (error) {

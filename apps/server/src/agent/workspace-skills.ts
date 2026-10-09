@@ -26,6 +26,12 @@ export interface WorkspaceSkillEntry {
   files: SkillFileEntry[];
 }
 
+export interface WorkspaceSkillCatalog {
+  enabled: WorkspaceSkillEntry[];
+  /** Names controlled by the registry, including disabled or uninstalled system skills. */
+  managedNames: string[];
+}
+
 /**
  * Load enabled skills (both system and user-created) for a given canvas.
  *
@@ -36,10 +42,10 @@ export interface WorkspaceSkillEntry {
 export async function loadWorkspaceSkills(
   userClient: UserSupabaseClient,
   canvasId: string,
-): Promise<WorkspaceSkillEntry[]> {
+): Promise<WorkspaceSkillCatalog> {
   // Step 1: Resolve canvas → project → workspace
   const workspaceId = await resolveWorkspaceId(userClient, canvasId);
-  if (!workspaceId) return [];
+  if (!workspaceId) throw new Error(`Workspace not found for canvas ${canvasId}.`);
 
   // Step 2: Query enabled workspace skills with full skill data
   // NOTE: workspace_skills / skills tables may not yet be in the generated
@@ -47,15 +53,29 @@ export async function loadWorkspaceSkills(
   const { data: rows, error } = await (userClient as any)
     .from("workspace_skills")
     .select(
-      "skill:skills(id, slug, name, description, skill_content, metadata)",
+      "enabled, skill:skills(id, slug, name, description, skill_content, metadata)",
     )
-    .eq("workspace_id", workspaceId)
-    .eq("enabled", true);
+    .eq("workspace_id", workspaceId);
 
-  if (error || !rows?.length) return [];
+  if (error) throw error;
+
+  // Catalog-managed system skills must stay hidden from local discovery even
+  // after a workspace uninstalls one of them.
+  const { data: systemRows, error: systemError } = await (userClient as any)
+    .from("skills")
+    .select("slug")
+    .eq("source", "system");
+  if (systemError) throw systemError;
+
+  const managedNames = ((rows ?? []) as Array<{ skill: { slug?: string } | null }>)
+    .map((row) => row.skill?.slug)
+    .filter((name): name is string => typeof name === "string");
+  managedNames.push(...(systemRows ?? []).map((row: { slug: string }) => row.slug));
+  const enabledRows = ((rows ?? []) as Array<{ enabled: boolean; skill: Record<string, unknown> | null }>)
+    .filter((row) => row.enabled);
 
   // Step 3: Batch-load associated files for all enabled skills
-  const skillIds = (rows as any[])
+  const skillIds = enabledRows
     .map((r: any) => r.skill?.id)
     .filter((id: unknown): id is string => typeof id === "string");
 
@@ -76,7 +96,7 @@ export async function loadWorkspaceSkills(
   }
 
   // Step 4: Map to WorkspaceSkillEntry, filtering out skills without DB content
-  return (rows as Array<{ skill: Record<string, unknown> | null }>)
+  const enabled = enabledRows
     .map((row: { skill: Record<string, unknown> | null }) => {
       const skill = row.skill;
       if (!skill?.skill_content) {
@@ -97,6 +117,7 @@ export async function loadWorkspaceSkills(
       };
     })
     .filter((entry): entry is WorkspaceSkillEntry => entry !== null);
+  return { enabled, managedNames };
 }
 
 /**
