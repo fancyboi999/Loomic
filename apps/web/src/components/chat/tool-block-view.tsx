@@ -158,15 +158,16 @@ export const ToolBlockView = React.memo(function ToolBlockView({
   const previewLines = hasOutput
     ? formatOutputPreview(block.output!)
     : [];
+  const delegatedVideo = block.toolName === "task" && (block.input as Record<string, unknown> | undefined)?.subagent_type === "video_generate";
   const showCard =
-    config.showCard &&
+    (config.showCard || delegatedVideo) &&
     isCompleted &&
     (block.outputSummary || hasOutput);
 
   // Extract artifacts for generate_image / generate_video inline preview
   const imageArtifact = block.artifacts?.find((a: { type: string }) => a.type === "image");
   const isImageTool = block.toolName === "generate_image";
-  const isVideoTool = block.toolName === "generate_video";
+  const isVideoTool = block.toolName === "generate_video" || delegatedVideo;
   const isMediaTool = isImageTool || isVideoTool;
   const mediaError =
     isMediaTool && isCompleted && !imageArtifact

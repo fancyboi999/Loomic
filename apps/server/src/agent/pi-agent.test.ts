@@ -8,15 +8,49 @@ import type { AgentPersistence } from "./persistence/index.js";
 import { createLoomicPiAgent } from "./pi-agent.js";
 
 describe("Pi agent runtime", () => {
-  it("runs a tool, streams the response, and saves the transcript", async () => {
+  it("routes task to a Pi video specialist while keeping direct generate_video available", async () => {
     const faux = fauxProvider();
     faux.setResponses([
-      fauxAssistantMessage([fauxToolCall("ls", { path: "/workspace" })], { stopReason: "toolUse" }),
-      fauxAssistantMessage([fauxText("Found the project files.")]),
+      () => {
+        return fauxAssistantMessage([fauxToolCall("task", { subagent_type: "video_generate", description: "Make a blue bird video" })], { stopReason: "toolUse" });
+      },
+      () => {
+        return fauxAssistantMessage([fauxToolCall("generate_video", { title: "Blue bird", prompt: "A blue bird flying" })], { stopReason: "toolUse" });
+      },
+      fauxAssistantMessage("Video generation was attempted."),
+      fauxAssistantMessage("I attempted the video."),
     ]);
     const models = createModels();
     models.setProvider(faux.provider);
+    const agent = createLoomicPiAgent({
+      env: { openAIApiKey: "test", agentModel: "gpt-4.1" } as ServerEnv,
+      model: faux.getModel(),
+      streamFn: models.streamSimple.bind(models),
+      backendResult: { workspace: {}, sandboxDir: "/tmp/test-pi-agent" } as unknown as AgentBackendResult,
+    });
+    const events = [];
+    for await (const event of agent.stream(
+      { role: "user", content: "Make a blue bird video", timestamp: Date.now() },
+      {}, new AbortController().signal,
+    )) events.push(event);
+
+    expect(faux.state.callCount).toBe(4);
+    expect(events.some((event) => event.type === "tool_execution_end" && event.toolName === "task")).toBe(true);
+    expect(events.some((event) => event.type === "tool_execution_end" && event.toolName === "generate_video" && event.toolCallId.includes(":"))).toBe(true);
+  });
+
+  it("runs a tool, streams the response, and saves the transcript", async () => {
+    const faux = fauxProvider();
     const saveMessages = vi.fn().mockResolvedValue(undefined);
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("ls", { path: "/workspace" })], { stopReason: "toolUse" }),
+      () => {
+        expect(saveMessages).toHaveBeenCalledOnce();
+        return fauxAssistantMessage([fauxText("Found the project files.")]);
+      },
+    ]);
+    const models = createModels();
+    models.setProvider(faux.provider);
     const backend = {
       lsInfo: vi.fn().mockResolvedValue([{ path: "/workspace/readme.md", is_dir: false }]),
     };
@@ -42,9 +76,10 @@ describe("Pi agent runtime", () => {
     expect(backend.lsInfo).toHaveBeenCalledWith("/workspace");
     expect(events.some((event) => event.type === "tool_execution_end")).toBe(true);
     expect(events.some((event) => event.type === "message_update" && event.assistantMessageEvent.type === "text_delta")).toBe(true);
-    expect(saveMessages).toHaveBeenCalledOnce();
+    expect(saveMessages).toHaveBeenCalledTimes(2);
     expect(saveMessages.mock.calls[0]?.[0]).toBe("thread-1");
     expect(saveMessages.mock.calls[0]?.[1].map((message: { role: string }) => message.role)).toContain("toolResult");
+    expect(saveMessages.mock.calls[1]?.[1].at(-1)).toMatchObject({ role: "assistant" });
   });
 
   it("loads the saved transcript on the next turn", async () => {
@@ -106,6 +141,57 @@ describe("Pi agent runtime", () => {
       new AbortController().signal,
     )) { /* Consume the model stream. */ }
     expect(reasoningLevels).toEqual(["medium"]);
+  });
+
+  it("continues through the Pi model event path when context summarization fails", async () => {
+    const faux = fauxProvider();
+    faux.setResponses([
+      fauxAssistantMessage("", { stopReason: "error", errorMessage: "Summary unavailable" }),
+      fauxAssistantMessage("Current answer"),
+    ]);
+    const models = createModels();
+    models.setProvider(faux.provider);
+    const agent = createLoomicPiAgent({
+      env: { openAIApiKey: "test", agentModel: "gpt-4.1" } as ServerEnv,
+      model: { ...faux.getModel(), contextWindow: 4096 },
+      streamFn: models.streamSimple.bind(models),
+      backendResult: { workspace: {}, sandboxDir: "/tmp/test-pi-agent" } as unknown as AgentBackendResult,
+      persistence: {
+        fileStore: {} as AgentPersistence["fileStore"],
+        loadMessages: vi.fn().mockResolvedValue([{ role: "user", content: "old ".repeat(5000), timestamp: 1 }]),
+        saveMessages: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    const events = [];
+    for await (const event of agent.stream(
+      { role: "user", content: "New request", timestamp: Date.now() },
+      { threadId: "thread-1" }, new AbortController().signal,
+    )) events.push(event);
+    expect(faux.state.callCount).toBe(2);
+    expect(events.some((event) => event.type === "message_end" && event.message.role === "assistant" && event.message.content.some((part) => part.type === "text" && part.text === "Current answer"))).toBe(true);
+  });
+
+  it("fails the run when a turn cannot be checkpointed", async () => {
+    const faux = fauxProvider();
+    faux.setResponses([fauxAssistantMessage("Done")]);
+    const models = createModels();
+    models.setProvider(faux.provider);
+    const agent = createLoomicPiAgent({
+      env: { openAIApiKey: "test", agentModel: "gpt-4.1" } as ServerEnv,
+      model: faux.getModel(), streamFn: models.streamSimple.bind(models),
+      backendResult: { workspace: {}, sandboxDir: "/tmp/test-pi-agent" } as unknown as AgentBackendResult,
+      persistence: {
+        fileStore: {} as AgentPersistence["fileStore"],
+        loadMessages: vi.fn().mockResolvedValue([]),
+        saveMessages: vi.fn().mockRejectedValue(new Error("Database unavailable")),
+      },
+    });
+    await expect((async () => {
+      for await (const _event of agent.stream(
+        { role: "user", content: "Reply", timestamp: Date.now() },
+        { threadId: "thread-1" }, new AbortController().signal,
+      )) { /* Consume the run. */ }
+    })()).rejects.toThrow("Database unavailable");
   });
 
   it("does not start a model turn when the run was already canceled", async () => {

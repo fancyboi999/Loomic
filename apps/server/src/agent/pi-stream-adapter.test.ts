@@ -44,13 +44,28 @@ describe("Pi event adapter", () => {
   });
 
   it("keeps video artifact metadata and title fallback", async () => {
+    for (const toolName of ["generate_video", "task"]) {
+      const result = await collect([
+        { type: "tool_execution_end", toolCallId: "tool-video", toolName, result: { content: [{ type: "text", text: JSON.stringify({ videoUrl: "https://cdn.example/video.mp4", mimeType: "video/mp4", width: 1280, height: 720, durationSeconds: 4, prompt: "A blue bird" }) }] }, isError: false },
+      ] as unknown as AgentEvent[]);
+      expect(result[1]).toMatchObject({
+        type: "tool.completed", toolName,
+        artifacts: [{ type: "video", title: "A blue bird", durationSeconds: 4 }],
+      });
+    }
+  });
+
+  it("emits the delegated video artifact once, from the parent task", async () => {
+    const video = JSON.stringify({ summary: "Generated", videoUrl: "https://cdn.example/video.mp4" });
     const result = await collect([
-      { type: "tool_execution_end", toolCallId: "tool-video", toolName: "generate_video", result: { content: [{ type: "text", text: JSON.stringify({ videoUrl: "https://cdn.example/video.mp4", mimeType: "video/mp4", width: 1280, height: 720, durationSeconds: 4, prompt: "A blue bird" }) }] }, isError: false },
+      { type: "tool_execution_start", toolCallId: "parent", toolName: "task", args: { subagent_type: "video_generate", description: "Create video" } },
+      { type: "tool_execution_end", toolCallId: "parent:child", toolName: "generate_video", result: { content: [{ type: "text", text: video }] }, isError: false },
+      { type: "tool_execution_end", toolCallId: "parent", toolName: "task", result: { content: [{ type: "text", text: video }] }, isError: false },
     ] as unknown as AgentEvent[]);
-    expect(result[1]).toMatchObject({
-      type: "tool.completed",
-      artifacts: [{ type: "video", title: "A blue bird", durationSeconds: 4 }],
-    });
+    const completed = result.filter((event) => event.type === "tool.completed");
+    expect(completed).toHaveLength(2);
+    expect(completed[0]).not.toHaveProperty("artifacts");
+    expect(completed[1]).toMatchObject({ artifacts: [{ type: "video", url: "https://cdn.example/video.mp4" }] });
   });
 
   it("reports a model error as a failed run", async () => {

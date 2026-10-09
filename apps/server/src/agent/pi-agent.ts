@@ -20,6 +20,7 @@ import { createAgentTrace } from "../observability/langfuse.js";
 import { createAgentBackend, type AgentBackendResult } from "./backends/index.js";
 import type { AgentWorkspace } from "./backends/types.js";
 import { createContextCompactor } from "./context-compaction.js";
+import { createTaskTool } from "./sub-agents.js";
 import { LOOMIC_SYSTEM_PROMPT } from "./prompts/loomic-main.js";
 import type { AgentPersistence } from "./persistence/index.js";
 import { createMainAgentTools } from "./tools/index.js";
@@ -146,6 +147,15 @@ export function createLoomicPiAgent(options: Parameters<LoomicAgentFactory>[0]):
         }
         return response.content.filter((part) => part.type === "text").map((part) => part.text).join("");
       });
+      const safeCompactContext: typeof compactContext = async (messages, abortSignal) => {
+        try {
+          return await compactContext(messages, abortSignal);
+        } catch {
+          // Pi context transforms must return a transcript. The provider can then
+          // report a context-limit error through the normal model event path.
+          return messages;
+        }
+      };
       const trace = createAgentTrace(options.env, {
         runId: context.runId ?? randomUUID(),
         sessionId: context.sessionId ?? context.threadId ?? "unknown",
@@ -159,38 +169,51 @@ export function createLoomicPiAgent(options: Parameters<LoomicAgentFactory>[0]):
         trace.recordModelRequest(requestContext);
         return streamFn(requestModel, requestContext, requestOptions);
       };
+      const events: AgentEvent[] = [];
+      let wake: (() => void) | undefined;
+      const systemPrompt = buildSystemPrompt(options.brandKitId, options.workspaceSkills);
+      const mainTools = [...createFileTools(backend), createTodoTool(), ...tools];
       const agent = new Agent({
         initialState: {
-          systemPrompt: buildSystemPrompt(options.brandKitId, options.workspaceSkills),
+          systemPrompt,
           model,
           thinkingLevel: model.reasoning ? "medium" : "off",
           messages: previousMessages,
-          tools: [
-            ...createFileTools(backend),
-            createTodoTool(),
-            ...tools,
-          ],
+          tools: [...mainTools, createTaskTool({
+            model, streamFn: tracedStreamFn, tools: mainTools, systemPrompt, transformContext: safeCompactContext,
+            onEvent(parentToolCallId, event) {
+              if (event.type === "message_start" || event.type === "message_end") trace.record(event, true);
+              if (event.type === "tool_execution_start" || event.type === "tool_execution_end") {
+                const nested = { ...event, toolCallId: `${parentToolCallId}:${event.toolCallId}` };
+                trace.record(nested, true);
+                events.push(nested);
+                wake?.();
+              }
+            },
+          })],
         },
         streamFn: tracedStreamFn,
-        transformContext: compactContext,
+        transformContext: safeCompactContext,
         toolExecution: "sequential",
         ...(model.reasoning && (model.provider === "google" || model.provider === "google-vertex") && model.id.includes("2.5")
           ? { thinkingBudgets: { medium: -1 } }
           : {}),
       });
-      const events: AgentEvent[] = [];
-      let wake: (() => void) | undefined;
       let settled = false;
       let failure: unknown;
-      agent.subscribe((event) => {
+      agent.subscribe(async (event) => {
         trace.record(event);
         events.push(event);
         wake?.();
+        if (event.type === "turn_end" && context.threadId) {
+          await options.persistence?.saveMessages(context.threadId, agent.state.messages);
+        }
       });
       const onAbort = () => agent.abort();
       signal.addEventListener("abort", onAbort, { once: true });
       if (signal.aborted) {
         signal.removeEventListener("abort", onAbort);
+        await trace.finish("canceled");
         return;
       }
       const task = agent.prompt(message).catch((error) => {
@@ -210,9 +233,6 @@ export function createLoomicPiAgent(options: Parameters<LoomicAgentFactory>[0]):
         }
         await task;
         if (failure) throw failure;
-        if (context.threadId) {
-          await options.persistence?.saveMessages(context.threadId, agent.state.messages);
-        }
       } finally {
         signal.removeEventListener("abort", onAbort);
         if (!settled) {

@@ -16,6 +16,7 @@ export async function* adaptPiAgentStream(options: {
   let messageId = `message_${options.runId}_0`;
   let streamedText = false;
   let terminal: StreamEvent | undefined;
+  const activeVideoTasks = new Set<string>();
 
   yield {
     type: "run.started",
@@ -60,6 +61,7 @@ export async function* adaptPiAgentStream(options: {
         }
       }
       if (event.type === "tool_execution_start") {
+        if (event.toolName === "task" && event.args?.subagent_type === "video_generate") activeVideoTasks.add(event.toolCallId);
         const input = event.args && typeof event.args === "object" && !Array.isArray(event.args)
           ? event.args as Record<string, unknown>
           : undefined;
@@ -73,9 +75,10 @@ export async function* adaptPiAgentStream(options: {
         const result = event.result as { content?: Array<{ type: string; text?: string }> };
         const text = result.content?.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n") ?? "";
         const parsed = parseObject(text);
-        const artifacts = extractArtifacts(parsed);
+        const nestedVideo = event.toolName === "generate_video" && [...activeVideoTasks].some((id) => event.toolCallId.startsWith(`${id}:`));
+        const artifacts = nestedVideo ? undefined : extractArtifacts(parsed);
         const output = parsed ? { ...parsed } : undefined;
-        if (output && artifacts) {
+        if (output && (artifacts || nestedVideo)) {
           for (const key of ARTIFACT_KEYS) delete output[key];
         }
         const outputSummary = typeof parsed?.summary === "string" ? parsed.summary : text.slice(0, 200);
@@ -86,6 +89,7 @@ export async function* adaptPiAgentStream(options: {
           ...(outputSummary ? { outputSummary } : {}),
           ...(artifacts ? { artifacts } : {}),
         };
+        if (event.toolName === "task") activeVideoTasks.delete(event.toolCallId);
         if (event.toolName === "manipulate_canvas") {
           yield { type: "canvas.sync", runId: options.runId, timestamp: now() };
         }

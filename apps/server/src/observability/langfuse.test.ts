@@ -38,6 +38,27 @@ import { createAgentTrace, createJobTrace, getRunTraceparent } from "./langfuse.
 const env = { langfusePublicKey: "pk_test", langfuseSecretKey: "sk_test" } as ServerEnv;
 
 describe("Langfuse Agent tracing", () => {
+  it("keeps a recovered subagent error from marking the parent run failed", async () => {
+    state.spans.length = 0;
+    const trace = createAgentTrace(env, { runId: "nested-run", sessionId: "chat-1", modelId: "test", input: "Do work" });
+    trace.record({ type: "turn_start" });
+    trace.record({ type: "message_start", message: { role: "assistant" } } as AgentEvent);
+    trace.record({ type: "message_end", message: { role: "assistant", stopReason: "toolUse", content: [{ type: "toolCall", id: "task-1", name: "task", arguments: {} }] } } as AgentEvent);
+    trace.record({ type: "tool_execution_start", toolCallId: "task-1", toolName: "task", args: {} } as AgentEvent);
+    trace.record({ type: "message_start", message: { role: "assistant" } } as AgentEvent, true);
+    trace.record({ type: "message_end", message: { role: "assistant", stopReason: "error", errorMessage: "Subagent failed", content: [] } } as unknown as AgentEvent, true);
+    trace.record({ type: "tool_execution_end", toolCallId: "task-1", toolName: "task", result: { content: [] }, isError: true } as AgentEvent);
+    trace.record({ type: "turn_end", message: { role: "assistant" }, toolResults: [] } as unknown as AgentEvent);
+    trace.record({ type: "turn_start" });
+    trace.record({ type: "message_start", message: { role: "assistant" } } as AgentEvent);
+    trace.record({ type: "message_end", message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "Recovered" }] } } as AgentEvent);
+    trace.record({ type: "turn_end", message: { role: "assistant" }, toolResults: [] } as unknown as AgentEvent);
+    await trace.finish("completed");
+    expect(state.spans[0]?.updates[0].output).toEqual({ status: "completed", answer: "Recovered" });
+    expect(state.spans[0]?.otelAttributes.tags).toContain("status:completed");
+    expect(state.spans[1]?.updates[0].output).toMatchObject({ toolCalls: [{ name: "task" }] });
+  });
+
   it("groups model and tool observations by turn and records detailed usage", async () => {
     state.spans.length = 0;
     const trace = createAgentTrace(env, {

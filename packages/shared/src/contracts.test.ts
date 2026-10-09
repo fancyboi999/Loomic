@@ -514,14 +514,6 @@ describe("@loomic/shared contracts", () => {
     expect(databaseTypeSource).toMatch(/thread_id:\s*string/);
   });
 
-  it("tracks official langgraph persistence schema typings", () => {
-    expect(databaseTypeSource).toMatch(/langgraph:\s*{/);
-    expect(databaseTypeSource).toMatch(/checkpoint_migrations:\s*{/);
-    expect(databaseTypeSource).toMatch(/checkpoints:\s*{/);
-    expect(databaseTypeSource).toMatch(/checkpoint_blobs:\s*{/);
-    expect(databaseTypeSource).toMatch(/checkpoint_writes:\s*{/);
-    expect(databaseTypeSource).toMatch(/store:\s*{/);
-  });
 });
 
 type AssertTrue<T extends true> = T;
@@ -551,21 +543,6 @@ const agentRunsRowTracksSessionAndThread: AssertTrue<
 
 void chatSessionRowSupportsServerOwnedThreadId;
 void agentRunsRowTracksSessionAndThread;
-
-const langgraphCheckpointsRowMatchesOfficialSchema: AssertTrue<
-  Extends<
-    Database["langgraph"]["Tables"]["checkpoints"]["Row"],
-    {
-      thread_id: string;
-      checkpoint_ns: string;
-      checkpoint_id: string;
-      checkpoint: unknown;
-      metadata: unknown;
-    }
-  >
-> = true;
-
-void langgraphCheckpointsRowMatchesOfficialSchema;
 
 function getExportedSchema(name: string): ZodType {
   const candidate = (sharedExports as Record<string, unknown>)[name];

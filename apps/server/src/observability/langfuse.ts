@@ -53,7 +53,7 @@ function initialize(env: ServerEnv): LangfuseSpanProcessor | undefined {
 
 export function createAgentTrace(env: ServerEnv, context: TraceContext) {
   const exporter = initialize(env);
-  if (!exporter) return { recordModelRequest: (_context: Parameters<StreamFn>[1]) => {}, record: (_event: AgentEvent) => {}, finish: async (_status: TraceStatus) => {} };
+  if (!exporter) return { recordModelRequest: (_context: Parameters<StreamFn>[1]) => {}, record: (_event: AgentEvent, _subagent?: boolean) => {}, finish: async (_status: TraceStatus) => {} };
 
   let root: ReturnType<typeof startObservation> | undefined;
   let turn: ReturnType<typeof startObservation> | undefined;
@@ -103,7 +103,7 @@ export function createAgentTrace(env: ServerEnv, context: TraceContext) {
         }),
       })) };
     },
-    record(event: AgentEvent) {
+    record(event: AgentEvent, subagent = false) {
       if (!root || ended) return;
       try {
         if (event.type === "turn_start") {
@@ -119,7 +119,10 @@ export function createAgentTrace(env: ServerEnv, context: TraceContext) {
           lastToolResults = event.toolResults;
         } else if (event.type === "message_start" && event.message.role === "assistant") {
           generation?.end();
-          generation = (turn ?? root).startObservation("model", { model: context.modelId, input: modelInput }, { asType: "generation" });
+          generation = (turn ?? root).startObservation(subagent ? "subagent:model" : "model", {
+            model: context.modelId, input: modelInput,
+            ...(subagent ? { metadata: { subagent: true } } : {}),
+          }, { asType: "generation" });
           modelInput = undefined;
         } else if (event.type === "message_end" && event.message.role === "assistant") {
           const message = event.message;
@@ -128,10 +131,11 @@ export function createAgentTrace(env: ServerEnv, context: TraceContext) {
           const toolCalls = message.content.filter((part) => part.type === "toolCall").map((part) => ({
             name: part.name, arguments: safeValue(part.arguments),
           }));
-          turnOutput = toolCalls.length ? { text: answer, toolCalls } : answer;
+          const modelOutput = toolCalls.length ? { text: answer, toolCalls } : answer;
+          if (!subagent) turnOutput = modelOutput;
           generation?.update({
             model: message.model ?? context.modelId,
-            output: turnOutput,
+            output: modelOutput,
             metadata: { provider: message.provider, stopReason: message.stopReason },
             ...(usage ? {
               usageDetails: {
@@ -152,13 +156,13 @@ export function createAgentTrace(env: ServerEnv, context: TraceContext) {
           });
           generation?.end();
           generation = undefined;
-          if (message.stopReason === "stop") finalAnswer = answer;
-          if (message.stopReason === "error") modelFailed = true;
+          if (message.stopReason === "stop" && !subagent) finalAnswer = answer;
+          if (message.stopReason === "error" && !subagent) modelFailed = true;
         } else if (event.type === "tool_execution_start") {
           if (event.toolName === "generate_image" || event.toolName === "generate_video") tags.add(`tool:${event.toolName}`);
           tools.set(event.toolCallId, (turn ?? root).startObservation(event.toolName, {
             input: safeValue(event.args),
-            metadata: { toolCallId: event.toolCallId },
+            metadata: { toolCallId: event.toolCallId, ...(subagent ? { subagent: true } : {}) },
           }, { asType: "tool" }));
         } else if (event.type === "tool_execution_end") {
           const span = tools.get(event.toolCallId);
